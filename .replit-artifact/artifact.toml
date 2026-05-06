@@ -1,0 +1,40 @@
+kind = "web"
+previewPath = "/3eyadahub-api/"
+title = "3eyadahub API"
+version = "1.0.0"
+id = "artifacts/3eyadahub-api"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/3eyadahub-api/" ]
+localPort = 19241
+
+[services.development]
+run = "pnpm --filter @workspace/3eyadahub-api run dev"
+
+[services.production]
+
+[services.production.build]
+args = ["pnpm", "--filter", "@workspace/3eyadahub-api", "run", "build"]
+
+[services.production.build.env]
+NODE_ENV = "production"
+
+[services.production.run]
+args = ["node", "artifacts/3eyadahub-api/dist/main.js"]
+
+[services.production.run.env]
+PORT = "19241"
+NODE_ENV = "production"
+
+[services.production.health.startup]
+path = "/3eyadahub-api/healthz"
+
+[services.env]
+PORT = "19241"
+BASE_PATH = "/3eyadahub-api/"

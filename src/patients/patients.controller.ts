@@ -1,0 +1,69 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
+import { PatientsService } from './patients.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { CreatePatientDto } from './dto/create-patient.dto';
+
+@Controller('patients')
+@UseGuards(JwtAuthGuard, RolesGuard)
+export class PatientsController {
+  constructor(private readonly patientsService: PatientsService) {}
+
+  @Get('lookup')
+  lookup(
+    @Query('phone') phone: string,
+    @Query('clinic_id') clinicId: string,
+    @Request() req,
+  ) {
+    return this.patientsService.findByPhone(phone, clinicId, req.user.id, req.user.role);
+  }
+
+  @Get('clinic/:clinicId')
+  @Roles('clinic_admin')
+  findByClinic(@Param('clinicId') clinicId: string, @Request() req) {
+    return this.patientsService.findByClinic(clinicId, req.user.id);
+  }
+
+  @Get(':id')
+  findById(@Param('id') id: string, @Request() req) {
+    return this.patientsService.findByIdWithDocuments(id, req.user.id, req.user.role);
+  }
+
+  @Get(':id/intake-history')
+  getIntakeHistory(@Param('id') id: string, @Request() req) {
+    return this.patientsService.getIntakeHistory(id, req.user.id, req.user.role);
+  }
+
+  @Get('by-doctor/:doctorId')
+  @Roles('doctor')
+  getDoctorPatients(@Param('doctorId') doctorId: string, @Request() req) {
+    return this.patientsService.getDoctorPatients(doctorId, req.user.id);
+  }
+
+  @Post()
+  @Roles('clinic_admin')
+  create(@Body() dto: CreatePatientDto, @Request() req) {
+    return this.patientsService.create(dto, req.user.id);
+  }
+
+  @Put(':id')
+  @Roles('clinic_admin')
+  update(
+    @Param('id') id: string,
+    @Body() dto: Partial<CreatePatientDto>,
+    @Request() req,
+  ) {
+    return this.patientsService.update(id, dto, req.user.id);
+  }
+}
