@@ -13,6 +13,7 @@ import { PatientsService } from './patients.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { Public } from '../auth/public.decorator';
 import { CreatePatientDto } from './dto/create-patient.dto';
 
 @Controller('patients')
@@ -30,9 +31,9 @@ export class PatientsController {
   }
 
   @Get('clinic/:clinicId')
-  @Roles('clinic_admin')
-  findByClinic(@Param('clinicId') clinicId: string, @Request() req) {
-    return this.patientsService.findByClinic(clinicId, req.user.id);
+  @Public()
+  findByClinic(@Param('clinicId') clinicId: string) {
+    return this.patientsService.findByClinic(clinicId);
   }
 
   @Get(':id')
@@ -52,18 +53,14 @@ export class PatientsController {
   }
 
   @Post()
-  @Roles('clinic_admin')
-  create(@Body() dto: CreatePatientDto, @Request() req) {
-    return this.patientsService.create(dto, req.user.id);
+  @Public()
+  create(@Body() dto: CreatePatientDto) {
+    return this.patientsService.create(dto);
   }
 
   @Put(':id')
-  @Roles('clinic_admin')
-  update(
-    @Param('id') id: string,
-    @Body() dto: Partial<CreatePatientDto>,
-    @Request() req,
-  ) {
-    return this.patientsService.update(id, dto, req.user.id);
+  @Public()
+  update(@Param('id') id: string, @Body() dto: Partial<CreatePatientDto>) {
+    return this.patientsService.update(id, dto);
   }
 }

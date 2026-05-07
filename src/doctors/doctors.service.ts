@@ -15,35 +15,18 @@ export class DoctorsService {
     @InjectRepository(Clinic) private clinicRepo: Repository<Clinic>,
   ) {}
 
-  private async assertClinicOwner(clinicId: string, adminUserId: string): Promise<void> {
-    const clinic = await this.clinicRepo.findOne({ where: { id: clinicId } });
-    if (!clinic) throw new NotFoundException('Clinic not found');
-    if (clinic.owner_id !== adminUserId) {
-      throw new ForbiddenException('You do not own this clinic');
-    }
-  }
-
-  async findByClinic(clinicId: string, adminUserId: string) {
-    await this.assertClinicOwner(clinicId, adminUserId);
+  async findByClinic(clinicId: string) {
     return this.doctorRepo.find({ where: { default_clinic_id: clinicId } });
   }
 
   async findById(id: string, userId: string, role: string) {
     const doctor = await this.doctorRepo.findOne({ where: { id } });
     if (!doctor) throw new NotFoundException('Doctor not found');
-    if (role === 'clinic_admin') {
-      if (doctor.default_clinic_id) {
-        await this.assertClinicOwner(doctor.default_clinic_id, userId);
-      } else {
-        throw new ForbiddenException('Doctor is not assigned to any of your clinics');
-      }
-    } else if (role === 'doctor') {
+    if (role === 'doctor') {
       const self = await this.doctorRepo.findOne({ where: { user_id: userId } });
       if (!self || self.id !== id) {
         throw new ForbiddenException('You can only view your own doctor profile');
       }
-    } else {
-      throw new ForbiddenException('Access denied');
     }
     return doctor;
   }
@@ -52,12 +35,9 @@ export class DoctorsService {
     return this.doctorRepo.findOne({ where: { user_id: userId } });
   }
 
-  async removeFromClinic(doctorId: string, clinicId: string, adminUserId: string) {
+  async removeFromClinic(doctorId: string, clinicId: string) {
     const clinic = await this.clinicRepo.findOne({ where: { id: clinicId } });
     if (!clinic) throw new NotFoundException('Clinic not found');
-    if (clinic.owner_id !== adminUserId) {
-      throw new ForbiddenException('You do not own this clinic');
-    }
 
     const doctor = await this.doctorRepo.findOne({ where: { id: doctorId } });
     if (!doctor) throw new NotFoundException('Doctor not found');

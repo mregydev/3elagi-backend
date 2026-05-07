@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Clinic } from '../entities/clinic.entity';
@@ -26,12 +26,9 @@ export class ClinicsService {
     return clinic;
   }
 
-  async getDashboard(clinicId: string, adminUserId: string) {
+  async getDashboard(clinicId: string) {
     const clinic = await this.clinicRepo.findOne({ where: { id: clinicId } });
     if (!clinic) throw new NotFoundException('Clinic not found');
-    if (clinic.owner_id !== adminUserId) {
-      throw new ForbiddenException('You do not own this clinic');
-    }
     const today = new Date().toISOString().split('T')[0];
 
     const [appointmentsToday, doctorCount, pendingRequests] = await Promise.all([
@@ -47,16 +44,22 @@ export class ClinicsService {
     return { appointmentsToday, doctorCount, pendingRequests };
   }
 
-  async create(dto: CreateClinicDto, ownerId: string) {
-    const clinic = this.clinicRepo.create({ ...dto, owner_id: ownerId });
+  async create(dto: CreateClinicDto) {
+    const { owner_id, ...rest } = dto;
+    const clinic = this.clinicRepo.create({
+      ...rest,
+      owner_id: owner_id ?? null,
+    });
     return this.clinicRepo.save(clinic);
   }
 
-  async update(id: string, updates: Partial<CreateClinicDto>, adminUserId: string) {
+  async update(id: string, updates: Partial<CreateClinicDto>) {
     const clinic = await this.clinicRepo.findOne({ where: { id } });
     if (!clinic) throw new NotFoundException('Clinic not found');
-    if (clinic.owner_id !== adminUserId) throw new ForbiddenException('You do not own this clinic');
-    await this.clinicRepo.update(id, updates);
+    const { owner_id, ...rest } = updates;
+    const patch: Partial<Clinic> = { ...rest };
+    if (owner_id !== undefined) patch.owner_id = owner_id;
+    await this.clinicRepo.update(id, patch);
     return this.clinicRepo.findOne({ where: { id } });
   }
 }

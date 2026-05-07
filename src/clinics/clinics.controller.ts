@@ -1,17 +1,6 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Param,
-  Body,
-  UseGuards,
-  Request,
-} from '@nestjs/common';
+import { Controller, Get, Post, Put, Param, Body } from '@nestjs/common';
 import { ClinicsService } from './clinics.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { Public } from '../auth/public.decorator';
 import { CreateClinicDto } from './dto/create-clinic.dto';
 
 @Controller('clinics')
@@ -29,23 +18,20 @@ export class ClinicsController {
   }
 
   @Get(':id/dashboard')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('clinic_admin')
-  getDashboard(@Param('id') id: string, @Request() req) {
-    return this.clinicsService.getDashboard(id, req.user.id);
+  @Public()
+  getDashboard(@Param('id') id: string) {
+    return this.clinicsService.getDashboard(id);
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('clinic_admin')
-  create(@Body() dto: CreateClinicDto, @Request() req) {
-    return this.clinicsService.create(dto, req.user.id);
+  @Public()
+  create(@Body() dto: CreateClinicDto) {
+    return this.clinicsService.create(dto);
   }
 
   @Put(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('clinic_admin')
-  update(@Param('id') id: string, @Body() dto: Partial<CreateClinicDto>, @Request() req) {
-    return this.clinicsService.update(id, dto, req.user.id);
+  @Public()
+  update(@Param('id') id: string, @Body() dto: Partial<CreateClinicDto>) {
+    return this.clinicsService.update(id, dto);
   }
 }

@@ -27,24 +27,12 @@ export class PatientsService {
     @InjectRepository(IntakeTest) private intakeRepo: Repository<IntakeTest>,
   ) {}
 
-  private async assertClinicOwner(clinicId: string, userId: string): Promise<void> {
-    const clinic = await this.clinicRepo.findOne({ where: { id: clinicId } });
-    if (!clinic) throw new NotFoundException('Clinic not found');
-    if (clinic.owner_id !== userId) {
-      throw new ForbiddenException('You do not own this clinic');
-    }
-  }
-
   private async assertClinicAccess(clinicId: string, userId: string, role: string): Promise<void> {
-    if (role === 'clinic_admin') {
-      await this.assertClinicOwner(clinicId, userId);
-    } else if (role === 'doctor') {
+    if (role === 'doctor') {
       const doctor = await this.doctorRepo.findOne({ where: { user_id: userId } });
       if (!doctor || doctor.default_clinic_id !== clinicId) {
         throw new ForbiddenException('You do not have access to this clinic');
       }
-    } else {
-      throw new ForbiddenException('Access denied');
     }
   }
 
@@ -71,21 +59,20 @@ export class PatientsService {
     return { ...patient, documents };
   }
 
-  async create(dto: CreatePatientDto, adminUserId: string) {
-    await this.assertClinicOwner(dto.clinic_id, adminUserId);
+  async create(dto: CreatePatientDto) {
+    const clinic = await this.clinicRepo.findOne({ where: { id: dto.clinic_id } });
+    if (!clinic) throw new NotFoundException('Clinic not found');
     const patient = this.patientRepo.create(dto);
     return this.patientRepo.save(patient);
   }
 
-  async update(id: string, updates: UpdatePatientDto, adminUserId: string) {
-    const patient = await this.findById(id);
-    await this.assertClinicOwner(patient.clinic_id, adminUserId);
+  async update(id: string, updates: UpdatePatientDto) {
+    await this.findById(id);
     await this.patientRepo.update(id, updates);
     return this.findById(id);
   }
 
-  async findByClinic(clinicId: string, adminUserId: string) {
-    await this.assertClinicOwner(clinicId, adminUserId);
+  async findByClinic(clinicId: string) {
     return this.patientRepo.find({ where: { clinic_id: clinicId } });
   }
 

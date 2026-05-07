@@ -26,25 +26,7 @@ export class AppointmentsService {
     @InjectRepository(IntakeTest) private intakeRepo: Repository<IntakeTest>,
   ) {}
 
-  private async assertClinicOwner(clinicId: string, userId: string): Promise<void> {
-    const clinic = await this.clinicRepo.findOne({ where: { id: clinicId } });
-    if (!clinic) throw new NotFoundException('Clinic not found');
-    if (clinic.owner_id !== userId) {
-      throw new ForbiddenException('You do not own this clinic');
-    }
-  }
-
-  private async assertDoctorSelf(doctorId: string, userId: string): Promise<void> {
-    const doctor = await this.doctorRepo.findOne({ where: { id: doctorId } });
-    if (!doctor) throw new NotFoundException('Doctor not found');
-    if (doctor.user_id !== userId) {
-      throw new ForbiddenException('You can only access your own queue');
-    }
-  }
-
-  async findByClinicAndDate(clinicId: string, date: string, adminUserId: string) {
-    await this.assertClinicOwner(clinicId, adminUserId);
-
+  async findByClinicAndDate(clinicId: string, date: string) {
     const appointments = await this.appointmentRepo.find({
       where: { clinic_id: clinicId, date },
       order: { queue_position: 'ASC', created_at: 'ASC' },
@@ -64,9 +46,7 @@ export class AppointmentsService {
     return Object.values(grouped);
   }
 
-  async getQueueForDoctor(doctorId: string, date: string, userId: string) {
-    await this.assertDoctorSelf(doctorId, userId);
-
+  async getQueueForDoctor(doctorId: string, date: string) {
     const appointments = await this.appointmentRepo.find({
       where: { doctor_id: doctorId, date },
       order: { queue_position: 'ASC', created_at: 'ASC' },
@@ -145,8 +125,9 @@ export class AppointmentsService {
     return perDoctor;
   }
 
-  async create(dto: CreateAppointmentDto, adminUserId: string) {
-    await this.assertClinicOwner(dto.clinic_id, adminUserId);
+  async create(dto: CreateAppointmentDto) {
+    const clinic = await this.clinicRepo.findOne({ where: { id: dto.clinic_id } });
+    if (!clinic) throw new NotFoundException('Clinic not found');
 
     if (dto.doctor_id) {
       const doctor = await this.doctorRepo.findOne({ where: { id: dto.doctor_id } });
@@ -194,17 +175,14 @@ export class AppointmentsService {
     return this.appointmentRepo.save(appointment);
   }
 
-  async updateStatus(id: string, status: AppointmentStatus, adminUserId: string) {
+  async updateStatus(id: string, status: AppointmentStatus) {
     const appt = await this.appointmentRepo.findOne({ where: { id } });
     if (!appt) throw new NotFoundException('Appointment not found');
-    await this.assertClinicOwner(appt.clinic_id, adminUserId);
     appt.status = status;
     return this.appointmentRepo.save(appt);
   }
 
-  async callNextPatient(doctorId: string, userId: string) {
-    await this.assertDoctorSelf(doctorId, userId);
-
+  async callNextPatient(doctorId: string) {
     const today = new Date().toISOString().split('T')[0];
 
     const active = await this.appointmentRepo.findOne({
@@ -253,16 +231,14 @@ export class AppointmentsService {
     return { message: 'No more patients in queue', notify: { now_serving: null, next_up: null } };
   }
 
-  async remove(id: string, adminUserId: string) {
+  async remove(id: string) {
     const appt = await this.appointmentRepo.findOne({ where: { id } });
     if (!appt) throw new NotFoundException('Appointment not found');
-    await this.assertClinicOwner(appt.clinic_id, adminUserId);
     await this.appointmentRepo.delete(id);
     return { message: 'Appointment deleted' };
   }
 
-  async listForDoctor(doctorId: string, userId: string) {
-    await this.assertDoctorSelf(doctorId, userId);
+  async listForDoctor(doctorId: string) {
     const appts = await this.appointmentRepo.find({
       where: { doctor_id: doctorId },
       order: { date: 'DESC', time: 'DESC', created_at: 'DESC' },
@@ -271,17 +247,9 @@ export class AppointmentsService {
     return appts;
   }
 
-  async findById(id: string, userId: string, role: string) {
+  async findById(id: string) {
     const appt = await this.appointmentRepo.findOne({ where: { id } });
     if (!appt) throw new NotFoundException('Appointment not found');
-    if (role === 'clinic_admin') {
-      await this.assertClinicOwner(appt.clinic_id, userId);
-    } else if (role === 'doctor') {
-      if (!appt.doctor_id) throw new ForbiddenException('This appointment is not assigned to a doctor');
-      await this.assertDoctorSelf(appt.doctor_id, userId);
-    } else {
-      throw new ForbiddenException('Access denied');
-    }
     let intake_test: IntakeTest | null = null;
     if (appt.intake_test_id) {
       intake_test = await this.intakeRepo.findOne({

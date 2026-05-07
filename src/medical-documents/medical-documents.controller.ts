@@ -22,7 +22,7 @@ export class MedicalDocumentsController {
   constructor(private readonly service: MedicalDocumentsService) {}
 
   @Get('patient/:patientId')
-  @Roles('clinic_admin', 'doctor')
+  @Roles('doctor')
   findByPatient(
     @Param('patientId') patientId: string,
     @Query('type') type: DocumentType,

@@ -12,6 +12,7 @@ import { DoctorsService } from './doctors.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { Public } from '../auth/public.decorator';
 
 @Controller('doctors')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -19,9 +20,9 @@ export class DoctorsController {
   constructor(private readonly doctorsService: DoctorsService) {}
 
   @Get('clinic/:clinicId')
-  @Roles('clinic_admin')
-  findByClinic(@Param('clinicId') clinicId: string, @Request() req) {
-    return this.doctorsService.findByClinic(clinicId, req.user.id);
+  @Public()
+  findByClinic(@Param('clinicId') clinicId: string) {
+    return this.doctorsService.findByClinic(clinicId);
   }
 
   @Get('me')
@@ -62,12 +63,11 @@ export class DoctorsController {
   }
 
   @Delete('clinic/:clinicId/:doctorId')
-  @Roles('clinic_admin')
+  @Public()
   removeFromClinic(
     @Param('clinicId') clinicId: string,
     @Param('doctorId') doctorId: string,
-    @Request() req,
   ) {
-    return this.doctorsService.removeFromClinic(doctorId, clinicId, req.user.id);
+    return this.doctorsService.removeFromClinic(doctorId, clinicId);
   }
 }

@@ -86,20 +86,13 @@ export class PrescriptionsService {
     if (!patient) throw new NotFoundException('Patient not found');
 
     if (role === 'doctor') {
-      // doctor can read patient prescriptions if patient belongs to doctor's clinic
       const doctor = await this.getDoctor(userId);
       if (doctor.default_clinic_id !== patient.clinic_id) {
-        // also allow if any prescription written by this doctor exists
         const own = await this.repo.find({
           where: { patient_id: patientId, doctor_id: doctor.id },
           order: { created_at: 'DESC' },
         });
         return own;
-      }
-    } else if (role === 'clinic_admin') {
-      const clinic = await this.clinicRepo.findOne({ where: { id: patient.clinic_id } });
-      if (!clinic || clinic.owner_id !== userId) {
-        throw new ForbiddenException('Not your clinic');
       }
     }
 

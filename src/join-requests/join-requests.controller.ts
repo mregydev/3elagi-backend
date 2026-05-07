@@ -14,6 +14,7 @@ import { JoinRequestsService } from './join-requests.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { Public } from '../auth/public.decorator';
 import { JoinRequestStatus } from '../entities/clinic-join-request.entity';
 
 @Controller('join-requests')
@@ -35,13 +36,12 @@ export class JoinRequestsController {
   }
 
   @Get('clinic/:clinicId')
-  @Roles('clinic_admin')
+  @Public()
   findByClinic(
     @Param('clinicId') clinicId: string,
     @Query('status') status: string,
-    @Request() req,
   ) {
-    return this.service.findByClinicForAdmin(clinicId, req.user.id, status as JoinRequestStatus);
+    return this.service.findByClinic(clinicId, status as JoinRequestStatus);
   }
 
   @Get('doctor/my')
@@ -51,20 +51,20 @@ export class JoinRequestsController {
   }
 
   @Get('doctor/:doctorId')
-  @Roles('clinic_admin')
-  findByDoctor(@Param('doctorId') doctorId: string, @Request() req) {
-    return this.service.findByDoctor(doctorId, req.user.id);
+  @Public()
+  findByDoctor(@Param('doctorId') doctorId: string) {
+    return this.service.findByDoctor(doctorId);
   }
 
   @Patch(':id/approve')
-  @Roles('clinic_admin')
-  approve(@Param('id') id: string, @Request() req) {
-    return this.service.approve(id, req.user.id);
+  @Public()
+  approve(@Param('id') id: string) {
+    return this.service.approve(id);
   }
 
   @Patch(':id/reject')
-  @Roles('clinic_admin')
-  reject(@Param('id') id: string, @Request() req) {
-    return this.service.reject(id, req.user.id);
+  @Public()
+  reject(@Param('id') id: string) {
+    return this.service.reject(id);
   }
 }
