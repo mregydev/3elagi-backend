@@ -36,6 +36,12 @@ export class PatientsController {
     return this.patientsService.findByClinic(clinicId);
   }
 
+  @Get()
+  @Roles('doctor', 'admin')
+  findAll() {
+    return this.patientsService.findAll();
+  }
+
   @Get(':id')
   findById(@Param('id') id: string, @Request() req) {
     return this.patientsService.findByIdWithDocuments(id, req.user.id, req.user.role);

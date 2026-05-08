@@ -9,6 +9,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1044.0",
     "@fontsource/noto-sans-arabic": "^5.2.10",
     "@google-cloud/storage": "^7.16.0",
     "@nestjs/common": "^10.4.17",
@@ -19,6 +20,7 @@
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.4.17",
     "@nestjs/typeorm": "^10.0.2",
+    "@supabase/supabase-js": "^2.105.3",
     "bcryptjs": "^2.4.3",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
