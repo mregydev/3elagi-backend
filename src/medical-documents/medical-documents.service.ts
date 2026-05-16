@@ -8,6 +8,8 @@ import { Repository } from 'typeorm';
 import { MedicalDocument, DocumentType } from '../entities/medical-document.entity';
 import { Patient } from '../entities/patient.entity';
 import { Doctor } from '../entities/doctor.entity';
+import { Diagnosis } from '../entities/diagnosis.entity';
+import { Symptom } from '../entities/symptom.entity';
 import { CreateDocumentDto } from './dto/create-document.dto';
 
 @Injectable()
@@ -19,6 +21,10 @@ export class MedicalDocumentsService {
     private patientRepo: Repository<Patient>,
     @InjectRepository(Doctor)
     private doctorRepo: Repository<Doctor>,
+    @InjectRepository(Diagnosis)
+    private diagnosisRepo: Repository<Diagnosis>,
+    @InjectRepository(Symptom)
+    private symptomRepo: Repository<Symptom>,
   ) {}
 
   private async assertDoctorUser(userId: string, userRole: string): Promise<void> {
@@ -43,10 +49,42 @@ export class MedicalDocumentsService {
     return this.docRepo.find({ where, order: { created_at: 'DESC' } });
   }
 
+  private async validateDiagnosisAndSymptomLinks(
+    patientId: string,
+    diagnosisId?: string,
+    symptomId?: string,
+  ): Promise<void> {
+    if (diagnosisId) {
+      const diagnosis = await this.diagnosisRepo.findOne({ where: { id: diagnosisId } });
+      if (!diagnosis) throw new NotFoundException('Diagnosis not found');
+      if (diagnosis.patient_id !== patientId) {
+        throw new ForbiddenException('Diagnosis does not belong to this patient');
+      }
+    }
+    if (symptomId) {
+      const symptom = await this.symptomRepo.findOne({
+        where: { id: symptomId },
+        relations: ['diagnosis'],
+      });
+      if (!symptom) throw new NotFoundException('Symptom not found');
+      if (symptom.diagnosis.patient_id !== patientId) {
+        throw new ForbiddenException('Symptom does not belong to this patient');
+      }
+      if (diagnosisId && symptom.diagnosis_id !== diagnosisId) {
+        throw new ForbiddenException('Symptom does not belong to this diagnosis');
+      }
+    }
+  }
+
   async create(dto: CreateDocumentDto, userId: string, userRole: string) {
     await this.assertDoctorUser(userId, userRole);
     const patient = await this.patientRepo.findOne({ where: { id: dto.patient_id } });
     if (!patient) throw new NotFoundException('Patient not found');
+    await this.validateDiagnosisAndSymptomLinks(
+      dto.patient_id,
+      dto.diagnosis_id,
+      dto.symptom_id,
+    );
     const doc = this.docRepo.create(dto);
     return this.docRepo.save(doc);
   }

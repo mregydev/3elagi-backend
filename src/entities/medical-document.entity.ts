@@ -8,6 +8,8 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Patient } from './patient.entity';
+import { Diagnosis } from './diagnosis.entity';
+import { Symptom } from './symptom.entity';
 
 export enum DocumentType {
   XRAY = 'xray',
@@ -40,6 +42,20 @@ export class MedicalDocument {
 
   @Column({ nullable: true })
   file_name: string;
+
+  @Column({ nullable: true })
+  diagnosis_id: string | null;
+
+  @ManyToOne(() => Diagnosis, { eager: false, nullable: true })
+  @JoinColumn({ name: 'diagnosis_id' })
+  diagnosis: Diagnosis | null;
+
+  @Column({ nullable: true })
+  symptom_id: string | null;
+
+  @ManyToOne(() => Symptom, { eager: false, nullable: true })
+  @JoinColumn({ name: 'symptom_id' })
+  symptom: Symptom | null;
 
   @CreateDateColumn()
   created_at: Date;

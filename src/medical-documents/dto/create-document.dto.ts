@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsUUID } from 'class-validator';
 import { DocumentType } from '../../entities/medical-document.entity';
 
 export class CreateDocumentDto {
@@ -19,4 +19,12 @@ export class CreateDocumentDto {
   @IsString()
   @IsOptional()
   file_name?: string;
+
+  @IsUUID()
+  @IsOptional()
+  diagnosis_id?: string;
+
+  @IsUUID()
+  @IsOptional()
+  symptom_id?: string;
 }

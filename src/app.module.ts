@@ -8,6 +8,8 @@ import { ClinicJoinRequest } from './entities/clinic-join-request.entity';
 import { Patient } from './entities/patient.entity';
 import { Appointment } from './entities/appointment.entity';
 import { MedicalDocument } from './entities/medical-document.entity';
+import { Diagnosis } from './entities/diagnosis.entity';
+import { Symptom } from './entities/symptom.entity';
 import { Prescription } from './entities/prescription.entity';
 import { PrescriptionTemplate } from './entities/prescription-template.entity';
 import { IntakeTest } from './entities/intake-test.entity';
@@ -30,6 +32,7 @@ import { DoctorTags1777900000000 } from './migrations/1777900000000-DoctorTags';
 import { PatientOnboardingIntake1777910000000 } from './migrations/1777910000000-PatientOnboardingIntake';
 import { AppointmentHideName1777920000000 } from './migrations/1777920000000-AppointmentHideName';
 import { AppointmentApproval1777930000000 } from './migrations/1777930000000-AppointmentApproval';
+import { DiagnosisAndSymptoms1777940000000 } from './migrations/1777940000000-DiagnosisAndSymptoms';
 import { DoctorReview } from './entities/review.entity';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
@@ -47,6 +50,8 @@ import { PatientPortalModule } from './patient-portal/patient-portal.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { HealthModule } from './health/health.module';
+import { DiagnosisModule } from './diagnosis/diagnosis.module';
+import { SymptomsModule } from './symptoms/symptoms.module';
 
 @Module({
   imports: [
@@ -64,6 +69,8 @@ import { HealthModule } from './health/health.module';
           Patient,
           Appointment,
           MedicalDocument,
+          Diagnosis,
+          Symptom,
           Prescription,
           PrescriptionTemplate,
           IntakeTest,
@@ -90,6 +97,7 @@ import { HealthModule } from './health/health.module';
           PatientOnboardingIntake1777910000000,
           AppointmentHideName1777920000000,
           AppointmentApproval1777930000000,
+          DiagnosisAndSymptoms1777940000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
@@ -107,6 +115,8 @@ import { HealthModule } from './health/health.module';
     PatientsModule,
     AppointmentsModule,
     MedicalDocumentsModule,
+    DiagnosisModule,
+    SymptomsModule,
     PrescriptionsModule,
     PrescriptionTemplatesModule,
     IntakeTestsModule,

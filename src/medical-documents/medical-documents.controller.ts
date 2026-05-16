@@ -17,7 +17,7 @@ import { CreateDocumentDto } from './dto/create-document.dto';
 import { DocumentType } from '../entities/medical-document.entity';
 
 @Controller('medical-documents')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard)
 export class MedicalDocumentsController {
   constructor(private readonly service: MedicalDocumentsService) {}
 
