@@ -19,6 +19,16 @@ import * as fs from 'fs';
 
 const REPLIT_SIDECAR_ENDPOINT = 'http://127.0.0.1:1106';
 
+export const ALLOWED_UPLOAD_MIMES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'application/pdf',
+] as const;
+
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
 function createReplitStorage(): Storage {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const credentials: any = {
@@ -100,7 +110,66 @@ export class UploadsService {
     }
   }
 
-  
+  parseBase64ToMulterFile(
+    file: string,
+    filename: string,
+    mimetype?: string,
+  ): Express.Multer.File {
+    const trimmed = file.trim();
+    let mime = mimetype?.trim() || 'application/octet-stream';
+    let payload = trimmed;
+
+    const dataUrlMatch = /^data:([^;]+);base64,(.+)$/is.exec(trimmed);
+    if (dataUrlMatch) {
+      mime = dataUrlMatch[1].trim();
+      payload = dataUrlMatch[2].replace(/\s/g, '');
+    } else {
+      payload = trimmed.replace(/\s/g, '');
+    }
+
+    if (!ALLOWED_UPLOAD_MIMES.includes(mime as (typeof ALLOWED_UPLOAD_MIMES)[number])) {
+      throw new BadRequestException(
+        'Only JPEG, PNG, WebP, GIF images and PDF files are allowed',
+      );
+    }
+
+    let buffer: Buffer;
+    try {
+      buffer = Buffer.from(payload, 'base64');
+    } catch {
+      throw new BadRequestException('Invalid base64 file data');
+    }
+
+    if (!buffer.length) {
+      throw new BadRequestException('Empty file data');
+    }
+    if (buffer.length > MAX_UPLOAD_BYTES) {
+      throw new BadRequestException('File exceeds 10 MB limit');
+    }
+
+    return {
+      fieldname: 'file',
+      originalname: filename,
+      encoding: '7bit',
+      mimetype: mime,
+      size: buffer.length,
+      buffer,
+      destination: '',
+      filename: '',
+      path: '',
+      stream: null as unknown as Express.Multer.File['stream'],
+    };
+  }
+
+  async uploadFileFromBase64(
+    file: string,
+    filename: string,
+    mimetype?: string,
+  ): Promise<UploadFileResult> {
+    const multerFile = this.parseBase64ToMulterFile(file, filename, mimetype);
+    return this.uploadFile(multerFile);
+  }
+
   async uploadFile(file: Express.Multer.File): Promise<UploadFileResult> {
     if (this.supabase && this.supabaseBucket) {
       return this.uploadToSupabaseStorage(file);

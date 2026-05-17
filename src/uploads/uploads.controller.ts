@@ -9,10 +9,12 @@ import {
   Get,
   Param,
   Res,
+  Body,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { UploadsService } from './uploads.service';
+import { UploadsService, ALLOWED_UPLOAD_MIMES } from './uploads.service';
+import { UploadFileBase64Dto } from './dto/upload-file-base64.dto';
 import { Response } from 'express';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -27,11 +29,7 @@ export class UploadsController {
     FileInterceptor('file', {
       limits: { fileSize: 10 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
-        const allowedMimes = [
-          'image/jpeg', 'image/png', 'image/webp', 'image/gif',
-          'application/pdf',
-        ];
-        if (allowedMimes.includes(file.mimetype)) {
+        if (ALLOWED_UPLOAD_MIMES.includes(file.mimetype as (typeof ALLOWED_UPLOAD_MIMES)[number])) {
           cb(null, true);
         } else {
           cb(new HttpException(
@@ -47,6 +45,16 @@ export class UploadsController {
       throw new HttpException('No file provided', HttpStatus.BAD_REQUEST);
     }
     return this.uploadsService.uploadFile(file);
+  }
+
+  @Post('file64')
+  @UseGuards(JwtAuthGuard)
+  async uploadFileBase64(@Body() dto: UploadFileBase64Dto) {
+    return this.uploadsService.uploadFileFromBase64(
+      dto.file,
+      dto.filename,
+      dto.mimetype,
+    );
   }
 
   @Get('request-url')
