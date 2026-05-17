@@ -14,6 +14,7 @@ import { IntakeTest } from '../entities/intake-test.entity';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { PatientProfile } from '../entities/patient-profile.entity';
+import { User, UserRole } from '../entities/user.entity';
 import { In } from 'typeorm';
 
 @Injectable()
@@ -27,6 +28,8 @@ export class PatientsService {
     @InjectRepository(IntakeTest) private intakeRepo: Repository<IntakeTest>,
     @InjectRepository(PatientProfile)
     private patientProfileRepo: Repository<PatientProfile>,
+    @InjectRepository(User)
+    private userRepo: Repository<User>,
   ) {}
 
   private async assertClinicAccess(clinicId: string, userId: string, role: string): Promise<void> {
@@ -48,16 +51,44 @@ export class PatientsService {
     return this.patientRepo.findOne({ where: { phone, clinic_id: clinicId } });
   }
 
+  /** `id` is users.id (registered patient user). */
   async findById(id: string) {
-    const patient = await this.patientRepo.findOne({ where: { id } });
-    if (!patient) throw new NotFoundException('Patient not found');
-    return patient;
+    const user = await this.userRepo.findOne({ where: { id } });
+    if (!user || user.role !== UserRole.PATIENT) {
+      throw new NotFoundException('Patient not found');
+    }
+    const profile = await this.patientProfileRepo.findOne({ where: { user_id: id } });
+    if (!profile) throw new NotFoundException('Patient profile not found');
+
+    const { password_hash: _, ...safeUser } = user;
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      name: profile.name,
+      phone: profile.phone,
+      birth_date: profile.birth_date,
+      photo_url: profile.photo_url ?? user.photo_url,
+      gender: profile.gender,
+      chronic_conditions: profile.chronic_conditions,
+      allergies: profile.allergies,
+      medical_notes: profile.medical_notes,
+      onboarded_at: profile.onboarded_at,
+      intake_test_id: profile.intake_test_id,
+      intake_answers: profile.intake_answers,
+      created_at: profile.created_at,
+      updated_at: profile.updated_at,
+      user: safeUser,
+      profile,
+    };
   }
 
   async findByIdWithDocuments(id: string, userId: string, role: string) {
     const patient = await this.findById(id);
-  //  await this.assertClinicAccess(patient.clinic_id, userId, role);
-    const documents = await this.docRepo.find({ where: { patient_id: id } });
+    const documents = await this.docRepo.find({
+      where: { patient_id: id },
+      order: { created_at: 'DESC' },
+    });
     return { ...patient, documents };
   }
 
