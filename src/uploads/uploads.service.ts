@@ -172,15 +172,25 @@ export class UploadsService {
 
   async uploadFile(file: Express.Multer.File): Promise<UploadFileResult> {
     if (this.supabase && this.supabaseBucket) {
+      this.logger.log('uploading to supabase storage');
       return this.uploadToSupabaseStorage(file);
     }
     if (this.s3 && this.s3Bucket) {
+      file.filename="lolo.jpg"
+      this.logger.log('uploading to s3 storage');
+      if(!file) {
+        this.logger.error('file is null');
+       
+      }
+      this.logger.log(JSON.stringify(file));
       return this.uploadToSupabaseS3(file);
     }
 
     if (this.storage && this.bucketId) {
+      this.logger.log('uploading to gcs storage');
       return this.uploadToGCS(file);
     }
+    this.logger.log('uploading to local');
     return this.uploadToLocal(file);
   }
 
