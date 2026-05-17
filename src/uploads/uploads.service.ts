@@ -182,7 +182,7 @@ export class UploadsService {
         this.logger.error('file is null');
        
       }
-      this.logger.log(JSON.stringify(file));
+     // this.logger.log(JSON.stringify(file));
       return this.uploadToSupabaseS3(file);
     }
 

@@ -84,6 +84,7 @@ export class MedicalDocumentsService {
   }
 
   async create(dto: CreateDocumentDto, userId: string, userRole: string) {
+    try {
     this.logger.log('user id is ' + dto.patient_id);
     const user = await this.userRepo.findOne({ where: { id: dto.patient_id } });
     if (!user) throw new NotFoundException('User not found');
@@ -95,8 +96,12 @@ export class MedicalDocumentsService {
       dto.diagnosis_id,
       dto.symptom_id,
     );*/
-    const doc = this.docRepo.create(dto);
-    return this.docRepo.save(doc);
+      const doc = this.docRepo.create(dto);
+      return this.docRepo.save(doc);
+    } catch (error) {
+      this.logger.error('Error creating medical document: ' + JSON.stringify(error));
+      throw error;
+    }
   }
 
   async delete(id: string, userId: string, userRole: string) {
