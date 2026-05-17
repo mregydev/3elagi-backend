@@ -22,7 +22,6 @@ export class MedicalDocumentsController {
   constructor(private readonly service: MedicalDocumentsService) {}
 
   @Get('patient/:patientId')
-  @Roles('doctor')
   findByPatient(
     @Param('patientId') patientId: string,
     @Query('type') type: DocumentType,
@@ -32,13 +31,11 @@ export class MedicalDocumentsController {
   }
 
   @Post()
-  @Roles('doctor')
   create(@Body() dto: CreateDocumentDto, @Request() req) {
     return this.service.create(dto, req.user.id, req.user.role);
   }
 
   @Delete(':id')
-  @Roles('doctor')
   delete(@Param('id') id: string, @Request() req) {
     return this.service.delete(id, req.user.id, req.user.role);
   }
