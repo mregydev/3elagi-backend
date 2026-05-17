@@ -41,7 +41,7 @@ export class MedicalDocumentsService {
     userId: string,
     userRole: string,
   ) {
-    await this.assertDoctorUser(userId, userRole);
+    //await this.assertDoctorUser(userId, userRole);
     const patient = await this.patientRepo.findOne({ where: { id: patientId } });
     if (!patient) throw new NotFoundException('Patient not found');
     const where: Partial<MedicalDocument> & { type?: DocumentType } = { patient_id: patientId };
@@ -77,7 +77,7 @@ export class MedicalDocumentsService {
   }
 
   async create(dto: CreateDocumentDto, userId: string, userRole: string) {
-    await this.assertDoctorUser(userId, userRole);
+    //await this.assertDoctorUser(userId, userRole);
     const patient = await this.patientRepo.findOne({ where: { id: dto.patient_id } });
     if (!patient) throw new NotFoundException('Patient not found');
     await this.validateDiagnosisAndSymptomLinks(
