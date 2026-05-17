@@ -19,4 +19,8 @@ export class RegisterClinicDto {
   @IsString()
   @IsOptional()
   permission_doc_url?: string;
+
+  @IsString()
+  @IsOptional()
+  photo_url?: string;
 }

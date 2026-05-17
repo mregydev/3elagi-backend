@@ -34,6 +34,7 @@ import { AppointmentHideName1777920000000 } from './migrations/1777920000000-App
 import { AppointmentApproval1777930000000 } from './migrations/1777930000000-AppointmentApproval';
 import { DiagnosisAndSymptoms1777940000000 } from './migrations/1777940000000-DiagnosisAndSymptoms';
 import { AddPatientsPhotoUrl1777950000000 } from './migrations/1777950000000-AddPatientsPhotoUrl';
+import { AddUsersPhotoUrl1777960000000 } from './migrations/1777960000000-AddUsersPhotoUrl';
 import { DoctorReview } from './entities/review.entity';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
@@ -51,6 +52,7 @@ import { PatientPortalModule } from './patient-portal/patient-portal.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { HealthModule } from './health/health.module';
+import { UsersModule } from './users/users.module';
 import { DiagnosisModule } from './diagnosis/diagnosis.module';
 import { SymptomsModule } from './symptoms/symptoms.module';
 
@@ -100,6 +102,7 @@ import { SymptomsModule } from './symptoms/symptoms.module';
           AppointmentApproval1777930000000,
           DiagnosisAndSymptoms1777940000000,
           AddPatientsPhotoUrl1777950000000,
+          AddUsersPhotoUrl1777960000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
@@ -127,6 +130,7 @@ import { SymptomsModule } from './symptoms/symptoms.module';
     ReviewsModule,
     UploadsModule,
     HealthModule,
+    UsersModule,
     AdminModule,
   ],
 })

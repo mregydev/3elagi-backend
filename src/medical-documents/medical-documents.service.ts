@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { MedicalDocument, DocumentType } from '../entities/medical-document.entity';
 import { Patient } from '../entities/patient.entity';
+import { User, UserRole } from '../entities/user.entity';
 import { Doctor } from '../entities/doctor.entity';
 import { Diagnosis } from '../entities/diagnosis.entity';
 import { Symptom } from '../entities/symptom.entity';
@@ -22,6 +23,8 @@ export class MedicalDocumentsService {
     private docRepo: Repository<MedicalDocument>,
     @InjectRepository(Patient)
     private patientRepo: Repository<Patient>,
+    @InjectRepository(User)
+    private userRepo: Repository<User>,
     @InjectRepository(Doctor)
     private doctorRepo: Repository<Doctor>,
     @InjectRepository(Diagnosis)
@@ -52,16 +55,17 @@ export class MedicalDocumentsService {
     return this.docRepo.find({ where, order: { created_at: 'DESC' } });
   }
 
+  /** `subjectUserId` is the patient user's id (stored in medical_documents.patient_id). */
   private async validateDiagnosisAndSymptomLinks(
-    patientId: string,
+    subjectUserId: string,
     diagnosisId?: string,
     symptomId?: string,
   ): Promise<void> {
     if (diagnosisId) {
       const diagnosis = await this.diagnosisRepo.findOne({ where: { id: diagnosisId } });
       if (!diagnosis) throw new NotFoundException('Diagnosis not found');
-      if (diagnosis.patient_id !== patientId) {
-        throw new ForbiddenException('Diagnosis does not belong to this patient');
+      if (diagnosis.patient_id !== subjectUserId) {
+        throw new ForbiddenException('Diagnosis does not belong to this user');
       }
     }
     if (symptomId) {
@@ -70,8 +74,8 @@ export class MedicalDocumentsService {
         relations: ['diagnosis'],
       });
       if (!symptom) throw new NotFoundException('Symptom not found');
-      if (symptom.diagnosis.patient_id !== patientId) {
-        throw new ForbiddenException('Symptom does not belong to this patient');
+      if (symptom.diagnosis.patient_id !== subjectUserId) {
+        throw new ForbiddenException('Symptom does not belong to this user');
       }
       if (diagnosisId && symptom.diagnosis_id !== diagnosisId) {
         throw new ForbiddenException('Symptom does not belong to this diagnosis');
@@ -80,15 +84,17 @@ export class MedicalDocumentsService {
   }
 
   async create(dto: CreateDocumentDto, userId: string, userRole: string) {
-    
-    this.logger.log('patient id is '+dto.patient_id); //await this.assertDoctorUser(userId, userRole);
-    const patient = await this.patientRepo.findOne({ where: { id: dto.patient_id } });
-    if (!patient) throw new NotFoundException('Patient not found');
-    await this.validateDiagnosisAndSymptomLinks(
+    this.logger.log('user id is ' + dto.patient_id);
+    const user = await this.userRepo.findOne({ where: { id: dto.patient_id } });
+    if (!user) throw new NotFoundException('User not found');
+    if (user.role !== UserRole.PATIENT) {
+      throw new ForbiddenException('Medical documents must be linked to a patient user');
+    }
+    /*await this.validateDiagnosisAndSymptomLinks(
       dto.patient_id,
       dto.diagnosis_id,
       dto.symptom_id,
-    );
+    );*/
     const doc = this.docRepo.create(dto);
     return this.docRepo.save(doc);
   }

@@ -77,6 +77,7 @@ export class AuthService {
       email: dto.email,
       password_hash: hash,
       role: UserRole.PATIENT,
+      photo_url: dto.photo_url ?? null,
     });
     await this.userRepo.save(user);
 
@@ -103,6 +104,7 @@ export class AuthService {
       email: dto.email,
       password_hash: hash,
       role: UserRole.CLINIC_ADMIN,
+      photo_url: dto.photo_url ?? null,
     });
     await this.userRepo.save(user);
 
@@ -130,6 +132,7 @@ export class AuthService {
       email: dto.email,
       password_hash: hash,
       role: UserRole.DOCTOR,
+      photo_url: dto.photo_url ?? null,
     });
     await this.userRepo.save(user);
 

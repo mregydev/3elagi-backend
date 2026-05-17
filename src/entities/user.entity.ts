@@ -27,6 +27,9 @@ export class User {
   @Column({ type: 'enum', enum: UserRole, default: UserRole.DOCTOR })
   role: UserRole;
 
+  @Column({ type: 'text', nullable: true })
+  photo_url: string | null;
+
   @CreateDateColumn()
   created_at: Date;
 
