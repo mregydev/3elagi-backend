@@ -1,19 +1,18 @@
 import { IsString, IsOptional, IsNumber } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class CreatePatientDto {
+export class UpdatePatientDto {
   @IsString()
-  clinic_id: string;
-
-  @IsString()
-  name: string;
+  @IsOptional()
+  name?: string;
 
   @IsString()
   @IsOptional()
   birth_date?: string;
 
   @IsString()
-  phone: string;
+  @IsOptional()
+  phone?: string;
 
   @IsNumber()
   @IsOptional()

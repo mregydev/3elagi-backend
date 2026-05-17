@@ -34,6 +34,9 @@ export class Patient {
   @Column({ nullable: true })
   age: number;
 
+  @Column({ type: 'text', nullable: true })
+  photo_url: string | null;
+
   @CreateDateColumn()
   created_at: Date;
 

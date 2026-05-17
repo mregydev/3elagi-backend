@@ -190,6 +190,10 @@ export class PatientPortalService {
         existing.birth_date = profile.birth_date;
         dirty = true;
       }
+      if (profile.photo_url && existing.photo_url !== profile.photo_url) {
+        existing.photo_url = profile.photo_url;
+        dirty = true;
+      }
       if (dirty) await this.patientRepo.save(existing);
       return existing;
     }
@@ -198,6 +202,7 @@ export class PatientPortalService {
       name: profile.name,
       phone: profile.phone,
       birth_date: profile.birth_date ?? undefined,
+      photo_url: profile.photo_url ?? null,
     });
     return this.patientRepo.save(created);
   }

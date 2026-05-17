@@ -12,9 +12,9 @@ import { Doctor } from '../entities/doctor.entity';
 import { Appointment } from '../entities/appointment.entity';
 import { IntakeTest } from '../entities/intake-test.entity';
 import { CreatePatientDto } from './dto/create-patient.dto';
+import { UpdatePatientDto } from './dto/update-patient.dto';
+import { PatientProfile } from '../entities/patient-profile.entity';
 import { In } from 'typeorm';
-
-type UpdatePatientDto = Partial<Omit<CreatePatientDto, 'clinic_id'>>;
 
 @Injectable()
 export class PatientsService {
@@ -25,6 +25,8 @@ export class PatientsService {
     @InjectRepository(Doctor) private doctorRepo: Repository<Doctor>,
     @InjectRepository(Appointment) private appointmentRepo: Repository<Appointment>,
     @InjectRepository(IntakeTest) private intakeRepo: Repository<IntakeTest>,
+    @InjectRepository(PatientProfile)
+    private patientProfileRepo: Repository<PatientProfile>,
   ) {}
 
   private async assertClinicAccess(clinicId: string, userId: string, role: string): Promise<void> {
@@ -70,6 +72,28 @@ export class PatientsService {
     await this.findById(id);
     await this.patientRepo.update(id, updates);
     return this.findById(id);
+  }
+
+  /** Update logged-in patient profile and sync photo to clinic patient rows (same phone). */
+  async updateSelf(userId: string, updates: UpdatePatientDto) {
+    const profile = await this.patientProfileRepo.findOne({ where: { user_id: userId } });
+    if (!profile) throw new NotFoundException('Patient profile not found');
+
+    if (updates.name !== undefined) profile.name = updates.name;
+    if (updates.phone !== undefined) profile.phone = updates.phone;
+    if (updates.birth_date !== undefined) profile.birth_date = updates.birth_date;
+    if (updates.photo_url !== undefined) profile.photo_url = updates.photo_url;
+
+    await this.patientProfileRepo.save(profile);
+
+    if (updates.photo_url !== undefined) {
+      await this.patientRepo.update(
+        { phone: profile.phone },
+        { photo_url: updates.photo_url },
+      );
+    }
+
+    return profile;
   }
 
   async findByClinic(clinicId: string) {

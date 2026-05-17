@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Param,
   Body,
   Query,
@@ -15,6 +16,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
 import { CreatePatientDto } from './dto/create-patient.dto';
+import { UpdatePatientDto } from './dto/update-patient.dto';
 
 @Controller('patients')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -66,7 +68,25 @@ export class PatientsController {
 
   @Put(':id')
   @Public()
-  update(@Param('id') id: string, @Body() dto: Partial<CreatePatientDto>) {
+  update(@Param('id') id: string, @Body() dto: UpdatePatientDto) {
     return this.patientsService.update(id, dto);
+  }
+
+  @Patch(':id')
+  @Public()
+  patch(@Param('id') id: string, @Body() dto: UpdatePatientDto) {
+    return this.patientsService.update(id, dto);
+  }
+}
+
+@Controller('patient')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('patient')
+export class PatientSelfController {
+  constructor(private readonly patientsService: PatientsService) {}
+
+  @Patch()
+  updateMe(@Body() dto: UpdatePatientDto, @Request() req) {
+    return this.patientsService.updateSelf(req.user.id, dto);
   }
 }

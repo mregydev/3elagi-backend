@@ -33,6 +33,7 @@ import { PatientOnboardingIntake1777910000000 } from './migrations/1777910000000
 import { AppointmentHideName1777920000000 } from './migrations/1777920000000-AppointmentHideName';
 import { AppointmentApproval1777930000000 } from './migrations/1777930000000-AppointmentApproval';
 import { DiagnosisAndSymptoms1777940000000 } from './migrations/1777940000000-DiagnosisAndSymptoms';
+import { AddPatientsPhotoUrl1777950000000 } from './migrations/1777950000000-AddPatientsPhotoUrl';
 import { DoctorReview } from './entities/review.entity';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
@@ -98,6 +99,7 @@ import { SymptomsModule } from './symptoms/symptoms.module';
           AppointmentHideName1777920000000,
           AppointmentApproval1777930000000,
           DiagnosisAndSymptoms1777940000000,
+          AddPatientsPhotoUrl1777950000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
