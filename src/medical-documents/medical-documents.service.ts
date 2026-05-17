@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
@@ -14,6 +15,8 @@ import { CreateDocumentDto } from './dto/create-document.dto';
 
 @Injectable()
 export class MedicalDocumentsService {
+  private readonly logger = new Logger(MedicalDocumentsService.name);
+
   constructor(
     @InjectRepository(MedicalDocument)
     private docRepo: Repository<MedicalDocument>,
@@ -77,7 +80,8 @@ export class MedicalDocumentsService {
   }
 
   async create(dto: CreateDocumentDto, userId: string, userRole: string) {
-    //await this.assertDoctorUser(userId, userRole);
+    
+    this.logger.log('patient id is '+dto.patient_id); //await this.assertDoctorUser(userId, userRole);
     const patient = await this.patientRepo.findOne({ where: { id: dto.patient_id } });
     if (!patient) throw new NotFoundException('Patient not found');
     await this.validateDiagnosisAndSymptomLinks(
