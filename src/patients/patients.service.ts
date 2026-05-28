@@ -189,77 +189,88 @@ export class PatientsService {
     });
   }
 
+  /** Every row in `users` where role is patient — no appointment/clinic filter. */
+  private async listAllPatientUsers() {
+    const patientUsers = await this.userRepo.find({
+      where: { role: UserRole.PATIENT },
+      order: { created_at: 'DESC' },
+    });
+
+    const profiles =
+      patientUsers.length > 0
+        ? await this.patientProfileRepo.find({
+            where: { user_id: In(patientUsers.map((u) => u.id)) },
+          })
+        : [];
+    const profileByUserId = new Map(profiles.map((p) => [p.user_id, p]));
+
+    return patientUsers.map((user) => {
+      const profile = profileByUserId.get(user.id);
+      return {
+        user_id: user.id,
+        email: user.email,
+        name: profile?.name ?? user.email.split('@')[0],
+        phone: profile?.phone ?? '',
+        photo_url: profile?.photo_url ?? user.photo_url ?? null,
+        last_date: null as string | null,
+        future_count: 0,
+        past_count: 0,
+      };
+    });
+  }
+
+  private enrichWithDoctorAppointmentStats(
+    patients: Awaited<ReturnType<PatientsService['listAllPatientUsers']>>,
+    doctorId: string,
+  ) {
+    return this.appointmentRepo
+      .find({
+        where: { doctor_id: doctorId },
+        order: { date: 'DESC', time: 'DESC' },
+      })
+      .then((appts) => {
+        const today = new Date().toISOString().split('T')[0];
+        const apptStats = new Map<
+          string,
+          { last_date: string; future_count: number; past_count: number }
+        >();
+        for (const a of appts) {
+          const pid = a.patient_user_id;
+          if (!pid) continue;
+          let stats = apptStats.get(pid);
+          if (!stats) {
+            stats = { last_date: a.date, future_count: 0, past_count: 0 };
+            apptStats.set(pid, stats);
+          }
+          if (a.date >= today) stats.future_count++;
+          else stats.past_count++;
+        }
+        return patients.map((p) => {
+          const stats = apptStats.get(p.user_id);
+          return {
+            ...p,
+            last_date: stats?.last_date ?? null,
+            future_count: stats?.future_count ?? 0,
+            past_count: stats?.past_count ?? 0,
+          };
+        });
+      });
+  }
+
+  async getRegisteredPatientsForDoctorUser(userId: string) {
+    const doctor = await this.doctorRepo.findOne({ where: { user_id: userId } });
+    if (!doctor) throw new NotFoundException('Doctor not found');
+    const patients = await this.listAllPatientUsers();
+    return this.enrichWithDoctorAppointmentStats(patients, doctor.id);
+  }
+
   async getDoctorPatients(doctorId: string, userId: string) {
     const doctor = await this.doctorRepo.findOne({ where: { id: doctorId } });
     if (!doctor) throw new NotFoundException('Doctor not found');
     if (doctor.user_id !== userId) {
       throw new ForbiddenException('You can only access your own patients');
     }
-    const appts = await this.appointmentRepo.find({
-      where: { doctor_id: doctorId },
-      order: { date: 'DESC', time: 'DESC' },
-    });
-    const patientIds = Array.from(
-      new Set(appts.map((a) => a.patient_id).filter((x): x is string => !!x)),
-    );
-    const patients = patientIds.length
-      ? await this.patientRepo.find({ where: { id: In(patientIds) } })
-      : [];
-    const pMap = new Map(patients.map((p) => [p.id, p]));
-    const today = new Date().toISOString().split('T')[0];
-
-    const profiles = await this.patientProfileRepo.find();
-    const userIdByPhone = new Map(
-      profiles.map((pr) => [pr.phone.replace(/\s/g, ''), pr.user_id]),
-    );
-
-    const grouped = new Map<
-      string,
-      {
-        patient_id: string;
-        user_id: string | null;
-        name: string;
-        phone: string;
-        last_appointment_id: string;
-        last_date: string;
-        last_intake_test_id: string | null;
-        future_count: number;
-        past_count: number;
-      }
-    >();
-    for (const a of appts) {
-      if (!a.patient_id) continue;
-      const p = pMap.get(a.patient_id);
-      if (!p) continue;
-      let entry = grouped.get(a.patient_id);
-      if (!entry) {
-        const phoneKey = p.phone.replace(/\s/g, '');
-        const userId =
-          a.patient_user_id ?? userIdByPhone.get(phoneKey) ?? null;
-        entry = {
-          patient_id: a.patient_id,
-          user_id: userId,
-          name: p.name,
-          phone: p.phone,
-          last_appointment_id: a.id,
-          last_date: a.date,
-          last_intake_test_id: a.intake_test_id ?? null,
-          future_count: 0,
-          past_count: 0,
-        };
-        grouped.set(a.patient_id, entry);
-      }
-      if (!entry.user_id && a.patient_user_id) {
-        entry.user_id = a.patient_user_id;
-      }
-      // appointments are sorted DESC, so first one is the latest
-      if (a.intake_test_id && !entry.last_intake_test_id) {
-        entry.last_intake_test_id = a.intake_test_id;
-        entry.last_appointment_id = a.id;
-      }
-      if (a.date >= today) entry.future_count++;
-      else entry.past_count++;
-    }
-    return Array.from(grouped.values());
+    const patients = await this.listAllPatientUsers();
+    return this.enrichWithDoctorAppointmentStats(patients, doctorId);
   }
 }

@@ -44,6 +44,12 @@ export class PatientsController {
     return this.patientsService.findAll();
   }
 
+  @Get('registered')
+  @Roles('doctor')
+  getRegisteredPatients(@Request() req) {
+    return this.patientsService.getRegisteredPatientsForDoctorUser(req.user.id);
+  }
+
   @Get('by-doctor/:doctorId')
   @Roles('doctor')
   getDoctorPatients(@Param('doctorId') doctorId: string, @Request() req) {
