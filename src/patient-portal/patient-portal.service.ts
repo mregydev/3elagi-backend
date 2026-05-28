@@ -68,6 +68,7 @@ export class PatientPortalService {
       const c = d.default_clinic_id ? clinicMap.get(d.default_clinic_id) : null;
       return {
         id: d.id,
+        user_id: d.user_id,
         name: d.name,
         photo_url: d.photo_url,
         phone: d.phone,
@@ -108,6 +109,7 @@ export class PatientPortalService {
     }
     return {
       id: doctor.id,
+      user_id: doctor.user_id,
       name: doctor.name,
       photo_url: doctor.photo_url,
       phone: doctor.phone,

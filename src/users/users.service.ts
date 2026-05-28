@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { User, UserRole } from '../entities/user.entity';
 import { Doctor } from '../entities/doctor.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
@@ -54,5 +54,54 @@ export class UsersService {
     }
 
     return this.sanitizeUser(user);
+  }
+
+  /** All doctor/patient users for in-app chat (excludes requester). */
+  async listContacts(requesterId: string) {
+    const users = await this.userRepo.find({
+      where: { role: In([UserRole.DOCTOR, UserRole.PATIENT]) },
+      order: { created_at: 'DESC' },
+    });
+
+    const otherUsers = users.filter((u) => u.id !== requesterId);
+    if (otherUsers.length === 0) return [];
+
+    const ids = otherUsers.map((u) => u.id);
+    const [doctors, profiles] = await Promise.all([
+      this.doctorRepo.find({ where: { user_id: In(ids) } }),
+      this.patientProfileRepo.find({ where: { user_id: In(ids) } }),
+    ]);
+    const doctorByUserId = new Map(doctors.map((d) => [d.user_id, d]));
+    const profileByUserId = new Map(profiles.map((p) => [p.user_id, p]));
+
+    return otherUsers.map((user) => {
+      const doctor = doctorByUserId.get(user.id);
+      const profile = profileByUserId.get(user.id);
+      let name = user.email.split('@')[0];
+      let photo_url = user.photo_url ?? null;
+      let specialty: string | null = null;
+
+      if (user.role === UserRole.DOCTOR && doctor) {
+        name = doctor.name;
+        photo_url = doctor.photo_url ?? user.photo_url ?? null;
+        specialty = doctor.professional_title ?? null;
+      } else if (user.role === UserRole.PATIENT && profile) {
+        name = profile.name;
+        photo_url = profile.photo_url ?? user.photo_url ?? null;
+      }
+
+      if (user.role === UserRole.DOCTOR && !name.startsWith('Dr.')) {
+        name = `Dr. ${name}`;
+      }
+
+      return {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        name,
+        photo_url,
+        specialty,
+      };
+    });
   }
 }
