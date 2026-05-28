@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   Logger,
   NotFoundException,
@@ -13,6 +14,7 @@ import { Doctor } from '../entities/doctor.entity';
 import { Diagnosis } from '../entities/diagnosis.entity';
 import { Symptom } from '../entities/symptom.entity';
 import { CreateDocumentDto } from './dto/create-document.dto';
+import { CreatePatientMedicalDocumentDto } from './dto/create-patient-medical-document.dto';
 
 @Injectable()
 export class MedicalDocumentsService {
@@ -41,16 +43,61 @@ export class MedicalDocumentsService {
     if (!doctor) throw new ForbiddenException('Doctor profile not found');
   }
 
+  async findForPatientUser(
+    userId: string,
+    type?: DocumentType.LAB | DocumentType.XRAY,
+  ) {
+    const where: { patient_id: string; type?: DocumentType } = { patient_id: userId };
+    if (type) where.type = type;
+    return this.docRepo.find({
+      where,
+      order: { created_at: 'DESC' },
+    });
+  }
+
+  async createForPatientUser(
+    userId: string,
+    dto: CreatePatientMedicalDocumentDto,
+  ) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user || user.role !== UserRole.PATIENT) {
+      throw new ForbiddenException('Only patients can use this endpoint');
+    }
+    if (!dto.file_url?.trim()) {
+      throw new BadRequestException('Image file is required');
+    }
+    const notes = dto.notes?.trim() ?? '';
+    if (!notes) {
+      throw new BadRequestException('Description is required');
+    }
+    const title = dto.title?.trim() ?? '';
+    if (!title) {
+      throw new BadRequestException('Title is required');
+    }
+
+    const doc = this.docRepo.create({
+      patient_id: userId,
+      type: dto.type,
+      file_url: dto.file_url.trim(),
+      file_name: dto.file_name?.trim() || 'upload.jpg',
+      notes,
+      title,
+    });
+    return this.docRepo.save(doc);
+  }
+
   async findByPatient(
     patientId: string,
     type: DocumentType | undefined,
     userId: string,
     userRole: string,
   ) {
-    //await this.assertDoctorUser(userId, userRole);
-    const patient = await this.patientRepo.findOne({ where: { id: patientId } });
-    if (!patient) throw new NotFoundException('Patient not found');
-    const where: Partial<MedicalDocument> & { type?: DocumentType } = { patient_id: patientId };
+    if (userRole === 'patient' && patientId !== userId) {
+      throw new ForbiddenException('You can only access your own documents');
+    }
+    const where: Partial<MedicalDocument> & { type?: DocumentType } = {
+      patient_id: patientId,
+    };
     if (type) where.type = type;
     return this.docRepo.find({ where, order: { created_at: 'DESC' } });
   }
@@ -85,6 +132,20 @@ export class MedicalDocumentsService {
 
   async create(dto: CreateDocumentDto, userId: string, userRole: string) {
     try {
+    if (userRole === 'patient' && dto.patient_id !== userId) {
+      throw new ForbiddenException('You can only upload documents for yourself');
+    }
+    if (dto.type === DocumentType.LAB || dto.type === DocumentType.XRAY) {
+      if (!dto.file_url?.trim()) {
+        throw new BadRequestException('Image file is required for lab results and X-rays');
+      }
+      if (!dto.title?.trim()) {
+        throw new BadRequestException('Title is required for lab results and X-rays');
+      }
+      if (!dto.notes?.trim()) {
+        throw new BadRequestException('Description is required for lab results and X-rays');
+      }
+    }
     this.logger.log('user id is ' + dto.patient_id);
     const user = await this.userRepo.findOne({ where: { id: dto.patient_id } });
     if (!user) throw new NotFoundException('User not found');
@@ -96,7 +157,20 @@ export class MedicalDocumentsService {
       dto.diagnosis_id,
       dto.symptom_id,
     );*/
-      const doc = this.docRepo.create(dto);
+      const title =
+        typeof dto.title === 'string' && dto.title.trim() ? dto.title.trim() : null;
+      this.logger.log(`creating document title="${title ?? ''}" for user ${dto.patient_id}`);
+
+      const doc = this.docRepo.create({
+        patient_id: dto.patient_id,
+        type: dto.type,
+        file_url: dto.file_url,
+        file_name: dto.file_name,
+        notes: dto.notes,
+        title,
+        diagnosis_id: dto.diagnosis_id ?? null,
+        symptom_id: dto.symptom_id ?? null,
+      });
       return this.docRepo.save(doc);
     } catch (error) {
       this.logger.error('Error creating medical document: ' + JSON.stringify(error));

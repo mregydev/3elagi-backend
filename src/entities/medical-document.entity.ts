@@ -41,6 +41,9 @@ export class MedicalDocument {
   notes: string;
 
   @Column({ nullable: true })
+  title: string | null;
+
+  @Column({ nullable: true })
   file_name: string;
 
   @Column({ nullable: true })

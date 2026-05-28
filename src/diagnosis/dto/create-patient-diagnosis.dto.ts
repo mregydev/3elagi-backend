@@ -3,20 +3,13 @@ import {
   IsArray,
   IsOptional,
   IsString,
-  IsUUID,
   ValidateNested,
 } from 'class-validator';
 import { CreateDiagnosisSymptomDto } from './create-diagnosis-symptom.dto';
 
-export class CreateDiagnosisDto {
+export class CreatePatientDiagnosisDto {
   @IsString()
   desc: string;
-
-  @IsUUID()
-  patient_id: string;
-
-  @IsUUID()
-  doctor_id: string;
 
   @IsOptional()
   @IsArray()

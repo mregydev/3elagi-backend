@@ -19,6 +19,10 @@ export class CreateDocumentDto {
 
   @IsString()
   @IsOptional()
+  title?: string;
+
+  @IsString()
+  @IsOptional()
   file_name?: string;
 
   @IsUUID()
