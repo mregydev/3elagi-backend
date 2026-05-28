@@ -70,6 +70,7 @@ export class DiagnosisService {
   private async attachDoctorNamesToDiagnoses(rows: Diagnosis[]) {
     const doctorIds = new Set<string>();
     for (const row of rows) {
+      if (row.doctor_id) doctorIds.add(row.doctor_id);
       for (const symptom of row.symptoms ?? []) {
         if (symptom.doctor_id) doctorIds.add(symptom.doctor_id);
       }
@@ -82,6 +83,8 @@ export class DiagnosisService {
     const nameById = new Map(doctors.map((d) => [d.id, d.name]));
 
     for (const row of rows) {
+      (row as Diagnosis & { doctor_name?: string | null }).doctor_name =
+        row.doctor_id ? nameById.get(row.doctor_id) ?? null : null;
       for (const symptom of row.symptoms ?? []) {
         (symptom as Symptom & { doctor_name?: string | null }).doctor_name =
           symptom.doctor_id ? nameById.get(symptom.doctor_id) ?? null : null;
@@ -222,6 +225,13 @@ export class DiagnosisService {
       throw new ForbiddenException('You cannot reassign diagnosis to another doctor');
     }
     Object.assign(row, dto);
-    return this.diagnosisRepo.save(row);
+    const saved = await this.diagnosisRepo.save(row);
+    const [enriched] = await this.attachDoctorNamesToDiagnoses([
+      await this.diagnosisRepo.findOne({
+        where: { id: saved.id },
+        relations: ['symptoms'],
+      }) as Diagnosis,
+    ]);
+    return enriched;
   }
 }
