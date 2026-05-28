@@ -10,6 +10,8 @@ import { Patient } from '../entities/patient.entity';
 import { Doctor } from '../entities/doctor.entity';
 import { Symptom } from '../entities/symptom.entity';
 import { User, UserRole } from '../entities/user.entity';
+import { Appointment } from '../entities/appointment.entity';
+import { PatientProfile } from '../entities/patient-profile.entity';
 import { CreateDiagnosisDto } from './dto/create-diagnosis.dto';
 import { CreatePatientDiagnosisDto } from './dto/create-patient-diagnosis.dto';
 import { UpdateDiagnosisDto } from './dto/update-diagnosis.dto';
@@ -22,7 +24,39 @@ export class DiagnosisService {
     @InjectRepository(Doctor) private doctorRepo: Repository<Doctor>,
     @InjectRepository(Symptom) private symptomRepo: Repository<Symptom>,
     @InjectRepository(User) private userRepo: Repository<User>,
+    @InjectRepository(Appointment)
+    private appointmentRepo: Repository<Appointment>,
+    @InjectRepository(PatientProfile)
+    private patientProfileRepo: Repository<PatientProfile>,
   ) {}
+
+  private normalizePhone(phone: string): string {
+    return phone.replace(/\s/g, '');
+  }
+
+  private async doctorCanAccessPatientUser(
+    doctorId: string,
+    patientUserId: string,
+  ): Promise<boolean> {
+    const byUser = await this.appointmentRepo.count({
+      where: { doctor_id: doctorId, patient_user_id: patientUserId },
+    });
+    if (byUser > 0) return true;
+
+    const profile = await this.patientProfileRepo.findOne({
+      where: { user_id: patientUserId },
+    });
+    if (!profile) return false;
+
+    const phone = this.normalizePhone(profile.phone);
+    const appts = await this.appointmentRepo.find({
+      where: { doctor_id: doctorId },
+      select: ['patient_phone'],
+    });
+    return appts.some(
+      (a) => a.patient_phone && this.normalizePhone(a.patient_phone) === phone,
+    );
+  }
 
   private async assertDoctorUser(userId: string, userRole: string): Promise<Doctor> {
     if (userRole !== 'doctor') {
@@ -135,8 +169,17 @@ export class DiagnosisService {
     const doctor = await this.assertDoctorUser(userId, userRole);
     const row = await this.diagnosisRepo.findOne({ where: { id } });
     if (!row) throw new NotFoundException('Diagnosis not found');
-    if (row.doctor_id !== doctor.id) {
+    if (row.doctor_id && row.doctor_id !== doctor.id) {
       throw new ForbiddenException('You can only update your own diagnoses');
+    }
+    if (!row.doctor_id) {
+      const canAccess = await this.doctorCanAccessPatientUser(
+        doctor.id,
+        row.patient_id,
+      );
+      if (!canAccess) {
+        throw new ForbiddenException('You do not have access to this patient');
+      }
     }
     if (dto.patient_id) {
       const patient = await this.patientRepo.findOne({ where: { id: dto.patient_id } });

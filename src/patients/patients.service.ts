@@ -208,10 +208,16 @@ export class PatientsService {
     const pMap = new Map(patients.map((p) => [p.id, p]));
     const today = new Date().toISOString().split('T')[0];
 
+    const profiles = await this.patientProfileRepo.find();
+    const userIdByPhone = new Map(
+      profiles.map((pr) => [pr.phone.replace(/\s/g, ''), pr.user_id]),
+    );
+
     const grouped = new Map<
       string,
       {
         patient_id: string;
+        user_id: string | null;
         name: string;
         phone: string;
         last_appointment_id: string;
@@ -227,8 +233,12 @@ export class PatientsService {
       if (!p) continue;
       let entry = grouped.get(a.patient_id);
       if (!entry) {
+        const phoneKey = p.phone.replace(/\s/g, '');
+        const userId =
+          a.patient_user_id ?? userIdByPhone.get(phoneKey) ?? null;
         entry = {
           patient_id: a.patient_id,
+          user_id: userId,
           name: p.name,
           phone: p.phone,
           last_appointment_id: a.id,
@@ -238,6 +248,9 @@ export class PatientsService {
           past_count: 0,
         };
         grouped.set(a.patient_id, entry);
+      }
+      if (!entry.user_id && a.patient_user_id) {
+        entry.user_id = a.patient_user_id;
       }
       // appointments are sorted DESC, so first one is the latest
       if (a.intake_test_id && !entry.last_intake_test_id) {
