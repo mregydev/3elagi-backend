@@ -4,7 +4,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Diagnosis } from '../entities/diagnosis.entity';
 import { Patient } from '../entities/patient.entity';
 import { Doctor } from '../entities/doctor.entity';
@@ -67,14 +67,38 @@ export class DiagnosisService {
     return doctor;
   }
 
+  private async attachDoctorNamesToDiagnoses(rows: Diagnosis[]) {
+    const doctorIds = new Set<string>();
+    for (const row of rows) {
+      for (const symptom of row.symptoms ?? []) {
+        if (symptom.doctor_id) doctorIds.add(symptom.doctor_id);
+      }
+    }
+    if (!doctorIds.size) return rows;
+
+    const doctors = await this.doctorRepo.find({
+      where: { id: In([...doctorIds]) },
+    });
+    const nameById = new Map(doctors.map((d) => [d.id, d.name]));
+
+    for (const row of rows) {
+      for (const symptom of row.symptoms ?? []) {
+        (symptom as Symptom & { doctor_name?: string | null }).doctor_name =
+          symptom.doctor_id ? nameById.get(symptom.doctor_id) ?? null : null;
+      }
+    }
+    return rows;
+  }
+
   async findAll(patientId: string | undefined, userId: string, userRole: string) {
     await this.assertDoctorUser(userId, userRole);
     const where = patientId ? { patient_id: patientId } : {};
-    return this.diagnosisRepo.find({
+    const rows = await this.diagnosisRepo.find({
       where,
       order: { created_at: 'DESC' },
       relations: ['symptoms'],
     });
+    return this.attachDoctorNamesToDiagnoses(rows);
   }
 
   async findOne(id: string, userId: string, userRole: string) {
@@ -84,15 +108,17 @@ export class DiagnosisService {
       relations: ['symptoms'],
     });
     if (!row) throw new NotFoundException('Diagnosis not found');
-    return row;
+    const [enriched] = await this.attachDoctorNamesToDiagnoses([row]);
+    return enriched;
   }
 
   async findForPatientUser(userId: string) {
-    return this.diagnosisRepo.find({
+    const rows = await this.diagnosisRepo.find({
       where: { patient_id: userId },
       order: { created_at: 'DESC' },
       relations: ['symptoms'],
     });
+    return this.attachDoctorNamesToDiagnoses(rows);
   }
 
   async findOneForPatientUser(id: string, userId: string) {
@@ -101,19 +127,25 @@ export class DiagnosisService {
       relations: ['symptoms'],
     });
     if (!row) throw new NotFoundException('Diagnosis not found');
-    return row;
+    const [enriched] = await this.attachDoctorNamesToDiagnoses([row]);
+    return enriched;
   }
 
   private async saveSymptoms(
     diagnosisId: string,
     symptoms: { desc: string }[] | undefined,
+    doctorId: string | null = null,
   ): Promise<void> {
     if (!symptoms?.length) return;
     const rows = symptoms
       .map((s) => s.desc.trim())
       .filter(Boolean)
       .map((desc) =>
-        this.symptomRepo.create({ desc, diagnosis_id: diagnosisId }),
+        this.symptomRepo.create({
+          desc,
+          diagnosis_id: diagnosisId,
+          doctor_id: doctorId,
+        }),
       );
     if (rows.length) await this.symptomRepo.save(rows);
   }
@@ -129,7 +161,7 @@ export class DiagnosisService {
       doctor_id: null,
     });
     const saved = await this.diagnosisRepo.save(row);
-    await this.saveSymptoms(saved.id, dto.symptoms);
+    await this.saveSymptoms(saved.id, dto.symptoms, null);
     return this.findOneForPatientUser(saved.id, userId);
   }
 
@@ -142,6 +174,7 @@ export class DiagnosisService {
     const row = this.symptomRepo.create({
       desc: desc.trim(),
       diagnosis_id: diagnosisId,
+      doctor_id: null,
     });
     await this.symptomRepo.save(row);
     return this.findOneForPatientUser(diagnosisId, userId);
@@ -161,7 +194,7 @@ export class DiagnosisService {
     const { symptoms, ...diagnosisFields } = dto;
     const row = this.diagnosisRepo.create(diagnosisFields);
     const saved = await this.diagnosisRepo.save(row);
-    await this.saveSymptoms(saved.id, symptoms);
+    await this.saveSymptoms(saved.id, symptoms, doctor.id);
     return this.findOne(saved.id, userId, userRole);
   }
 

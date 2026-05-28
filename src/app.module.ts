@@ -37,6 +37,7 @@ import { AddPatientsPhotoUrl1777950000000 } from './migrations/1777950000000-Add
 import { AddUsersPhotoUrl1777960000000 } from './migrations/1777960000000-AddUsersPhotoUrl';
 import { MedicalDocumentsTitle1777970000000 } from './migrations/1777970000000-MedicalDocumentsTitle';
 import { NullableDiagnosisDoctor1777980000000 } from './migrations/1777980000000-NullableDiagnosisDoctor';
+import { SymptomDoctorId1777990000000 } from './migrations/1777990000000-SymptomDoctorId';
 import { DoctorReview } from './entities/review.entity';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
@@ -107,6 +108,7 @@ import { SymptomsModule } from './symptoms/symptoms.module';
           AddUsersPhotoUrl1777960000000,
           MedicalDocumentsTitle1777970000000,
           NullableDiagnosisDoctor1777980000000,
+          SymptomDoctorId1777990000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
