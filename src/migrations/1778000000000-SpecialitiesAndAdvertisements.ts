@@ -21,7 +21,7 @@ const SPECIALITIES = [
     name_en: 'Dermatology',
     name_ar: 'جلدية',
     image_url:
-      'https://images.unsplash.com/photo-1570172619644-dfd9553475e3?w=400&h=400&fit=crop',
+      'https://placehold.co/400x400/0284c7/ffffff/png?text=Dermatology',
   },
   {
     name_en: 'Pediatrics',
@@ -33,7 +33,7 @@ const SPECIALITIES = [
     name_en: 'Orthopedics',
     name_ar: 'عظام',
     image_url:
-      'https://images.unsplash.com/photo-1530497610245-94d875783683?w=400&h=400&fit=crop',
+      'https://placehold.co/400x400/4f46e5/ffffff/png?text=Orthopedics',
   },
   {
     name_en: 'Neurology',
@@ -51,7 +51,7 @@ const SPECIALITIES = [
     name_en: 'Dentistry',
     name_ar: 'أسنان',
     image_url:
-      'https://images.unsplash.com/photo-1606811841689-23e32cfe3d95?w=400&h=400&fit=crop',
+      'https://placehold.co/400x400/0d9488/ffffff/png?text=Dentistry',
   },
 ];
 

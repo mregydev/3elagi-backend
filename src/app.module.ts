@@ -39,6 +39,7 @@ import { MedicalDocumentsTitle1777970000000 } from './migrations/1777970000000-M
 import { NullableDiagnosisDoctor1777980000000 } from './migrations/1777980000000-NullableDiagnosisDoctor';
 import { SymptomDoctorId1777990000000 } from './migrations/1777990000000-SymptomDoctorId';
 import { SpecialitiesAndAdvertisements1778000000000 } from './migrations/1778000000000-SpecialitiesAndAdvertisements';
+import { FixSpecialityImagesAndAssignDoctors1778010000000 } from './migrations/1778010000000-FixSpecialityImagesAndAssignDoctors';
 import { DoctorReview } from './entities/review.entity';
 import { DoctorSpeciality } from './entities/doctor-speciality.entity';
 import { Advertisement } from './entities/advertisement.entity';
@@ -117,6 +118,7 @@ import { AdvertisementsModule } from './advertisements/advertisements.module';
           NullableDiagnosisDoctor1777980000000,
           SymptomDoctorId1777990000000,
           SpecialitiesAndAdvertisements1778000000000,
+          FixSpecialityImagesAndAssignDoctors1778010000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
