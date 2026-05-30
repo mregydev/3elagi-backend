@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
+import { resolveSpecialityPublicUrl } from '../constants/speciality-images';
 import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
 import { Doctor } from '../entities/doctor.entity';
 import { User, UserRole } from '../entities/user.entity';
@@ -22,7 +23,7 @@ export class SpecialitiesService {
       id: s.id,
       name_en: s.name_en,
       name_ar: s.name_ar,
-      image_url: s.image_url,
+      image_url: resolveSpecialityPublicUrl(s.image_url),
     }));
   }
 

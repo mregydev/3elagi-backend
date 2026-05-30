@@ -1,4 +1,5 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
+import { SPECIALITY_IMAGES } from '../constants/speciality-images';
 
 function esc(value: string): string {
   return value.replace(/'/g, "''");
@@ -8,50 +9,42 @@ const SPECIALITIES = [
   {
     name_en: 'General Medicine',
     name_ar: 'طب عام',
-    image_url:
-      'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=400&h=400&fit=crop',
+    image_url: SPECIALITY_IMAGES['General Medicine'],
   },
   {
     name_en: 'Cardiology',
     name_ar: 'أمراض القلب',
-    image_url:
-      'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=400&h=400&fit=crop',
+    image_url: SPECIALITY_IMAGES.Cardiology,
   },
   {
     name_en: 'Dermatology',
     name_ar: 'جلدية',
-    image_url:
-      'https://placehold.co/400x400/0284c7/ffffff/png?text=Dermatology',
+    image_url: SPECIALITY_IMAGES.Dermatology,
   },
   {
     name_en: 'Pediatrics',
     name_ar: 'طب الأطفال',
-    image_url:
-      'https://images.unsplash.com/photo-1584515933487-779824d29309?w=400&h=400&fit=crop',
+    image_url: SPECIALITY_IMAGES.Pediatrics,
   },
   {
     name_en: 'Orthopedics',
     name_ar: 'عظام',
-    image_url:
-      'https://placehold.co/400x400/4f46e5/ffffff/png?text=Orthopedics',
+    image_url: SPECIALITY_IMAGES.Orthopedics,
   },
   {
     name_en: 'Neurology',
     name_ar: 'أعصاب',
-    image_url:
-      'https://images.unsplash.com/photo-1559757175-5700dde675bc?w=400&h=400&fit=crop',
+    image_url: SPECIALITY_IMAGES.Neurology,
   },
   {
     name_en: 'Ophthalmology',
     name_ar: 'عيون',
-    image_url:
-      'https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=400&h=400&fit=crop',
+    image_url: SPECIALITY_IMAGES.Ophthalmology,
   },
   {
     name_en: 'Dentistry',
     name_ar: 'أسنان',
-    image_url:
-      'https://placehold.co/400x400/0d9488/ffffff/png?text=Dentistry',
+    image_url: SPECIALITY_IMAGES.Dentistry,
   },
 ];
 

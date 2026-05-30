@@ -1,28 +1,9 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
+import { SPECIALITY_IMAGES } from '../constants/speciality-images';
 
 function esc(value: string): string {
   return value.replace(/'/g, "''");
 }
-
-/** Reliable PNG placeholders — unsplash links often fail in mobile Image. */
-const SPECIALITY_IMAGES: Record<string, string> = {
-  'General Medicine':
-    'https://placehold.co/400x400/3057F2/ffffff/png?text=General+Medicine',
-  Cardiology:
-    'https://placehold.co/400x400/dc2626/ffffff/png?text=Cardiology',
-  Dermatology:
-    'https://placehold.co/400x400/0284c7/ffffff/png?text=Dermatology',
-  Pediatrics:
-    'https://placehold.co/400x400/f59e0b/ffffff/png?text=Pediatrics',
-  Orthopedics:
-    'https://placehold.co/400x400/4f46e5/ffffff/png?text=Orthopedics',
-  Neurology:
-    'https://placehold.co/400x400/7c3aed/ffffff/png?text=Neurology',
-  Ophthalmology:
-    'https://placehold.co/400x400/0891b2/ffffff/png?text=Ophthalmology',
-  Dentistry:
-    'https://placehold.co/400x400/0d9488/ffffff/png?text=Dentistry',
-};
 
 const DEMO_PASSWORD_HASH =
   '$2a$10$sYq3k93NGjT53YkP6oCyLerfsVmCpgAg8KlQbcm6IgChHy/bV5ps.';
