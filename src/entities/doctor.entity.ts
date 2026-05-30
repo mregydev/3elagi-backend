@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { User } from './user.entity';
 import { Clinic } from './clinic.entity';
+import { DoctorSpeciality } from './doctor-speciality.entity';
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
@@ -78,6 +79,13 @@ export class Doctor {
 
   @Column({ type: 'jsonb', default: () => "'[]'::jsonb" })
   tags: string[];
+
+  @Column({ nullable: true })
+  speciality_id: string | null;
+
+  @ManyToOne(() => DoctorSpeciality, { nullable: true, eager: false })
+  @JoinColumn({ name: 'speciality_id' })
+  speciality: DoctorSpeciality | null;
 
   @CreateDateColumn()
   created_at: Date;

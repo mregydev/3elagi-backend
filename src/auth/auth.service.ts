@@ -10,6 +10,7 @@ import * as bcrypt from 'bcryptjs';
 import { User, UserRole } from '../entities/user.entity';
 import { Clinic } from '../entities/clinic.entity';
 import { Doctor } from '../entities/doctor.entity';
+import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
 import { LoginDto } from './dto/login.dto';
 import { RegisterClinicDto } from './dto/register-clinic.dto';
@@ -22,6 +23,8 @@ export class AuthService {
     @InjectRepository(User) private userRepo: Repository<User>,
     @InjectRepository(Clinic) private clinicRepo: Repository<Clinic>,
     @InjectRepository(Doctor) private doctorRepo: Repository<Doctor>,
+    @InjectRepository(DoctorSpeciality)
+    private specialityRepo: Repository<DoctorSpeciality>,
     @InjectRepository(PatientProfile)
     private patientProfileRepo: Repository<PatientProfile>,
     private jwtService: JwtService,
@@ -145,6 +148,10 @@ export class AuthService {
     });
     await this.clinicRepo.save(personalClinic);
 
+    const defaultSpeciality = await this.specialityRepo.findOne({
+      where: { name_en: 'General Medicine' },
+    });
+
     const doctor = this.doctorRepo.create({
       user_id: user.id,
       name: dto.name,
@@ -155,8 +162,12 @@ export class AuthService {
       work_permit_url: dto.work_permit_url,
       default_clinic_id: personalClinic.id,
       email: dto.email,
+      speciality_id: defaultSpeciality?.id ?? null,
     });
     await this.doctorRepo.save(doctor);
+
+    user.doctor_info_id = doctor.id;
+    await this.userRepo.save(user);
 
     const payload = { sub: user.id, email: user.email, role: user.role };
     const token = this.jwtService.sign(payload);

@@ -38,7 +38,10 @@ import { AddUsersPhotoUrl1777960000000 } from './migrations/1777960000000-AddUse
 import { MedicalDocumentsTitle1777970000000 } from './migrations/1777970000000-MedicalDocumentsTitle';
 import { NullableDiagnosisDoctor1777980000000 } from './migrations/1777980000000-NullableDiagnosisDoctor';
 import { SymptomDoctorId1777990000000 } from './migrations/1777990000000-SymptomDoctorId';
+import { SpecialitiesAndAdvertisements1778000000000 } from './migrations/1778000000000-SpecialitiesAndAdvertisements';
 import { DoctorReview } from './entities/review.entity';
+import { DoctorSpeciality } from './entities/doctor-speciality.entity';
+import { Advertisement } from './entities/advertisement.entity';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { ClinicsModule } from './clinics/clinics.module';
@@ -58,6 +61,8 @@ import { HealthModule } from './health/health.module';
 import { UsersModule } from './users/users.module';
 import { DiagnosisModule } from './diagnosis/diagnosis.module';
 import { SymptomsModule } from './symptoms/symptoms.module';
+import { SpecialitiesModule } from './specialities/specialities.module';
+import { AdvertisementsModule } from './advertisements/advertisements.module';
 
 @Module({
   imports: [
@@ -84,6 +89,8 @@ import { SymptomsModule } from './symptoms/symptoms.module';
           DoctorSchedule,
           DoctorScheduleOverride,
           DoctorReview,
+          DoctorSpeciality,
+          Advertisement,
         ],
         synchronize: false,
         migrations: [
@@ -109,6 +116,7 @@ import { SymptomsModule } from './symptoms/symptoms.module';
           MedicalDocumentsTitle1777970000000,
           NullableDiagnosisDoctor1777980000000,
           SymptomDoctorId1777990000000,
+          SpecialitiesAndAdvertisements1778000000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
@@ -138,6 +146,8 @@ import { SymptomsModule } from './symptoms/symptoms.module';
     HealthModule,
     UsersModule,
     AdminModule,
+    SpecialitiesModule,
+    AdvertisementsModule,
   ],
 })
 export class AppModule {}

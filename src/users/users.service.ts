@@ -37,7 +37,13 @@ export class UsersService {
       await this.userRepo.save(user);
 
       if (user.role === UserRole.DOCTOR) {
-        await this.doctorRepo.update({ user_id: userId }, { photo_url: dto.photo_url });
+        const doctor =
+          user.doctor_info_id
+            ? await this.doctorRepo.findOne({ where: { id: user.doctor_info_id } })
+            : await this.doctorRepo.findOne({ where: { user_id: userId } });
+        if (doctor) {
+          await this.doctorRepo.update({ id: doctor.id }, { photo_url: dto.photo_url });
+        }
       } else if (user.role === UserRole.PATIENT) {
         const profile = await this.patientProfileRepo.findOne({
           where: { user_id: userId },
@@ -67,15 +73,30 @@ export class UsersService {
     if (otherUsers.length === 0) return [];
 
     const ids = otherUsers.map((u) => u.id);
-    const [doctors, profiles] = await Promise.all([
+    const doctorInfoIds = otherUsers
+      .filter((u) => u.doctor_info_id)
+      .map((u) => u.doctor_info_id as string);
+
+    const [doctorsByUser, doctorsByInfo, profiles] = await Promise.all([
       this.doctorRepo.find({ where: { user_id: In(ids) } }),
+      doctorInfoIds.length
+        ? this.doctorRepo.find({
+            where: { id: In(doctorInfoIds) },
+            relations: ['speciality'],
+          })
+        : Promise.resolve([]),
       this.patientProfileRepo.find({ where: { user_id: In(ids) } }),
     ]);
-    const doctorByUserId = new Map(doctors.map((d) => [d.user_id, d]));
+
+    const doctorByUserId = new Map(doctorsByUser.map((d) => [d.user_id, d]));
+    const doctorByInfoId = new Map(doctorsByInfo.map((d) => [d.id, d]));
     const profileByUserId = new Map(profiles.map((p) => [p.user_id, p]));
 
     return otherUsers.map((user) => {
-      const doctor = doctorByUserId.get(user.id);
+      const doctor =
+        (user.doctor_info_id
+          ? doctorByInfoId.get(user.doctor_info_id)
+          : undefined) ?? doctorByUserId.get(user.id);
       const profile = profileByUserId.get(user.id);
       let name = user.email.split('@')[0];
       let photo_url = user.photo_url ?? null;
@@ -84,7 +105,8 @@ export class UsersService {
       if (user.role === UserRole.DOCTOR && doctor) {
         name = doctor.name;
         photo_url = doctor.photo_url ?? user.photo_url ?? null;
-        specialty = doctor.professional_title ?? null;
+        specialty =
+          doctor.speciality?.name_en ?? doctor.professional_title ?? null;
       } else if (user.role === UserRole.PATIENT && profile) {
         name = profile.name;
         photo_url = profile.photo_url ?? user.photo_url ?? null;

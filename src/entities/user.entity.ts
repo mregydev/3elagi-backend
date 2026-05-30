@@ -4,7 +4,10 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
+import { Doctor } from './doctor.entity';
 
 export enum UserRole {
   ADMIN = 'admin',
@@ -29,6 +32,13 @@ export class User {
 
   @Column({ type: 'text', nullable: true })
   photo_url: string | null;
+
+  @Column({ nullable: true })
+  doctor_info_id: string | null;
+
+  @ManyToOne(() => Doctor, { nullable: true, eager: false })
+  @JoinColumn({ name: 'doctor_info_id' })
+  doctor_info: Doctor | null;
 
   @CreateDateColumn()
   created_at: Date;
