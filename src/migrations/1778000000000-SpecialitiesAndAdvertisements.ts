@@ -1,5 +1,9 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
+function esc(value: string): string {
+  return value.replace(/'/g, "''");
+}
+
 const SPECIALITIES = [
   {
     name_en: 'General Medicine',
@@ -144,14 +148,16 @@ export class SpecialitiesAndAdvertisements1778000000000
     `).catch(() => undefined);
 
     for (const s of SPECIALITIES) {
-      await queryRunner.query(
-        `INSERT INTO "doctor_specialities" ("name_en", "name_ar", "image_url")
-         SELECT $1, $2, $3
-         WHERE NOT EXISTS (
-           SELECT 1 FROM "doctor_specialities" WHERE "name_en" = $1
-         )`,
-        [s.name_en, s.name_ar, s.image_url],
-      );
+      const nameEn = esc(s.name_en);
+      const nameAr = esc(s.name_ar);
+      const imageUrl = esc(s.image_url);
+      await queryRunner.query(`
+        INSERT INTO "doctor_specialities" ("name_en", "name_ar", "image_url")
+        SELECT '${nameEn}', '${nameAr}', '${imageUrl}'
+        WHERE NOT EXISTS (
+          SELECT 1 FROM "doctor_specialities" WHERE "name_en" = '${nameEn}'
+        )
+      `);
     }
 
     const generalRow = await queryRunner.query(
@@ -161,7 +167,7 @@ export class SpecialitiesAndAdvertisements1778000000000
 
     if (generalId) {
       await queryRunner.query(
-        `UPDATE "doctors" SET "speciality_id" = $1 WHERE "speciality_id" IS NULL`,
+        `UPDATE "doctors" SET "speciality_id" = $1::uuid WHERE "speciality_id" IS NULL`,
         [generalId],
       );
     }
@@ -183,14 +189,17 @@ export class SpecialitiesAndAdvertisements1778000000000
     for (let i = 0; i < ADVERTISEMENTS.length; i++) {
       const ad = ADVERTISEMENTS[i];
       const clinicId = i < clinicIds.length ? clinicIds[i] : null;
-      await queryRunner.query(
-        `INSERT INTO "advertisements" ("title", "description", "banner_image_url", "clinic_id", "sort_order", "is_active")
-         SELECT $1, $2, $3, $4, $5, true
-         WHERE NOT EXISTS (
-           SELECT 1 FROM "advertisements" WHERE "title" = $1
-         )`,
-        [ad.title, ad.description, ad.banner_image_url, clinicId, ad.sort_order],
-      );
+      const title = esc(ad.title);
+      const description = esc(ad.description);
+      const banner = esc(ad.banner_image_url);
+      const clinicSql = clinicId ? `'${esc(clinicId)}'::uuid` : 'NULL';
+      await queryRunner.query(`
+        INSERT INTO "advertisements" ("title", "description", "banner_image_url", "clinic_id", "sort_order", "is_active")
+        SELECT '${title}', '${description}', '${banner}', ${clinicSql}, ${ad.sort_order}, true
+        WHERE NOT EXISTS (
+          SELECT 1 FROM "advertisements" WHERE "title" = '${title}'
+        )
+      `);
     }
   }
 
