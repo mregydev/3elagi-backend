@@ -3,6 +3,7 @@ import {
   IsArray,
   IsOptional,
   IsString,
+  IsUUID,
   ValidateNested,
 } from 'class-validator';
 import { CreateDiagnosisSymptomDto } from './create-diagnosis-symptom.dto';
@@ -16,4 +17,9 @@ export class CreatePatientDiagnosisDto {
   @ValidateNested({ each: true })
   @Type(() => CreateDiagnosisSymptomDto)
   symptoms?: CreateDiagnosisSymptomDto[];
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  document_ids?: string[];
 }

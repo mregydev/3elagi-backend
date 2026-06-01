@@ -60,8 +60,13 @@ export class MedicalDocumentsService {
     dto: CreatePatientMedicalDocumentDto,
   ) {
     const user = await this.userRepo.findOne({ where: { id: userId } });
-    if (!user || user.role !== UserRole.PATIENT) {
-      throw new ForbiddenException('Only patients can use this endpoint');
+    if (
+      !user ||
+      (user.role !== UserRole.PATIENT && user.role !== UserRole.DOCTOR)
+    ) {
+      throw new ForbiddenException(
+        'Only patients and doctors can use this endpoint for personal records',
+      );
     }
     if (!dto.file_url?.trim()) {
       throw new BadRequestException('Image file is required');

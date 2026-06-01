@@ -16,7 +16,7 @@ import { DocumentType } from '../entities/medical-document.entity';
 
 @Controller('patient/medical-documents')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('patient')
+@Roles('patient', 'doctor')
 export class PatientMedicalDocumentsController {
   constructor(private readonly service: MedicalDocumentsService) {}
 

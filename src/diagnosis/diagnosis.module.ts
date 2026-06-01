@@ -10,6 +10,7 @@ import { Symptom } from '../entities/symptom.entity';
 import { User } from '../entities/user.entity';
 import { Appointment } from '../entities/appointment.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
+import { MedicalDocument } from '../entities/medical-document.entity';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { PatientProfile } from '../entities/patient-profile.entity';
       User,
       Appointment,
       PatientProfile,
+      MedicalDocument,
     ]),
   ],
   controllers: [DiagnosisController, PatientDiagnosisController],

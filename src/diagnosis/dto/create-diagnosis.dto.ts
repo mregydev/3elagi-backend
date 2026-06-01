@@ -23,4 +23,9 @@ export class CreateDiagnosisDto {
   @ValidateNested({ each: true })
   @Type(() => CreateDiagnosisSymptomDto)
   symptoms?: CreateDiagnosisSymptomDto[];
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  document_ids?: string[];
 }

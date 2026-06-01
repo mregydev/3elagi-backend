@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
   ForbiddenException,
@@ -15,6 +16,12 @@ import { PatientProfile } from '../entities/patient-profile.entity';
 import { CreateDiagnosisDto } from './dto/create-diagnosis.dto';
 import { CreatePatientDiagnosisDto } from './dto/create-patient-diagnosis.dto';
 import { UpdateDiagnosisDto } from './dto/update-diagnosis.dto';
+import {
+  DocumentType,
+  MedicalDocument,
+} from '../entities/medical-document.entity';
+
+type DiagnosisWithDocuments = Diagnosis & { documents?: MedicalDocument[] };
 
 @Injectable()
 export class DiagnosisService {
@@ -28,6 +35,8 @@ export class DiagnosisService {
     private appointmentRepo: Repository<Appointment>,
     @InjectRepository(PatientProfile)
     private patientProfileRepo: Repository<PatientProfile>,
+    @InjectRepository(MedicalDocument)
+    private medicalDocRepo: Repository<MedicalDocument>,
   ) {}
 
   private normalizePhone(phone: string): string {
@@ -93,6 +102,54 @@ export class DiagnosisService {
     return rows;
   }
 
+  private async linkDocumentsToDiagnosis(
+    diagnosisId: string,
+    patientUserId: string,
+    documentIds: string[] | undefined,
+  ): Promise<void> {
+    if (!documentIds?.length) return;
+    const uniqueIds = [...new Set(documentIds)];
+    const docs = await this.medicalDocRepo.find({
+      where: { id: In(uniqueIds), patient_id: patientUserId },
+    });
+    if (docs.length !== uniqueIds.length) {
+      throw new BadRequestException('One or more documents were not found for this patient');
+    }
+    for (const doc of docs) {
+      if (doc.type !== DocumentType.LAB && doc.type !== DocumentType.XRAY) {
+        throw new BadRequestException(
+          'Only lab results and X-rays can be linked to a diagnosis',
+        );
+      }
+    }
+    await this.medicalDocRepo.update(
+      { id: In(uniqueIds) },
+      { diagnosis_id: diagnosisId },
+    );
+  }
+
+  private async attachDocuments(
+    rows: Diagnosis[],
+  ): Promise<DiagnosisWithDocuments[]> {
+    if (!rows.length) return rows;
+    const diagnosisIds = rows.map((r) => r.id);
+    const docs = await this.medicalDocRepo.find({
+      where: { diagnosis_id: In(diagnosisIds) },
+      order: { created_at: 'ASC' },
+    });
+    const byDiagnosis = new Map<string, MedicalDocument[]>();
+    for (const doc of docs) {
+      if (!doc.diagnosis_id) continue;
+      const list = byDiagnosis.get(doc.diagnosis_id) ?? [];
+      list.push(doc);
+      byDiagnosis.set(doc.diagnosis_id, list);
+    }
+    return rows.map((row) => ({
+      ...row,
+      documents: byDiagnosis.get(row.id) ?? [],
+    }));
+  }
+
   async findAll(patientId: string | undefined, userId: string, userRole: string) {
     await this.assertDoctorUser(userId, userRole);
     const where = patientId ? { patient_id: patientId } : {};
@@ -101,7 +158,8 @@ export class DiagnosisService {
       order: { created_at: 'DESC' },
       relations: ['symptoms'],
     });
-    return this.attachDoctorNamesToDiagnoses(rows);
+    const named = await this.attachDoctorNamesToDiagnoses(rows);
+    return this.attachDocuments(named);
   }
 
   async findOne(id: string, userId: string, userRole: string) {
@@ -112,7 +170,8 @@ export class DiagnosisService {
     });
     if (!row) throw new NotFoundException('Diagnosis not found');
     const [enriched] = await this.attachDoctorNamesToDiagnoses([row]);
-    return enriched;
+    const [withDocs] = await this.attachDocuments([enriched]);
+    return withDocs;
   }
 
   async findForPatientUser(userId: string) {
@@ -121,7 +180,8 @@ export class DiagnosisService {
       order: { created_at: 'DESC' },
       relations: ['symptoms'],
     });
-    return this.attachDoctorNamesToDiagnoses(rows);
+    const named = await this.attachDoctorNamesToDiagnoses(rows);
+    return this.attachDocuments(named);
   }
 
   async findOneForPatientUser(id: string, userId: string) {
@@ -131,7 +191,8 @@ export class DiagnosisService {
     });
     if (!row) throw new NotFoundException('Diagnosis not found');
     const [enriched] = await this.attachDoctorNamesToDiagnoses([row]);
-    return enriched;
+    const [withDocs] = await this.attachDocuments([enriched]);
+    return withDocs;
   }
 
   private async saveSymptoms(
@@ -155,8 +216,13 @@ export class DiagnosisService {
 
   async createForPatientUser(userId: string, dto: CreatePatientDiagnosisDto) {
     const user = await this.userRepo.findOne({ where: { id: userId } });
-    if (!user || user.role !== UserRole.PATIENT) {
-      throw new ForbiddenException('Only patients can create self-reported diagnoses');
+    if (
+      !user ||
+      (user.role !== UserRole.PATIENT && user.role !== UserRole.DOCTOR)
+    ) {
+      throw new ForbiddenException(
+        'Only patients and doctors can create personal diagnoses',
+      );
     }
     const row = this.diagnosisRepo.create({
       desc: dto.desc.trim(),
@@ -165,6 +231,7 @@ export class DiagnosisService {
     });
     const saved = await this.diagnosisRepo.save(row);
     await this.saveSymptoms(saved.id, dto.symptoms, null);
+    await this.linkDocumentsToDiagnosis(saved.id, userId, dto.document_ids);
     return this.findOneForPatientUser(saved.id, userId);
   }
 
@@ -194,10 +261,15 @@ export class DiagnosisService {
     if (targetDoctor.id !== doctor.id) {
       throw new ForbiddenException('You can only create diagnoses for yourself as doctor');
     }
-    const { symptoms, ...diagnosisFields } = dto;
+    const { symptoms, document_ids, ...diagnosisFields } = dto;
     const row = this.diagnosisRepo.create(diagnosisFields);
     const saved = await this.diagnosisRepo.save(row);
     await this.saveSymptoms(saved.id, symptoms, doctor.id);
+    await this.linkDocumentsToDiagnosis(
+      saved.id,
+      dto.patient_id,
+      document_ids,
+    );
     return this.findOne(saved.id, userId, userRole);
   }
 

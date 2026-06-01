@@ -8,7 +8,7 @@ import { AddPatientSymptomDto } from './dto/add-patient-symptom.dto';
 
 @Controller('patient/diagnoses')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('patient')
+@Roles('patient', 'doctor')
 export class PatientDiagnosisController {
   constructor(private readonly service: DiagnosisService) {}
 
