@@ -73,6 +73,7 @@ import { MessagesModule } from './messages/messages.module';
 import { Message } from './entities/message.entity';
 import { MessagesTable1778060000000 } from './migrations/1778060000000-MessagesTable';
 import { MessageAttachmentsAndRead1778070000000 } from './migrations/1778070000000-MessageAttachmentsAndRead';
+import { MessageEditedAt1778080000000 } from './migrations/1778080000000-MessageEditedAt';
 
 @Module({
   imports: [
@@ -135,6 +136,7 @@ import { MessageAttachmentsAndRead1778070000000 } from './migrations/17780700000
           RemoveDemoDoctors1778050000000,
           MessagesTable1778060000000,
           MessageAttachmentsAndRead1778070000000,
+          MessageEditedAt1778080000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
