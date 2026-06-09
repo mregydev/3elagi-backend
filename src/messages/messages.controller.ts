@@ -1,8 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
+  Patch,
   Post,
   Request,
   UseGuards,
@@ -11,6 +13,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { CreateMessageDto } from './dto/create-message.dto';
+import { UpdateMessageDto } from './dto/update-message.dto';
 import { MessagesService } from './messages.service';
 
 @Controller('messages')
@@ -46,5 +49,22 @@ export class MessagesController {
     @Param('peerId') peerId: string,
   ) {
     return this.messagesService.markRead(req.user.id, peerId);
+  }
+
+  @Patch(':messageId')
+  update(
+    @Request() req: { user: { id: string } },
+    @Param('messageId') messageId: string,
+    @Body() dto: UpdateMessageDto,
+  ) {
+    return this.messagesService.update(req.user.id, messageId, dto);
+  }
+
+  @Delete(':messageId')
+  delete(
+    @Request() req: { user: { id: string } },
+    @Param('messageId') messageId: string,
+  ) {
+    return this.messagesService.delete(req.user.id, messageId);
   }
 }

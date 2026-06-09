@@ -59,4 +59,7 @@ export class Message {
 
   @Column({ type: 'timestamptz', nullable: true })
   read_at: Date | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  edited_at: Date | null;
 }

@@ -11,6 +11,9 @@ import { User, UserRole } from '../entities/user.entity';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { UsersService } from '../users/users.service';
 import { CreateMessageDto } from './dto/create-message.dto';
+import { UpdateMessageDto } from './dto/update-message.dto';
+
+const MESSAGE_EDIT_WINDOW_MS = 15 * 60 * 1000;
 
 @Injectable()
 export class MessagesService {
@@ -32,6 +35,7 @@ export class MessagesService {
       attachment_url: row.attachment_url,
       attachment_meta: row.attachment_meta,
       read_at: row.read_at,
+      edited_at: row.edited_at,
     };
   }
 
@@ -151,6 +155,65 @@ export class MessagesService {
     const mapped = this.mapMessage(saved);
 
     this.presenceGateway.emitToUser(dto.recipient_id, 'message:new', {
+      message: mapped,
+      peer_id: userId,
+    });
+
+    return mapped;
+  }
+
+  async delete(userId: string, messageId: string) {
+    const row = await this.messageRepo.findOne({ where: { id: messageId } });
+    if (!row) {
+      throw new NotFoundException('Message not found');
+    }
+    if (row.creator !== userId) {
+      throw new ForbiddenException('Only the sender can delete this message');
+    }
+
+    const peerId = row.recipient;
+    await this.assertCanChat(userId, peerId);
+    await this.messageRepo.delete({ id: messageId });
+
+    this.presenceGateway.emitToUser(peerId, 'message:deleted', {
+      message_id: messageId,
+      peer_id: userId,
+    });
+
+    return { ok: true, message_id: messageId, peer_id: userId };
+  }
+
+  async update(userId: string, messageId: string, dto: UpdateMessageDto) {
+    const row = await this.messageRepo.findOne({ where: { id: messageId } });
+    if (!row) {
+      throw new NotFoundException('Message not found');
+    }
+    if (row.creator !== userId) {
+      throw new ForbiddenException('Only the sender can edit this message');
+    }
+    if (row.type !== 'text') {
+      throw new BadRequestException('Only text messages can be edited');
+    }
+
+    const sentAt = new Date(row.datetime).getTime();
+    if (Date.now() - sentAt > MESSAGE_EDIT_WINDOW_MS) {
+      throw new BadRequestException('Message can no longer be edited');
+    }
+
+    const content = dto.content.trim();
+    if (!content) {
+      throw new BadRequestException('content is required');
+    }
+
+    const peerId = row.recipient;
+    await this.assertCanChat(userId, peerId);
+
+    row.content = content;
+    row.edited_at = new Date();
+    const saved = await this.messageRepo.save(row);
+    const mapped = this.mapMessage(saved);
+
+    this.presenceGateway.emitToUser(peerId, 'message:updated', {
       message: mapped,
       peer_id: userId,
     });
