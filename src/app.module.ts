@@ -42,6 +42,7 @@ import { SpecialitiesAndAdvertisements1778000000000 } from './migrations/1778000
 import { FixSpecialityImagesAndAssignDoctors1778010000000 } from './migrations/1778010000000-FixSpecialityImagesAndAssignDoctors';
 import { UpdateSpecialityExpressiveImages1778020000000 } from './migrations/1778020000000-UpdateSpecialityExpressiveImages';
 import { BundledSpecialityImages1778030000000 } from './migrations/1778030000000-BundledSpecialityImages';
+import { SurgeryAndAlaadocSpecialities1778040000000 } from './migrations/1778040000000-SurgeryAndAlaadocSpecialities';
 import { DoctorReview } from './entities/review.entity';
 import { DoctorSpeciality } from './entities/doctor-speciality.entity';
 import { Advertisement } from './entities/advertisement.entity';
@@ -66,6 +67,7 @@ import { DiagnosisModule } from './diagnosis/diagnosis.module';
 import { SymptomsModule } from './symptoms/symptoms.module';
 import { SpecialitiesModule } from './specialities/specialities.module';
 import { AdvertisementsModule } from './advertisements/advertisements.module';
+import { PresenceModule } from './presence/presence.module';
 
 @Module({
   imports: [
@@ -123,6 +125,7 @@ import { AdvertisementsModule } from './advertisements/advertisements.module';
           FixSpecialityImagesAndAssignDoctors1778010000000,
           UpdateSpecialityExpressiveImages1778020000000,
           BundledSpecialityImages1778030000000,
+          SurgeryAndAlaadocSpecialities1778040000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
@@ -154,6 +157,7 @@ import { AdvertisementsModule } from './advertisements/advertisements.module';
     AdminModule,
     SpecialitiesModule,
     AdvertisementsModule,
+    PresenceModule,
   ],
 })
 export class AppModule {}
