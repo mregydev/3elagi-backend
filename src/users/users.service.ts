@@ -78,7 +78,10 @@ export class UsersService {
       .map((u) => u.doctor_info_id as string);
 
     const [doctorsByUser, doctorsByInfo, profiles] = await Promise.all([
-      this.doctorRepo.find({ where: { user_id: In(ids) } }),
+      this.doctorRepo.find({
+        where: { user_id: In(ids) },
+        relations: ['speciality'],
+      }),
       doctorInfoIds.length
         ? this.doctorRepo.find({
             where: { id: In(doctorInfoIds) },
@@ -92,12 +95,22 @@ export class UsersService {
     const doctorByInfoId = new Map(doctorsByInfo.map((d) => [d.id, d]));
     const profileByUserId = new Map(profiles.map((p) => [p.user_id, p]));
 
-    return otherUsers.map((user) => {
+    return otherUsers.flatMap((user) => {
       const doctor =
         (user.doctor_info_id
           ? doctorByInfoId.get(user.doctor_info_id)
           : undefined) ?? doctorByUserId.get(user.id);
       const profile = profileByUserId.get(user.id);
+
+      if (user.role === UserRole.DOCTOR) {
+        if (!doctor || doctor.approval_status !== 'approved') {
+          return [];
+        }
+        if (user.email.endsWith('@3elagi.local')) {
+          return [];
+        }
+      }
+
       let name = user.email.split('@')[0];
       let photo_url = user.photo_url ?? null;
       let specialty: string | null = null;
@@ -116,14 +129,16 @@ export class UsersService {
         name = `Dr. ${name}`;
       }
 
-      return {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        name,
-        photo_url,
-        specialty,
-      };
+      return [
+        {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          name,
+          photo_url,
+          specialty,
+        },
+      ];
     });
   }
 }

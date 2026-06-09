@@ -66,4 +66,11 @@ export class PresenceGateway implements OnGatewayDisconnect {
       this.server.emit('newlogout', removed);
     }
   }
+
+  emitToUser(userId: string, event: string, payload: unknown) {
+    const socketIds = this.presence.getSocketIdsForUser(userId);
+    for (const socketId of socketIds) {
+      this.server.to(socketId).emit(event, payload);
+    }
+  }
 }

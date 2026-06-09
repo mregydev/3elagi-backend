@@ -43,6 +43,7 @@ import { FixSpecialityImagesAndAssignDoctors1778010000000 } from './migrations/1
 import { UpdateSpecialityExpressiveImages1778020000000 } from './migrations/1778020000000-UpdateSpecialityExpressiveImages';
 import { BundledSpecialityImages1778030000000 } from './migrations/1778030000000-BundledSpecialityImages';
 import { SurgeryAndAlaadocSpecialities1778040000000 } from './migrations/1778040000000-SurgeryAndAlaadocSpecialities';
+import { RemoveDemoDoctors1778050000000 } from './migrations/1778050000000-RemoveDemoDoctors';
 import { DoctorReview } from './entities/review.entity';
 import { DoctorSpeciality } from './entities/doctor-speciality.entity';
 import { Advertisement } from './entities/advertisement.entity';
@@ -68,6 +69,10 @@ import { SymptomsModule } from './symptoms/symptoms.module';
 import { SpecialitiesModule } from './specialities/specialities.module';
 import { AdvertisementsModule } from './advertisements/advertisements.module';
 import { PresenceModule } from './presence/presence.module';
+import { MessagesModule } from './messages/messages.module';
+import { Message } from './entities/message.entity';
+import { MessagesTable1778060000000 } from './migrations/1778060000000-MessagesTable';
+import { MessageAttachmentsAndRead1778070000000 } from './migrations/1778070000000-MessageAttachmentsAndRead';
 
 @Module({
   imports: [
@@ -96,6 +101,7 @@ import { PresenceModule } from './presence/presence.module';
           DoctorReview,
           DoctorSpeciality,
           Advertisement,
+          Message,
         ],
         synchronize: false,
         migrations: [
@@ -126,6 +132,9 @@ import { PresenceModule } from './presence/presence.module';
           UpdateSpecialityExpressiveImages1778020000000,
           BundledSpecialityImages1778030000000,
           SurgeryAndAlaadocSpecialities1778040000000,
+          RemoveDemoDoctors1778050000000,
+          MessagesTable1778060000000,
+          MessageAttachmentsAndRead1778070000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
@@ -158,6 +167,7 @@ import { PresenceModule } from './presence/presence.module';
     SpecialitiesModule,
     AdvertisementsModule,
     PresenceModule,
+    MessagesModule,
   ],
 })
 export class AppModule {}

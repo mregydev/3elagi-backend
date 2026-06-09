@@ -63,4 +63,9 @@ export class PresenceService {
   getUserIdForSocket(socketId: string): string | undefined {
     return this.socketToUser.get(socketId);
   }
+
+  getSocketIdsForUser(userId: string): string[] {
+    const sockets = this.userSockets.get(userId);
+    return sockets ? Array.from(sockets) : [];
+  }
 }
