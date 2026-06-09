@@ -10,6 +10,11 @@ export class PresenceService {
   /** userId → connected socket ids */
   private readonly userSockets = new Map<string, Set<string>>();
 
+  isUserOnline(userId: string): boolean {
+    const sockets = this.userSockets.get(userId);
+    return Boolean(sockets && sockets.size > 0);
+  }
+
   login(socketId: string, user: LoggedInUser): boolean {
     const isNew = !this.users.has(user.id);
     this.users.set(user.id, user);

@@ -25,6 +25,14 @@ export const ALLOWED_UPLOAD_MIMES = [
   'image/webp',
   'image/gif',
   'application/pdf',
+  'audio/m4a',
+  'audio/mp4',
+  'audio/mpeg',
+  'audio/aac',
+  'audio/x-m4a',
+  'audio/x-caf',
+  'video/mp4',
+  'video/quicktime',
 ] as const;
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;

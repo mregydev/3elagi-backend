@@ -35,8 +35,9 @@ export class PresenceGateway implements OnGatewayDisconnect {
       specialty: payload.specialty ?? null,
     };
 
-    const isNew = this.presence.login(client.id, user);
-    if (isNew) {
+    const wasOnline = this.presence.isUserOnline(user.id);
+    this.presence.login(client.id, user);
+    if (!wasOnline) {
       this.server.emit('newlogin', user);
     }
   }
@@ -58,6 +59,26 @@ export class PresenceGateway implements OnGatewayDisconnect {
   @SubscribeMessage('get:loggedIn:users')
   handleGetLoggedInUsers(@ConnectedSocket() client: Socket) {
     client.emit('loggedIn:users', this.presence.getAll());
+  }
+
+  @SubscribeMessage('chat:typing')
+  handleChatTyping(
+    @MessageBody() payload: { recipient_id?: string; user_id?: string },
+  ) {
+    if (!payload?.recipient_id || !payload?.user_id) return;
+    this.emitToUser(payload.recipient_id, 'chat:typing', {
+      peer_id: payload.user_id,
+    });
+  }
+
+  @SubscribeMessage('chat:stopTyping')
+  handleChatStopTyping(
+    @MessageBody() payload: { recipient_id?: string; user_id?: string },
+  ) {
+    if (!payload?.recipient_id || !payload?.user_id) return;
+    this.emitToUser(payload.recipient_id, 'chat:stopTyping', {
+      peer_id: payload.user_id,
+    });
   }
 
   handleDisconnect(client: Socket) {
