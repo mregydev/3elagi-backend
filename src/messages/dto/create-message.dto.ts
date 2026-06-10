@@ -8,14 +8,17 @@ import {
   MinLength,
   ValidateIf,
 } from 'class-validator';
-import type { MedicalLinkMeta, MessageType } from '../../entities/message.entity';
+import type {
+  MessageAttachmentMeta,
+  MessageType,
+} from '../../entities/message.entity';
 
 export class CreateMessageDto {
   @IsUUID()
   recipient_id: string;
 
   @IsOptional()
-  @IsIn(['text', 'image', 'video', 'voice', 'medical_link'])
+  @IsIn(['text', 'image', 'video', 'voice', 'medical_link', 'access_action'])
   type?: MessageType;
 
   @ValidateIf((dto: CreateMessageDto) => (dto.type ?? 'text') === 'text')
@@ -31,5 +34,5 @@ export class CreateMessageDto {
 
   @IsOptional()
   @IsObject()
-  attachment_meta?: MedicalLinkMeta;
+  attachment_meta?: MessageAttachmentMeta;
 }

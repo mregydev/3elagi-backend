@@ -13,7 +13,8 @@ export type MessageType =
   | 'image'
   | 'video'
   | 'voice'
-  | 'medical_link';
+  | 'medical_link'
+  | 'access_action';
 
 export interface MedicalLinkMeta {
   record_type: 'lab' | 'xray' | 'diagnosis';
@@ -21,6 +22,20 @@ export interface MedicalLinkMeta {
   title: string;
   note?: string;
 }
+
+export type AccessActionType =
+  | 'grant_records'
+  | 'revoke_records'
+  | 'patient_block'
+  | 'doctor_block'
+  | 'patient_unblock'
+  | 'doctor_unblock';
+
+export interface AccessActionMeta {
+  action: AccessActionType;
+}
+
+export type MessageAttachmentMeta = MedicalLinkMeta | AccessActionMeta;
 
 @Entity('messages')
 @Index('IDX_messages_creator_recipient', ['creator', 'recipient'])
@@ -39,7 +54,7 @@ export class Message {
   attachment_url: string | null;
 
   @Column({ type: 'jsonb', nullable: true })
-  attachment_meta: MedicalLinkMeta | null;
+  attachment_meta: MessageAttachmentMeta | null;
 
   @Column({ type: 'uuid' })
   creator: string;

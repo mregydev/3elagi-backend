@@ -9,9 +9,11 @@ import { User } from '../entities/user.entity';
 import { Doctor } from '../entities/doctor.entity';
 import { Diagnosis } from '../entities/diagnosis.entity';
 import { Symptom } from '../entities/symptom.entity';
+import { DoctorPatientAccessModule } from '../doctor-patient-access/doctor-patient-access.module';
 
 @Module({
   imports: [
+    DoctorPatientAccessModule,
     TypeOrmModule.forFeature([MedicalDocument, Patient, User, Doctor, Diagnosis, Symptom]),
   ],
   controllers: [MedicalDocumentsController, PatientMedicalDocumentsController],

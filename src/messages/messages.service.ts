@@ -6,12 +6,28 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Message, MessageType } from '../entities/message.entity';
+import {
+  AccessActionType,
+  Message,
+  MessageType,
+} from '../entities/message.entity';
 import { User, UserRole } from '../entities/user.entity';
+import {
+  DoctorPatientAccessService,
+} from '../doctor-patient-access/doctor-patient-access.service';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { UsersService } from '../users/users.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
+
+const ACCESS_ACTIONS: AccessActionType[] = [
+  'grant_records',
+  'revoke_records',
+  'patient_block',
+  'doctor_block',
+  'patient_unblock',
+  'doctor_unblock',
+];
 
 const MESSAGE_EDIT_WINDOW_MS = 15 * 60 * 1000;
 
@@ -22,6 +38,7 @@ export class MessagesService {
     @InjectRepository(User) private userRepo: Repository<User>,
     private usersService: UsersService,
     private presenceGateway: PresenceGateway,
+    private doctorPatientAccessService: DoctorPatientAccessService,
   ) {}
 
   private mapMessage(row: Message) {
@@ -39,7 +56,7 @@ export class MessagesService {
     };
   }
 
-  private async assertCanChat(senderId: string, recipientId: string) {
+  private async assertDoctorPatientPair(senderId: string, recipientId: string) {
     if (senderId === recipientId) {
       throw new BadRequestException('Cannot message yourself');
     }
@@ -66,6 +83,11 @@ export class MessagesService {
     return { sender, recipient };
   }
 
+  private async assertCanChat(senderId: string, recipientId: string) {
+    await this.assertDoctorPatientPair(senderId, recipientId);
+    await this.doctorPatientAccessService.assertCanChat(senderId, recipientId);
+  }
+
   private resolveContent(dto: CreateMessageDto, type: MessageType): string {
     if (type === 'text') {
       const content = dto.content?.trim();
@@ -76,11 +98,19 @@ export class MessagesService {
     if (type === 'video') return dto.content?.trim() || 'Video';
     if (type === 'voice') return dto.content?.trim() || 'Voice message';
     if (type === 'medical_link') {
-      const title = dto.attachment_meta?.title?.trim();
-      if (!title || !dto.attachment_meta?.record_id) {
+      const meta = dto.attachment_meta as { title?: string; record_id?: string } | undefined;
+      const title = meta?.title?.trim();
+      if (!title || !meta?.record_id) {
         throw new BadRequestException('medical link metadata is required');
       }
       return dto.content?.trim() || title;
+    }
+    if (type === 'access_action') {
+      const action = (dto.attachment_meta as { action?: AccessActionType } | undefined)?.action;
+      if (!action || !ACCESS_ACTIONS.includes(action)) {
+        throw new BadRequestException('invalid access action');
+      }
+      return DoctorPatientAccessService.accessActionLabel(action);
     }
     return dto.content?.trim() || '';
   }
@@ -95,7 +125,7 @@ export class MessagesService {
   }
 
   async listWithPeer(userId: string, peerId: string) {
-    await this.assertCanChat(userId, peerId);
+    await this.assertDoctorPatientPair(userId, peerId);
 
     const rows = await this.messageRepo
       .createQueryBuilder('m')
@@ -110,7 +140,7 @@ export class MessagesService {
   }
 
   async markRead(userId: string, peerId: string) {
-    await this.assertCanChat(userId, peerId);
+    await this.assertDoctorPatientPair(userId, peerId);
     await this.messageRepo
       .createQueryBuilder()
       .update(Message)
@@ -133,11 +163,16 @@ export class MessagesService {
     let attachmentMeta = dto.attachment_meta ?? null;
 
     if (type === 'medical_link') {
-      const meta = dto.attachment_meta;
+      const meta = dto.attachment_meta as {
+        record_id?: string;
+        title?: string;
+        record_type?: string;
+        note?: string;
+      };
       if (
         !meta?.record_id ||
         !meta?.title ||
-        !['lab', 'xray', 'diagnosis'].includes(meta.record_type)
+        !['lab', 'xray', 'diagnosis'].includes(meta.record_type ?? '')
       ) {
         throw new BadRequestException('invalid medical link metadata');
       }
@@ -147,7 +182,53 @@ export class MessagesService {
       attachmentMeta = {
         ...meta,
         ...(note && note !== title ? { note } : {}),
-      };
+      } as typeof attachmentMeta;
+    }
+
+    if (type === 'access_action') {
+      const action = (dto.attachment_meta as { action?: AccessActionType } | undefined)?.action;
+      if (!action || !ACCESS_ACTIONS.includes(action)) {
+        throw new BadRequestException('invalid access action');
+      }
+
+      const isUnblock = action === 'patient_unblock' || action === 'doctor_unblock';
+      if (isUnblock) {
+        await this.assertDoctorPatientPair(userId, dto.recipient_id);
+      } else {
+        await this.assertCanChat(userId, dto.recipient_id);
+      }
+
+      const status = await this.doctorPatientAccessService.applyAccessAction(
+        userId,
+        dto.recipient_id,
+        action,
+      );
+
+      const created = this.messageRepo.create({
+        type,
+        content: DoctorPatientAccessService.accessActionLabel(action),
+        creator: userId,
+        recipient: dto.recipient_id,
+        attachment_url: null,
+        attachment_meta: { action },
+      });
+      const saved = await this.messageRepo.save(created);
+      const mapped = this.mapMessage(saved);
+
+      this.presenceGateway.emitToUser(dto.recipient_id, 'message:new', {
+        message: mapped,
+        peer_id: userId,
+      });
+      this.presenceGateway.emitToUser(dto.recipient_id, 'access:updated', {
+        status,
+        peer_id: userId,
+      });
+      this.presenceGateway.emitToUser(userId, 'access:updated', {
+        status,
+        peer_id: dto.recipient_id,
+      });
+
+      return mapped;
     }
 
     await this.assertCanChat(userId, dto.recipient_id);

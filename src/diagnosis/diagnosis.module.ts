@@ -11,9 +11,11 @@ import { User } from '../entities/user.entity';
 import { Appointment } from '../entities/appointment.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
 import { MedicalDocument } from '../entities/medical-document.entity';
+import { DoctorPatientAccessModule } from '../doctor-patient-access/doctor-patient-access.module';
 
 @Module({
   imports: [
+    DoctorPatientAccessModule,
     TypeOrmModule.forFeature([
       Diagnosis,
       Patient,

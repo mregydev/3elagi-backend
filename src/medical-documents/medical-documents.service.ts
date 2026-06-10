@@ -15,6 +15,7 @@ import { Diagnosis } from '../entities/diagnosis.entity';
 import { Symptom } from '../entities/symptom.entity';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { CreatePatientMedicalDocumentDto } from './dto/create-patient-medical-document.dto';
+import { DoctorPatientAccessService } from '../doctor-patient-access/doctor-patient-access.service';
 
 @Injectable()
 export class MedicalDocumentsService {
@@ -33,6 +34,7 @@ export class MedicalDocumentsService {
     private diagnosisRepo: Repository<Diagnosis>,
     @InjectRepository(Symptom)
     private symptomRepo: Repository<Symptom>,
+    private doctorPatientAccessService: DoctorPatientAccessService,
   ) {}
 
   private async assertDoctorUser(userId: string, userRole: string): Promise<void> {
@@ -157,6 +159,12 @@ export class MedicalDocumentsService {
     if (user.role !== UserRole.PATIENT) {
       throw new ForbiddenException('Medical documents must be linked to a patient user');
     }
+    if (userRole === 'doctor' && dto.patient_id !== userId) {
+      await this.doctorPatientAccessService.assertDoctorCanEditRecords(
+        userId,
+        dto.patient_id,
+      );
+    }
     /*await this.validateDiagnosisAndSymptomLinks(
       dto.patient_id,
       dto.diagnosis_id,
@@ -187,6 +195,12 @@ export class MedicalDocumentsService {
     const doc = await this.docRepo.findOne({ where: { id } });
     if (!doc) throw new NotFoundException('Document not found');
     await this.assertDoctorUser(userId, userRole);
+    if (userRole === 'doctor' && doc.patient_id !== userId) {
+      await this.doctorPatientAccessService.assertDoctorCanEditRecords(
+        userId,
+        doc.patient_id,
+      );
+    }
     await this.docRepo.delete(id);
     return { message: 'Document deleted' };
   }

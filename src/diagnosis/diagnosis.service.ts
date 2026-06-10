@@ -20,6 +20,7 @@ import {
   DocumentType,
   MedicalDocument,
 } from '../entities/medical-document.entity';
+import { DoctorPatientAccessService } from '../doctor-patient-access/doctor-patient-access.service';
 
 type DiagnosisWithDocuments = Diagnosis & { documents?: MedicalDocument[] };
 
@@ -37,6 +38,7 @@ export class DiagnosisService {
     private patientProfileRepo: Repository<PatientProfile>,
     @InjectRepository(MedicalDocument)
     private medicalDocRepo: Repository<MedicalDocument>,
+    private doctorPatientAccessService: DoctorPatientAccessService,
   ) {}
 
   private normalizePhone(phone: string): string {
@@ -261,6 +263,10 @@ export class DiagnosisService {
     if (targetDoctor.id !== doctor.id) {
       throw new ForbiddenException('You can only create diagnoses for yourself as doctor');
     }
+    await this.doctorPatientAccessService.assertDoctorCanEditRecords(
+      userId,
+      dto.patient_id,
+    );
     const { symptoms, document_ids, ...diagnosisFields } = dto;
     const row = this.diagnosisRepo.create(diagnosisFields);
     const saved = await this.diagnosisRepo.save(row);
@@ -281,13 +287,15 @@ export class DiagnosisService {
       throw new ForbiddenException('You can only update your own diagnoses');
     }
     if (!row.doctor_id) {
-      const canAccess = await this.doctorCanAccessPatientUser(
-        doctor.id,
+      await this.doctorPatientAccessService.assertDoctorCanEditRecords(
+        userId,
         row.patient_id,
       );
-      if (!canAccess) {
-        throw new ForbiddenException('You do not have access to this patient');
-      }
+    } else if (row.doctor_id === doctor.id) {
+      await this.doctorPatientAccessService.assertDoctorCanEditRecords(
+        userId,
+        row.patient_id,
+      );
     }
     if (dto.patient_id) {
       const patient = await this.patientRepo.findOne({ where: { id: dto.patient_id } });

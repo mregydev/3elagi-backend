@@ -74,6 +74,9 @@ import { Message } from './entities/message.entity';
 import { MessagesTable1778060000000 } from './migrations/1778060000000-MessagesTable';
 import { MessageAttachmentsAndRead1778070000000 } from './migrations/1778070000000-MessageAttachmentsAndRead';
 import { MessageEditedAt1778080000000 } from './migrations/1778080000000-MessageEditedAt';
+import { DoctorPatientAccess1778090000000 } from './migrations/1778090000000-DoctorPatientAccess';
+import { DoctorPatientAccess } from './entities/doctor-patient-access.entity';
+import { DoctorPatientAccessModule } from './doctor-patient-access/doctor-patient-access.module';
 
 @Module({
   imports: [
@@ -103,6 +106,7 @@ import { MessageEditedAt1778080000000 } from './migrations/1778080000000-Message
           DoctorSpeciality,
           Advertisement,
           Message,
+          DoctorPatientAccess,
         ],
         synchronize: false,
         migrations: [
@@ -137,6 +141,7 @@ import { MessageEditedAt1778080000000 } from './migrations/1778080000000-Message
           MessagesTable1778060000000,
           MessageAttachmentsAndRead1778070000000,
           MessageEditedAt1778080000000,
+          DoctorPatientAccess1778090000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
@@ -170,6 +175,7 @@ import { MessageEditedAt1778080000000 } from './migrations/1778080000000-Message
     AdvertisementsModule,
     PresenceModule,
     MessagesModule,
+    DoctorPatientAccessModule,
   ],
 })
 export class AppModule {}
