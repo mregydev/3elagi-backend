@@ -252,14 +252,7 @@ export class DiagnosisService {
     userId: string,
     desc: string,
   ) {
-    await this.findOneForPatientUser(diagnosisId, userId);
-    const row = this.symptomRepo.create({
-      desc: desc.trim(),
-      diagnosis_id: diagnosisId,
-      doctor_id: null,
-    });
-    await this.symptomRepo.save(row);
-    return this.findOneForPatientUser(diagnosisId, userId);
+    throw new ForbiddenException('Patients cannot modify diagnoses');
   }
 
   async create(dto: CreateDiagnosisDto, userId: string, userRole: string) {
@@ -293,20 +286,13 @@ export class DiagnosisService {
     const doctor = await this.assertDoctorUser(userId, userRole);
     const row = await this.diagnosisRepo.findOne({ where: { id } });
     if (!row) throw new NotFoundException('Diagnosis not found');
-    if (row.doctor_id && row.doctor_id !== doctor.id) {
-      throw new ForbiddenException('You can only update your own diagnoses');
+    if (!row.doctor_id || row.doctor_id !== doctor.id) {
+      throw new ForbiddenException('You can only update diagnoses you created');
     }
-    if (!row.doctor_id) {
-      await this.doctorPatientAccessService.assertDoctorCanEditRecords(
-        userId,
-        row.patient_id,
-      );
-    } else if (row.doctor_id === doctor.id) {
-      await this.doctorPatientAccessService.assertDoctorCanEditRecords(
-        userId,
-        row.patient_id,
-      );
-    }
+    await this.doctorPatientAccessService.assertDoctorCanEditRecords(
+      userId,
+      row.patient_id,
+    );
     if (dto.patient_id) {
       const patient = await this.patientRepo.findOne({ where: { id: dto.patient_id } });
       if (!patient) throw new NotFoundException('Patient not found');

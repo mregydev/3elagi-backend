@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  Param,
   Post,
   Query,
   Request,
@@ -31,5 +33,10 @@ export class PatientMedicalDocumentsController {
   @Post()
   create(@Body() dto: CreatePatientMedicalDocumentDto, @Request() req) {
     return this.service.createForPatientUser(req.user.id, dto);
+  }
+
+  @Delete(':id')
+  delete(@Param('id') id: string, @Request() req) {
+    return this.service.deleteForPatientUser(id, req.user.id);
   }
 }

@@ -197,17 +197,28 @@ export class MedicalDocumentsService {
     }
   }
 
-  async delete(id: string, userId: string, userRole: string) {
+  async deleteForPatientUser(id: string, userId: string) {
     const doc = await this.docRepo.findOne({ where: { id } });
     if (!doc) throw new NotFoundException('Document not found');
-    await this.assertDoctorUser(userId, userRole);
-    if (userRole === 'doctor' && doc.patient_id !== userId) {
-      await this.doctorPatientAccessService.assertDoctorCanEditRecords(
-        userId,
-        doc.patient_id,
-      );
+    if (doc.patient_id !== userId) {
+      throw new ForbiddenException('You can only delete your own documents');
+    }
+    if (doc.type !== DocumentType.LAB && doc.type !== DocumentType.XRAY) {
+      throw new ForbiddenException('You can only delete lab results and imaging');
     }
     await this.docRepo.delete(id);
     return { message: 'Document deleted' };
+  }
+
+  async delete(id: string, userId: string, userRole: string) {
+    if (userRole === 'patient') {
+      return this.deleteForPatientUser(id, userId);
+    }
+    if (userRole === 'doctor') {
+      throw new ForbiddenException(
+        'Doctors cannot delete patient lab results or imaging',
+      );
+    }
+    throw new ForbiddenException('Insufficient role');
   }
 }
