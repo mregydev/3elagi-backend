@@ -102,6 +102,12 @@ export class MedicalDocumentsService {
     if (userRole === 'patient' && patientId !== userId) {
       throw new ForbiddenException('You can only access your own documents');
     }
+    if (userRole === 'doctor' && patientId !== userId) {
+      await this.doctorPatientAccessService.assertDoctorCanEditRecords(
+        userId,
+        patientId,
+      );
+    }
     const where: Partial<MedicalDocument> & { type?: DocumentType } = {
       patient_id: patientId,
     };

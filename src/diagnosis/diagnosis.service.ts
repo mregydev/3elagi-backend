@@ -154,6 +154,12 @@ export class DiagnosisService {
 
   async findAll(patientId: string | undefined, userId: string, userRole: string) {
     await this.assertDoctorUser(userId, userRole);
+    if (patientId) {
+      await this.doctorPatientAccessService.assertDoctorCanEditRecords(
+        userId,
+        patientId,
+      );
+    }
     const where = patientId ? { patient_id: patientId } : {};
     const rows = await this.diagnosisRepo.find({
       where,
@@ -171,6 +177,10 @@ export class DiagnosisService {
       relations: ['symptoms'],
     });
     if (!row) throw new NotFoundException('Diagnosis not found');
+    await this.doctorPatientAccessService.assertDoctorCanEditRecords(
+      userId,
+      row.patient_id,
+    );
     const [enriched] = await this.attachDoctorNamesToDiagnoses([row]);
     const [withDocs] = await this.attachDocuments([enriched]);
     return withDocs;

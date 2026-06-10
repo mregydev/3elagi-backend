@@ -139,7 +139,7 @@ export class DoctorPatientAccessService {
     }
     if (!row.records_allowed) {
       throw new ForbiddenException(
-        'Patient has not granted permission to edit medical records',
+        'Patient has not granted permission to access medical records',
       );
     }
   }
