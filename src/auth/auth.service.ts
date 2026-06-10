@@ -17,6 +17,7 @@ import { RegisterClinicDto } from './dto/register-clinic.dto';
 import { RegisterDoctorDto } from './dto/register-doctor.dto';
 import { RegisterPatientDto } from './dto/register-patient.dto';
 import { DEFAULT_MESSAGE_POINTS } from '../points/points.constants';
+import { clampDoctorMessagePrice } from '../points/message-price.constants';
 
 @Injectable()
 export class AuthService {
@@ -155,9 +156,12 @@ export class AuthService {
     });
     await this.clinicRepo.save(personalClinic);
 
-    const defaultSpeciality = await this.specialityRepo.findOne({
-      where: { name_en: 'General Medicine' },
+    const speciality = await this.specialityRepo.findOne({
+      where: { id: dto.speciality_id },
     });
+    if (!speciality) {
+      throw new ConflictException('Invalid speciality');
+    }
 
     const doctor = this.doctorRepo.create({
       user_id: user.id,
@@ -169,7 +173,8 @@ export class AuthService {
       work_permit_url: dto.work_permit_url,
       default_clinic_id: personalClinic.id,
       email: dto.email,
-      speciality_id: defaultSpeciality?.id ?? null,
+      speciality_id: speciality.id,
+      message_price: clampDoctorMessagePrice(dto.message_price),
     });
     await this.doctorRepo.save(doctor);
 

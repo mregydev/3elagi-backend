@@ -71,6 +71,9 @@ export class Doctor {
   @Column({ type: 'int', nullable: true })
   consultation_fee_egp: number | null;
 
+  @Column({ type: 'int', default: 1 })
+  message_price: number;
+
   @Column({ type: 'varchar', length: 16, default: 'pending' })
   approval_status: ApprovalStatus;
 

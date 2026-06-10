@@ -9,6 +9,8 @@ import { PatientProfile } from '../entities/patient-profile.entity';
 import { Patient } from '../entities/patient.entity';
 import { Appointment } from '../entities/appointment.entity';
 import { IntakeTest } from '../entities/intake-test.entity';
+import { DoctorReview } from '../entities/review.entity';
+import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
 
 @Module({
   imports: [
@@ -20,6 +22,8 @@ import { IntakeTest } from '../entities/intake-test.entity';
       Patient,
       Appointment,
       IntakeTest,
+      DoctorReview,
+      DoctorSpeciality,
     ]),
   ],
   controllers: [PatientPortalController],

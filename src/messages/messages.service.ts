@@ -43,7 +43,7 @@ export class MessagesService {
     private pointsService: PointsService,
   ) {}
 
-  private mapMessage(row: Message, pointsBalance?: number) {
+  private mapMessage(row: Message, pointsBalance?: number, messageCost?: number) {
     return {
       id: row.id,
       type: row.type,
@@ -56,6 +56,7 @@ export class MessagesService {
       read_at: row.read_at,
       edited_at: row.edited_at,
       ...(pointsBalance !== undefined ? { points_balance: pointsBalance } : {}),
+      ...(messageCost !== undefined ? { message_cost: messageCost } : {}),
     };
   }
 
@@ -236,7 +237,10 @@ export class MessagesService {
 
     await this.assertCanChat(userId, dto.recipient_id);
 
-    const pointsSummary = await this.pointsService.deductForMessage(userId);
+    const messageCost = await this.pointsService.resolveMessageCostForRecipient(
+      dto.recipient_id,
+    );
+    const pointsSummary = await this.pointsService.deductForMessage(userId, messageCost);
 
     const created = this.messageRepo.create({
       type,
@@ -247,7 +251,11 @@ export class MessagesService {
       attachment_meta: attachmentMeta,
     });
     const saved = await this.messageRepo.save(created);
-    const mapped = this.mapMessage(saved, pointsSummary.message_points);
+    const mapped = this.mapMessage(
+      saved,
+      pointsSummary.message_points,
+      messageCost,
+    );
 
     this.presenceGateway.emitToUser(dto.recipient_id, 'message:new', {
       message: mapped,

@@ -1,4 +1,4 @@
-import { IsEmail, IsString, IsOptional, IsNumber } from 'class-validator';
+import { IsEmail, IsString, IsOptional, IsNumber, IsUUID, IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class RegisterDoctorDto {
@@ -31,4 +31,13 @@ export class RegisterDoctorDto {
   @IsString()
   @IsOptional()
   work_permit_url?: string;
+
+  @IsUUID()
+  speciality_id: string;
+
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  @Type(() => Number)
+  message_price: number;
 }

@@ -56,6 +56,8 @@ export class DoctorsController {
       consultation_fee_egp: number | null;
       faqs: { id: string; q: string; a: string }[];
       tags: string[];
+      speciality_id: string | null;
+      message_price: number;
     }>,
     @Request() req,
   ) {

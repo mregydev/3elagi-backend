@@ -5,6 +5,7 @@ import { User, UserRole } from '../entities/user.entity';
 import { Doctor } from '../entities/doctor.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
 import { Patient } from '../entities/patient.entity';
+import { DoctorReview } from '../entities/review.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
@@ -15,6 +16,8 @@ export class UsersService {
     @InjectRepository(PatientProfile)
     private patientProfileRepo: Repository<PatientProfile>,
     @InjectRepository(Patient) private patientRepo: Repository<Patient>,
+    @InjectRepository(DoctorReview)
+    private reviewRepo: Repository<DoctorReview>,
   ) {}
 
   private sanitizeUser(user: User) {
@@ -95,6 +98,28 @@ export class UsersService {
     const doctorByInfoId = new Map(doctorsByInfo.map((d) => [d.id, d]));
     const profileByUserId = new Map(profiles.map((p) => [p.user_id, p]));
 
+    const doctorIds = [...doctorsByUser, ...doctorsByInfo].map((d) => d.id);
+    const ratingRows =
+      doctorIds.length > 0
+        ? await this.reviewRepo
+            .createQueryBuilder('r')
+            .select('r.doctor_id', 'doctor_id')
+            .addSelect('COALESCE(AVG(r.rating), 0)', 'avg')
+            .addSelect('COUNT(*)', 'total')
+            .where('r.doctor_id IN (:...doctorIds)', { doctorIds })
+            .groupBy('r.doctor_id')
+            .getRawMany<{ doctor_id: string; avg: string; total: string }>()
+        : [];
+    const ratingByDoctorId = new Map(
+      ratingRows.map((row) => [
+        row.doctor_id,
+        {
+          average: Math.round(Number(row.avg) * 10) / 10,
+          total: Number(row.total),
+        },
+      ]),
+    );
+
     return otherUsers.flatMap((user) => {
       const doctor =
         (user.doctor_info_id
@@ -114,12 +139,21 @@ export class UsersService {
       let name = user.email.split('@')[0];
       let photo_url = user.photo_url ?? null;
       let specialty: string | null = null;
+      let doctor_id: string | null = null;
+      let message_price: number | null = null;
+      let rating_average: number | null = null;
+      let rating_total: number | null = null;
 
       if (user.role === UserRole.DOCTOR && doctor) {
         name = doctor.name;
         photo_url = doctor.photo_url ?? user.photo_url ?? null;
         specialty =
           doctor.speciality?.name_en ?? doctor.professional_title ?? null;
+        doctor_id = doctor.id;
+        message_price = doctor.message_price ?? 1;
+        const rating = ratingByDoctorId.get(doctor.id);
+        rating_average = rating?.average ?? 0;
+        rating_total = rating?.total ?? 0;
       } else if (user.role === UserRole.PATIENT && profile) {
         name = profile.name;
         photo_url = profile.photo_url ?? user.photo_url ?? null;
@@ -137,6 +171,10 @@ export class UsersService {
           name,
           photo_url,
           specialty,
+          doctor_id,
+          message_price,
+          rating_average,
+          rating_total,
         },
       ];
     });

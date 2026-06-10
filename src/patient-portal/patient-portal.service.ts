@@ -15,6 +15,8 @@ import {
   AppointmentStatus,
 } from '../entities/appointment.entity';
 import { IntakeTest } from '../entities/intake-test.entity';
+import { DoctorReview } from '../entities/review.entity';
+import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
 import { SchedulesService } from '../schedules/schedules.service';
 
 interface OnboardingDto {
@@ -49,8 +51,25 @@ export class PatientPortalService {
     private appointmentRepo: Repository<Appointment>,
     @InjectRepository(IntakeTest)
     private intakeRepo: Repository<IntakeTest>,
+    @InjectRepository(DoctorReview)
+    private reviewRepo: Repository<DoctorReview>,
+    @InjectRepository(DoctorSpeciality)
+    private specialityRepo: Repository<DoctorSpeciality>,
     private schedulesService: SchedulesService,
   ) {}
+
+  private async doctorRatingStats(doctorId: string) {
+    const stats = await this.reviewRepo
+      .createQueryBuilder('r')
+      .select('COUNT(*)', 'total')
+      .addSelect('COALESCE(AVG(r.rating), 0)', 'avg')
+      .where('r.doctor_id = :doctorId', { doctorId })
+      .getRawOne<{ total: string; avg: string }>();
+    return {
+      rating_total: Number(stats?.total ?? 0),
+      rating_average: Math.round(Number(stats?.avg ?? 0) * 10) / 10,
+    };
+  }
 
   async listDoctors() {
     const doctors = await this.doctorRepo.find({
@@ -90,11 +109,15 @@ export class PatientPortalService {
   }
 
   async getDoctor(id: string) {
-    const doctor = await this.doctorRepo.findOne({ where: { id } });
+    const doctor = await this.doctorRepo.findOne({
+      where: { id },
+      relations: ['speciality'],
+    });
     if (!doctor) throw new NotFoundException('Doctor not found');
     if (doctor.approval_status !== 'approved') {
       throw new NotFoundException('Doctor not found');
     }
+    const rating = await this.doctorRatingStats(doctor.id);
     const clinic = doctor.default_clinic_id
       ? await this.clinicRepo.findOne({ where: { id: doctor.default_clinic_id } })
       : null;
@@ -118,6 +141,12 @@ export class PatientPortalService {
       description: doctor.description,
       experience_years: doctor.experience_years,
       consultation_fee_egp: doctor.consultation_fee_egp,
+      message_price: doctor.message_price ?? 1,
+      speciality_id: doctor.speciality_id,
+      specialty: doctor.speciality?.name_en ?? doctor.professional_title ?? null,
+      specialty_ar: doctor.speciality?.name_ar ?? null,
+      rating_average: rating.rating_average,
+      rating_total: rating.rating_total,
       faqs: Array.isArray(doctor.faqs) ? doctor.faqs : [],
       tags: Array.isArray(doctor.tags) ? doctor.tags : [],
       clinic: clinic
