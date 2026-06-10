@@ -77,6 +77,9 @@ import { MessageEditedAt1778080000000 } from './migrations/1778080000000-Message
 import { DoctorPatientAccess1778090000000 } from './migrations/1778090000000-DoctorPatientAccess';
 import { DoctorPatientAccess } from './entities/doctor-patient-access.entity';
 import { DoctorPatientAccessModule } from './doctor-patient-access/doctor-patient-access.module';
+import { UserMessagePoints1778100000000 } from './migrations/1778100000000-UserMessagePoints';
+import { EnsureDefaultMessagePoints1778100000001 } from './migrations/1778100000001-EnsureDefaultMessagePoints';
+import { PointsModule } from './points/points.module';
 
 @Module({
   imports: [
@@ -142,6 +145,8 @@ import { DoctorPatientAccessModule } from './doctor-patient-access/doctor-patien
           MessageAttachmentsAndRead1778070000000,
           MessageEditedAt1778080000000,
           DoctorPatientAccess1778090000000,
+          UserMessagePoints1778100000000,
+          EnsureDefaultMessagePoints1778100000001,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
@@ -176,6 +181,7 @@ import { DoctorPatientAccessModule } from './doctor-patient-access/doctor-patien
     PresenceModule,
     MessagesModule,
     DoctorPatientAccessModule,
+    PointsModule,
   ],
 })
 export class AppModule {}

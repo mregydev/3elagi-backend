@@ -15,6 +15,7 @@ import { User, UserRole } from '../entities/user.entity';
 import {
   DoctorPatientAccessService,
 } from '../doctor-patient-access/doctor-patient-access.service';
+import { PointsService } from '../points/points.service';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { UsersService } from '../users/users.service';
 import { CreateMessageDto } from './dto/create-message.dto';
@@ -39,9 +40,10 @@ export class MessagesService {
     private usersService: UsersService,
     private presenceGateway: PresenceGateway,
     private doctorPatientAccessService: DoctorPatientAccessService,
+    private pointsService: PointsService,
   ) {}
 
-  private mapMessage(row: Message) {
+  private mapMessage(row: Message, pointsBalance?: number) {
     return {
       id: row.id,
       type: row.type,
@@ -53,6 +55,7 @@ export class MessagesService {
       attachment_meta: row.attachment_meta,
       read_at: row.read_at,
       edited_at: row.edited_at,
+      ...(pointsBalance !== undefined ? { points_balance: pointsBalance } : {}),
     };
   }
 
@@ -233,6 +236,8 @@ export class MessagesService {
 
     await this.assertCanChat(userId, dto.recipient_id);
 
+    const pointsSummary = await this.pointsService.deductForMessage(userId);
+
     const created = this.messageRepo.create({
       type,
       content,
@@ -242,7 +247,7 @@ export class MessagesService {
       attachment_meta: attachmentMeta,
     });
     const saved = await this.messageRepo.save(created);
-    const mapped = this.mapMessage(saved);
+    const mapped = this.mapMessage(saved, pointsSummary.message_points);
 
     this.presenceGateway.emitToUser(dto.recipient_id, 'message:new', {
       message: mapped,

@@ -16,6 +16,7 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterClinicDto } from './dto/register-clinic.dto';
 import { RegisterDoctorDto } from './dto/register-doctor.dto';
 import { RegisterPatientDto } from './dto/register-patient.dto';
+import { DEFAULT_MESSAGE_POINTS } from '../points/points.constants';
 
 @Injectable()
 export class AuthService {
@@ -81,6 +82,9 @@ export class AuthService {
       password_hash: hash,
       role: UserRole.PATIENT,
       photo_url: dto.photo_url ?? null,
+      message_points: DEFAULT_MESSAGE_POINTS,
+      points_spent_total: 0,
+      points_purchased_total: 0,
     });
     await this.userRepo.save(user);
 
@@ -136,6 +140,9 @@ export class AuthService {
       password_hash: hash,
       role: UserRole.DOCTOR,
       photo_url: dto.photo_url ?? null,
+      message_points: DEFAULT_MESSAGE_POINTS,
+      points_spent_total: 0,
+      points_purchased_total: 0,
     });
     await this.userRepo.save(user);
 
