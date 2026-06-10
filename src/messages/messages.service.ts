@@ -130,6 +130,8 @@ export class MessagesService {
       throw new BadRequestException('attachment_url is required');
     }
 
+    let attachmentMeta = dto.attachment_meta ?? null;
+
     if (type === 'medical_link') {
       const meta = dto.attachment_meta;
       if (
@@ -139,6 +141,13 @@ export class MessagesService {
       ) {
         throw new BadRequestException('invalid medical link metadata');
       }
+
+      const title = meta.title.trim();
+      const note = dto.content?.trim();
+      attachmentMeta = {
+        ...meta,
+        ...(note && note !== title ? { note } : {}),
+      };
     }
 
     await this.assertCanChat(userId, dto.recipient_id);
@@ -149,7 +158,7 @@ export class MessagesService {
       creator: userId,
       recipient: dto.recipient_id,
       attachment_url: dto.attachment_url?.trim() || null,
-      attachment_meta: dto.attachment_meta ?? null,
+      attachment_meta: attachmentMeta,
     });
     const saved = await this.messageRepo.save(created);
     const mapped = this.mapMessage(saved);
@@ -191,8 +200,8 @@ export class MessagesService {
     if (row.creator !== userId) {
       throw new ForbiddenException('Only the sender can edit this message');
     }
-    if (row.type !== 'text') {
-      throw new BadRequestException('Only text messages can be edited');
+    if (row.type !== 'text' && row.type !== 'medical_link') {
+      throw new BadRequestException('This message cannot be edited');
     }
 
     const sentAt = new Date(row.datetime).getTime();
@@ -200,15 +209,36 @@ export class MessagesService {
       throw new BadRequestException('Message can no longer be edited');
     }
 
-    const content = dto.content.trim();
-    if (!content) {
-      throw new BadRequestException('content is required');
-    }
-
     const peerId = row.recipient;
     await this.assertCanChat(userId, peerId);
 
-    row.content = content;
+    if (row.type === 'text') {
+      const content = dto.content?.trim();
+      if (!content) {
+        throw new BadRequestException('content is required');
+      }
+      row.content = content;
+    } else {
+      const meta = dto.attachment_meta;
+      if (
+        !meta?.record_id ||
+        !meta?.title ||
+        !['lab', 'xray', 'diagnosis'].includes(meta.record_type)
+      ) {
+        throw new BadRequestException('invalid medical link metadata');
+      }
+
+      const title = meta.title.trim();
+      const note = dto.content?.trim();
+      row.attachment_meta = {
+        record_type: meta.record_type,
+        record_id: meta.record_id,
+        title,
+        ...(note && note !== title ? { note } : {}),
+      };
+      row.content = note || title;
+    }
+
     row.edited_at = new Date();
     const saved = await this.messageRepo.save(row);
     const mapped = this.mapMessage(saved);

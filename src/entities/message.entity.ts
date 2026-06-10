@@ -19,6 +19,7 @@ export interface MedicalLinkMeta {
   record_type: 'lab' | 'xray' | 'diagnosis';
   record_id: string;
   title: string;
+  note?: string;
 }
 
 @Entity('messages')
