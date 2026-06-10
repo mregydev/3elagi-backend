@@ -2,12 +2,14 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DoctorReview } from '../entities/review.entity';
 import { Doctor } from '../entities/doctor.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
+import { Diagnosis } from '../entities/diagnosis.entity';
 
 interface ReviewDto {
   rating: number;
@@ -22,7 +24,42 @@ export class ReviewsService {
     @InjectRepository(Doctor) private doctorRepo: Repository<Doctor>,
     @InjectRepository(PatientProfile)
     private profileRepo: Repository<PatientProfile>,
+    @InjectRepository(Diagnosis)
+    private diagnosisRepo: Repository<Diagnosis>,
   ) {}
+
+  private async hasDiagnosisFromDoctor(
+    patientUserId: string,
+    doctorId: string,
+  ): Promise<boolean> {
+    const count = await this.diagnosisRepo.count({
+      where: { patient_id: patientUserId, doctor_id: doctorId },
+    });
+    return count > 0;
+  }
+
+  async patientReviewStatus(doctorId: string, userId: string) {
+    const doctor = await this.doctorRepo.findOne({ where: { id: doctorId } });
+    if (!doctor || doctor.approval_status !== 'approved') {
+      throw new NotFoundException('Doctor not found');
+    }
+
+    const canReview = await this.hasDiagnosisFromDoctor(userId, doctorId);
+    const existing = await this.reviewRepo.findOne({
+      where: { doctor_id: doctorId, patient_user_id: userId },
+    });
+
+    return {
+      can_review: canReview,
+      has_existing_review: !!existing,
+      existing_review: existing
+        ? {
+            rating: existing.rating,
+            comment: existing.comment,
+          }
+        : null,
+    };
+  }
 
   async list(doctorId: string) {
     const doctor = await this.doctorRepo.findOne({ where: { id: doctorId } });
@@ -66,6 +103,13 @@ export class ReviewsService {
     const doctor = await this.doctorRepo.findOne({ where: { id: doctorId } });
     if (!doctor || doctor.approval_status !== 'approved') {
       throw new NotFoundException('Doctor not found');
+    }
+
+    const canReview = await this.hasDiagnosisFromDoctor(userId, doctorId);
+    if (!canReview) {
+      throw new ForbiddenException(
+        'You can only review a doctor after they have added a diagnosis for you',
+      );
     }
 
     const profile = await this.profileRepo.findOne({ where: { user_id: userId } });

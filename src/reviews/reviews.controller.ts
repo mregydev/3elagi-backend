@@ -21,6 +21,13 @@ export class ReviewsController {
     return this.service.list(id);
   }
 
+  @Get('public/doctors/:id/reviews/status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('patient')
+  status(@Param('id') id: string, @Request() req) {
+    return this.service.patientReviewStatus(id, req.user.id);
+  }
+
   @Post('public/doctors/:id/reviews')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('patient')
