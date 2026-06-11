@@ -214,6 +214,36 @@ export class UploadsService {
     return `${domain}/3eyadahub-api/uploads/serve${objectPath}`;
   }
 
+  /** Normalize stored file paths to an absolute browser URL for API responses. */
+  resolvePublicFileUrl(urlOrPath: string | null | undefined): string | null {
+    const trimmed = (urlOrPath ?? '').trim();
+    if (!trimmed) return null;
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+
+    const serveSuffix = trimmed.match(
+      /\/uploads\/serve(\/(?:objects|local-uploads)\/.+)$/i,
+    );
+    if (serveSuffix) {
+      return this.makeServeUrl(serveSuffix[1]);
+    }
+
+    if (trimmed.startsWith('/objects/') || trimmed.startsWith('/local-uploads/')) {
+      return this.makeServeUrl(trimmed);
+    }
+
+    if (trimmed.startsWith('/3eyadahub-api/uploads/serve/')) {
+      const domain = this.publicDomain();
+      return domain ? `${domain}${trimmed}` : trimmed;
+    }
+
+    if (!trimmed.startsWith('/')) {
+      return this.makeServeUrl(`/objects/${trimmed.replace(/^\/+/, '')}`);
+    }
+
+    const domain = this.publicDomain();
+    return domain ? `${domain}${trimmed}` : trimmed;
+  }
+
   /**
    * Public file URL: SUPABASE_S3_URL + /storage/v1/object/public/{bucket}/{objectKey}
    */

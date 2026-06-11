@@ -3,7 +3,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { PatientPortalController } from './patient-portal.controller';
 import { PatientPortalService } from './patient-portal.service';
 import { SchedulesModule } from '../schedules/schedules.module';
+import { UploadsModule } from '../uploads/uploads.module';
 import { Doctor } from '../entities/doctor.entity';
+import { User } from '../entities/user.entity';
 import { Clinic } from '../entities/clinic.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
 import { Patient } from '../entities/patient.entity';
@@ -15,8 +17,10 @@ import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
 @Module({
   imports: [
     SchedulesModule,
+    UploadsModule,
     TypeOrmModule.forFeature([
       Doctor,
+      User,
       Clinic,
       PatientProfile,
       Patient,

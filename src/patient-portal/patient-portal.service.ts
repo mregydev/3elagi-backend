@@ -17,7 +17,9 @@ import {
 import { IntakeTest } from '../entities/intake-test.entity';
 import { DoctorReview } from '../entities/review.entity';
 import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
+import { User } from '../entities/user.entity';
 import { SchedulesService } from '../schedules/schedules.service';
+import { UploadsService } from '../uploads/uploads.service';
 
 interface OnboardingDto {
   birth_date?: string | null;
@@ -55,8 +57,19 @@ export class PatientPortalService {
     private reviewRepo: Repository<DoctorReview>,
     @InjectRepository(DoctorSpeciality)
     private specialityRepo: Repository<DoctorSpeciality>,
+    @InjectRepository(User) private userRepo: Repository<User>,
     private schedulesService: SchedulesService,
+    private uploadsService: UploadsService,
   ) {}
+
+  private resolveDoctorPhotoUrl(
+    doctorPhoto: string | null | undefined,
+    userPhoto: string | null | undefined,
+  ): string | null {
+    const raw = doctorPhoto?.trim() || userPhoto?.trim() || '';
+    if (!raw) return null;
+    return this.uploadsService.resolvePublicFileUrl(raw);
+  }
 
   private async doctorRatingStats(doctorId: string) {
     const stats = await this.reviewRepo
@@ -83,13 +96,21 @@ export class PatientPortalService {
       ? await this.clinicRepo.findByIds(clinicIds)
       : [];
     const clinicMap = new Map(clinics.map((c) => [c.id, c]));
+    const userIds = Array.from(
+      new Set(doctors.map((d) => d.user_id).filter((x): x is string => !!x)),
+    );
+    const users = userIds.length
+      ? await this.userRepo.find({ where: { id: In(userIds) } })
+      : [];
+    const userById = new Map(users.map((u) => [u.id, u]));
     return doctors.map((d) => {
       const c = d.default_clinic_id ? clinicMap.get(d.default_clinic_id) : null;
+      const user = d.user_id ? userById.get(d.user_id) : undefined;
       return {
         id: d.id,
         user_id: d.user_id,
         name: d.name,
-        photo_url: d.photo_url,
+        photo_url: this.resolveDoctorPhotoUrl(d.photo_url, user?.photo_url),
         phone: d.phone,
         professional_title: d.professional_title,
         description: d.description,
@@ -130,11 +151,14 @@ export class PatientPortalService {
         where: { is_default_template: true, is_active: true },
       });
     }
+    const user = doctor.user_id
+      ? await this.userRepo.findOne({ where: { id: doctor.user_id } })
+      : null;
     return {
       id: doctor.id,
       user_id: doctor.user_id,
       name: doctor.name,
-      photo_url: doctor.photo_url,
+      photo_url: this.resolveDoctorPhotoUrl(doctor.photo_url, user?.photo_url),
       phone: doctor.phone,
       age: doctor.age,
       professional_title: doctor.professional_title,
