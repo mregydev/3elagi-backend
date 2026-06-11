@@ -24,7 +24,7 @@ LLM and embeddings are behind provider interfaces in `src/ai/llm/`. Gemini is th
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `GEMINI_API_KEY` | Yes | Google Gemini API key |
-| `GEMINI_CHAT_MODEL` | No | Default `gemini-2.0-flash` |
+| `GEMINI_CHAT_MODEL` | No | Default `gemini-1.5-flash` (cost-efficient) |
 | `GEMINI_EMBEDDING_MODEL` | No | Default `text-embedding-004` |
 | `REDIS_URL` | No | Redis connection URL; falls back to in-memory cache |
 | `AI_CACHE_TTL_SECONDS` | No | Cache TTL (default `3600`) |

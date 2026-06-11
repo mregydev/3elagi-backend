@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { DoctorPatientAccess } from '../entities/doctor-patient-access.entity';
@@ -21,6 +21,8 @@ export interface VectorSearchResult {
 
 @Injectable()
 export class VectorSearchService {
+  private readonly logger = new Logger(VectorSearchService.name);
+
   constructor(
     private readonly dataSource: DataSource,
     private readonly embeddings: EmbeddingsService,
@@ -34,37 +36,50 @@ export class VectorSearchService {
     question: string,
     options: VectorSearchOptions,
   ): Promise<VectorSearchResult> {
-    const embedding = await this.embeddings.embedQuery(question);
     const allowedPatientIds = await this.resolveAllowedPatientIds(options);
     const limit = options.limit ?? 8;
 
     if (!allowedPatientIds.length) {
-      return { chunks: [], embedding };
+      return { chunks: [], embedding: [] };
     }
 
-    const vectorLiteral = `[${embedding.join(',')}]`;
-    const rows = await this.dataSource.query(
-      `
-      SELECT entity_type, text, metadata,
-             1 - (embedding <=> $1::vector) AS score
-      FROM ai_knowledge_chunks
-      WHERE patient_id = ANY($2::uuid[])
-        AND embedding IS NOT NULL
-      ORDER BY embedding <=> $1::vector
-      LIMIT $3
-      `,
-      [vectorLiteral, allowedPatientIds, limit],
-    );
+    try {
+      const embedding = await this.embeddings.embedQuery(question);
+      const vectorLiteral = `[${embedding.join(',')}]`;
+      const rows = await this.dataSource.query(
+        `
+        SELECT entity_type, text, metadata,
+               1 - (embedding <=> $1::vector) AS score
+        FROM ai_knowledge_chunks
+        WHERE patient_id = ANY($2::uuid[])
+          AND embedding IS NOT NULL
+        ORDER BY embedding <=> $1::vector
+        LIMIT $3
+        `,
+        [vectorLiteral, allowedPatientIds, limit],
+      );
 
-    const chunks: RetrievedChunk[] = rows.map(
-      (row: { entity_type: string; text: string; metadata: Record<string, unknown> }) => ({
-        entityType: row.entity_type,
-        text: row.text,
-        metadata: row.metadata ?? {},
-      }),
-    );
+      const chunks: RetrievedChunk[] = rows.map(
+        (row: {
+          entity_type: string;
+          text: string;
+          metadata: Record<string, unknown>;
+        }) => ({
+          entityType: row.entity_type,
+          text: row.text,
+          metadata: row.metadata ?? {},
+        }),
+      );
 
-    return { chunks, embedding };
+      return { chunks, embedding };
+    } catch (err) {
+      this.logger.warn(
+        `Vector search unavailable, continuing without RAG context: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      return { chunks: [], embedding: [] };
+    }
   }
 
   private async resolveAllowedPatientIds(

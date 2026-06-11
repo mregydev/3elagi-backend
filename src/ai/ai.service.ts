@@ -292,9 +292,12 @@ export class AiService {
         messageId: assistantMessage.id,
       };
     } catch (err) {
-      const error =
+      const raw =
         err instanceof Error ? err.message : 'AI request failed';
-      this.logger.error(error, err instanceof Error ? err.stack : undefined);
+      const error = raw.includes('API key')
+        ? 'AI service is not configured correctly. Please contact support.'
+        : raw;
+      this.logger.error(raw, err instanceof Error ? err.stack : undefined);
       yield { type: 'error', error };
     }
   }

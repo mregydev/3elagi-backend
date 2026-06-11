@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { GoogleGenerativeAIEmbeddings } from '@langchain/google-genai';
 import type {
@@ -8,13 +9,21 @@ import type {
   LlmProvider,
 } from './llm.types';
 
+function toLangChainMessages(messages: LlmMessage[]) {
+  return messages.map((m) => {
+    if (m.role === 'system') return new SystemMessage(m.content);
+    if (m.role === 'assistant') return new AIMessage(m.content);
+    return new HumanMessage(m.content);
+  });
+}
+
 const EMBEDDING_DIMENSIONS = 768;
-const DEFAULT_CHAT_MODEL = 'gemini-2.0-flash';
+const DEFAULT_CHAT_MODEL = 'gemini-1.5-flash';
 const DEFAULT_EMBEDDING_MODEL = 'text-embedding-004';
 
 @Injectable()
 export class GeminiLlmProvider implements LlmProvider {
-  readonly modelName = DEFAULT_CHAT_MODEL;
+  readonly modelName: string;
   private readonly logger = new Logger(GeminiLlmProvider.name);
   private readonly chatModel: ChatGoogleGenerativeAI;
 
@@ -23,26 +32,25 @@ export class GeminiLlmProvider implements LlmProvider {
     if (!apiKey) {
       this.logger.warn('GEMINI_API_KEY is not set; AI chat will fail until configured');
     }
+    this.modelName =
+      this.config.get<string>('GEMINI_CHAT_MODEL') ?? DEFAULT_CHAT_MODEL;
     this.chatModel = new ChatGoogleGenerativeAI({
       apiKey: apiKey ?? '',
-      model: this.config.get<string>('GEMINI_CHAT_MODEL') ?? DEFAULT_CHAT_MODEL,
+      model: this.modelName,
       temperature: 0.2,
     });
+    this.logger.log(`Gemini chat model: ${this.modelName}`);
   }
 
   async chat(messages: LlmMessage[]): Promise<string> {
-    const response = await this.chatModel.invoke(
-      messages.map((m) => ({ role: m.role, content: m.content })),
-    );
+    const response = await this.chatModel.invoke(toLangChainMessages(messages));
     return typeof response.content === 'string'
       ? response.content
       : JSON.stringify(response.content);
   }
 
   async *streamChat(messages: LlmMessage[]): AsyncIterable<string> {
-    const stream = await this.chatModel.stream(
-      messages.map((m) => ({ role: m.role, content: m.content })),
-    );
+    const stream = await this.chatModel.stream(toLangChainMessages(messages));
     for await (const chunk of stream) {
       const text =
         typeof chunk.content === 'string'
