@@ -10,6 +10,7 @@ import { Doctor } from '../entities/doctor.entity';
 import { Clinic } from '../entities/clinic.entity';
 import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
 import { clampDoctorMessagePrice } from '../points/message-price.constants';
+import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
 
 @Injectable()
 export class DoctorsService {
@@ -18,6 +19,7 @@ export class DoctorsService {
     @InjectRepository(Clinic) private clinicRepo: Repository<Clinic>,
     @InjectRepository(DoctorSpeciality)
     private specialityRepo: Repository<DoctorSpeciality>,
+    private knowledgeIndexer: KnowledgeIndexerService,
   ) {}
 
   async findByClinic(clinicId: string) {
@@ -121,11 +123,13 @@ export class DoctorsService {
       safeUpdates.message_price = clampDoctorMessagePrice(message_price);
     }
     await this.doctorRepo.update(doctor.id, safeUpdates);
+    void this.knowledgeIndexer.indexDoctor(doctor.id).catch(() => undefined);
     return this.findByUserId(userId);
   }
 
   async updateDoctor(id: string, updates: Partial<Doctor>) {
     await this.doctorRepo.update(id, updates);
+    void this.knowledgeIndexer.indexDoctor(id).catch(() => undefined);
     return this.doctorRepo.findOne({ where: { id } });
   }
 }

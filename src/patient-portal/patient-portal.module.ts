@@ -13,11 +13,13 @@ import { Appointment } from '../entities/appointment.entity';
 import { IntakeTest } from '../entities/intake-test.entity';
 import { DoctorReview } from '../entities/review.entity';
 import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
+import { AiModule } from '../ai/ai.module';
 
 @Module({
   imports: [
     SchedulesModule,
     UploadsModule,
+    AiModule,
     TypeOrmModule.forFeature([
       Doctor,
       User,

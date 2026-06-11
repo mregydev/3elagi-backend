@@ -81,6 +81,11 @@ import { UserMessagePoints1778100000000 } from './migrations/1778100000000-UserM
 import { DoctorMessagePrice1778110000000 } from './migrations/1778110000000-DoctorMessagePrice';
 import { EnsureDefaultMessagePoints1778100000001 } from './migrations/1778100000001-EnsureDefaultMessagePoints';
 import { PointsModule } from './points/points.module';
+import { AiModule } from './ai/ai.module';
+import { AiConversation } from './entities/ai-conversation.entity';
+import { AiMessage } from './entities/ai-message.entity';
+import { AiUsageLog } from './entities/ai-usage-log.entity';
+import { AiAssistant1778120000000 } from './migrations/1778120000000-AiAssistant';
 
 @Module({
   imports: [
@@ -111,6 +116,9 @@ import { PointsModule } from './points/points.module';
           Advertisement,
           Message,
           DoctorPatientAccess,
+          AiConversation,
+          AiMessage,
+          AiUsageLog,
         ],
         synchronize: false,
         migrations: [
@@ -149,6 +157,7 @@ import { PointsModule } from './points/points.module';
           UserMessagePoints1778100000000,
           EnsureDefaultMessagePoints1778100000001,
           DoctorMessagePrice1778110000000,
+          AiAssistant1778120000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
@@ -184,6 +193,7 @@ import { PointsModule } from './points/points.module';
     MessagesModule,
     DoctorPatientAccessModule,
     PointsModule,
+    AiModule,
   ],
 })
 export class AppModule {}

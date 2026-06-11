@@ -10,10 +10,12 @@ import { Doctor } from '../entities/doctor.entity';
 import { Diagnosis } from '../entities/diagnosis.entity';
 import { Symptom } from '../entities/symptom.entity';
 import { DoctorPatientAccessModule } from '../doctor-patient-access/doctor-patient-access.module';
+import { AiModule } from '../ai/ai.module';
 
 @Module({
   imports: [
     DoctorPatientAccessModule,
+    AiModule,
     TypeOrmModule.forFeature([MedicalDocument, Patient, User, Doctor, Diagnosis, Symptom]),
   ],
   controllers: [MedicalDocumentsController, PatientMedicalDocumentsController],

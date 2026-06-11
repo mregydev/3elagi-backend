@@ -14,6 +14,7 @@ import { Doctor } from '../entities/doctor.entity';
 import { Patient } from '../entities/patient.entity';
 import { Clinic } from '../entities/clinic.entity';
 import { UploadsService } from '../uploads/uploads.service';
+import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
 
 interface CreatePrescriptionDto {
   patient_id: string;
@@ -73,6 +74,7 @@ export class PrescriptionsService {
     @InjectRepository(Patient) private patientRepo: Repository<Patient>,
     @InjectRepository(Clinic) private clinicRepo: Repository<Clinic>,
     private uploads: UploadsService,
+    private knowledgeIndexer: KnowledgeIndexerService,
   ) {}
 
   private async getDoctor(userId: string): Promise<Doctor> {
@@ -159,6 +161,7 @@ export class PrescriptionsService {
     });
 
     const saved = await this.repo.save(prescription);
+    void this.knowledgeIndexer.indexPrescription(saved.id).catch(() => undefined);
 
     // Generate PDF and upload
     try {

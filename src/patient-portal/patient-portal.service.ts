@@ -20,6 +20,7 @@ import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
 import { User } from '../entities/user.entity';
 import { SchedulesService } from '../schedules/schedules.service';
 import { UploadsService } from '../uploads/uploads.service';
+import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
 
 interface OnboardingDto {
   birth_date?: string | null;
@@ -60,6 +61,7 @@ export class PatientPortalService {
     @InjectRepository(User) private userRepo: Repository<User>,
     private schedulesService: SchedulesService,
     private uploadsService: UploadsService,
+    private knowledgeIndexer: KnowledgeIndexerService,
   ) {}
 
   private resolveDoctorPhotoUrl(
@@ -212,7 +214,9 @@ export class PatientPortalService {
       profile.intake_answers = (dto.intake_answers || {}) as Record<string, string[]>;
     }
     profile.onboarded_at = new Date();
-    return this.profileRepo.save(profile);
+    const saved = await this.profileRepo.save(profile);
+    void this.knowledgeIndexer.reindexPatient(userId).catch(() => undefined);
+    return saved;
   }
 
   async getOnboardingIntake() {

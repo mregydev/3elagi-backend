@@ -21,6 +21,7 @@ import {
   MedicalDocument,
 } from '../entities/medical-document.entity';
 import { DoctorPatientAccessService } from '../doctor-patient-access/doctor-patient-access.service';
+import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
 
 type DiagnosisWithDocuments = Diagnosis & { documents?: MedicalDocument[] };
 
@@ -39,7 +40,12 @@ export class DiagnosisService {
     @InjectRepository(MedicalDocument)
     private medicalDocRepo: Repository<MedicalDocument>,
     private doctorPatientAccessService: DoctorPatientAccessService,
+    private knowledgeIndexer: KnowledgeIndexerService,
   ) {}
+
+  private scheduleIndexDiagnosis(diagnosisId: string): void {
+    void this.knowledgeIndexer.indexDiagnosis(diagnosisId).catch(() => undefined);
+  }
 
   private normalizePhone(phone: string): string {
     return phone.replace(/\s/g, '');
@@ -244,6 +250,7 @@ export class DiagnosisService {
     const saved = await this.diagnosisRepo.save(row);
     await this.saveSymptoms(saved.id, dto.symptoms, null);
     await this.linkDocumentsToDiagnosis(saved.id, userId, dto.document_ids);
+    this.scheduleIndexDiagnosis(saved.id);
     return this.findOneForPatientUser(saved.id, userId);
   }
 
@@ -279,6 +286,7 @@ export class DiagnosisService {
       dto.patient_id,
       document_ids,
     );
+    this.scheduleIndexDiagnosis(saved.id);
     return this.findOne(saved.id, userId, userRole);
   }
 
@@ -302,6 +310,7 @@ export class DiagnosisService {
     }
     Object.assign(row, dto);
     const saved = await this.diagnosisRepo.save(row);
+    this.scheduleIndexDiagnosis(saved.id);
     const [enriched] = await this.attachDoctorNamesToDiagnoses([
       await this.diagnosisRepo.findOne({
         where: { id: saved.id },

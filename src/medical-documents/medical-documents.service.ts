@@ -16,6 +16,7 @@ import { Symptom } from '../entities/symptom.entity';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { CreatePatientMedicalDocumentDto } from './dto/create-patient-medical-document.dto';
 import { DoctorPatientAccessService } from '../doctor-patient-access/doctor-patient-access.service';
+import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
 
 @Injectable()
 export class MedicalDocumentsService {
@@ -35,7 +36,12 @@ export class MedicalDocumentsService {
     @InjectRepository(Symptom)
     private symptomRepo: Repository<Symptom>,
     private doctorPatientAccessService: DoctorPatientAccessService,
+    private knowledgeIndexer: KnowledgeIndexerService,
   ) {}
+
+  private scheduleIndexDocument(documentId: string): void {
+    void this.knowledgeIndexer.indexMedicalDocument(documentId).catch(() => undefined);
+  }
 
   private async assertDoctorUser(userId: string, userRole: string): Promise<void> {
     if (userRole !== 'doctor') {
@@ -90,7 +96,9 @@ export class MedicalDocumentsService {
       notes,
       title,
     });
-    return this.docRepo.save(doc);
+    const saved = await this.docRepo.save(doc);
+    this.scheduleIndexDocument(saved.id);
+    return saved;
   }
 
   async findByPatient(
@@ -190,7 +198,9 @@ export class MedicalDocumentsService {
         diagnosis_id: dto.diagnosis_id ?? null,
         symptom_id: dto.symptom_id ?? null,
       });
-      return this.docRepo.save(doc);
+      const saved = await this.docRepo.save(doc);
+      this.scheduleIndexDocument(saved.id);
+      return saved;
     } catch (error) {
       this.logger.error('Error creating medical document: ' + JSON.stringify(error));
       throw error;
@@ -207,6 +217,7 @@ export class MedicalDocumentsService {
       throw new ForbiddenException('You can only delete lab results and imaging');
     }
     await this.docRepo.delete(id);
+    void this.knowledgeIndexer.deleteChunk('medical_record', id).catch(() => undefined);
     return { message: 'Document deleted' };
   }
 

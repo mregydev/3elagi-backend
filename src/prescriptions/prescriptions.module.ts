@@ -7,11 +7,13 @@ import { Clinic } from '../entities/clinic.entity';
 import { PrescriptionsService } from './prescriptions.service';
 import { PrescriptionsController } from './prescriptions.controller';
 import { UploadsModule } from '../uploads/uploads.module';
+import { AiModule } from '../ai/ai.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Prescription, Doctor, Patient, Clinic]),
     UploadsModule,
+    AiModule,
   ],
   providers: [PrescriptionsService],
   controllers: [PrescriptionsController],

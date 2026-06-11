@@ -1,0 +1,130 @@
+import { ForbiddenException, Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
+import { DoctorPatientAccess } from '../entities/doctor-patient-access.entity';
+import { Doctor } from '../entities/doctor.entity';
+import { UserRole } from '../entities/user.entity';
+import { EmbeddingsService } from './embeddings.service';
+import type { RetrievedChunk } from './ai-prompt.service';
+
+export interface VectorSearchOptions {
+  userId: string;
+  userRole: string;
+  patientUserId?: string;
+  limit?: number;
+}
+
+export interface VectorSearchResult {
+  chunks: RetrievedChunk[];
+  embedding: number[];
+}
+
+@Injectable()
+export class VectorSearchService {
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly embeddings: EmbeddingsService,
+    @InjectRepository(DoctorPatientAccess)
+    private readonly accessRepo: Repository<DoctorPatientAccess>,
+    @InjectRepository(Doctor)
+    private readonly doctorRepo: Repository<Doctor>,
+  ) {}
+
+  async search(
+    question: string,
+    options: VectorSearchOptions,
+  ): Promise<VectorSearchResult> {
+    const embedding = await this.embeddings.embedQuery(question);
+    const allowedPatientIds = await this.resolveAllowedPatientIds(options);
+    const limit = options.limit ?? 8;
+
+    if (!allowedPatientIds.length) {
+      return { chunks: [], embedding };
+    }
+
+    const vectorLiteral = `[${embedding.join(',')}]`;
+    const rows = await this.dataSource.query(
+      `
+      SELECT entity_type, text, metadata,
+             1 - (embedding <=> $1::vector) AS score
+      FROM ai_knowledge_chunks
+      WHERE patient_id = ANY($2::uuid[])
+        AND embedding IS NOT NULL
+      ORDER BY embedding <=> $1::vector
+      LIMIT $3
+      `,
+      [vectorLiteral, allowedPatientIds, limit],
+    );
+
+    const chunks: RetrievedChunk[] = rows.map(
+      (row: { entity_type: string; text: string; metadata: Record<string, unknown> }) => ({
+        entityType: row.entity_type,
+        text: row.text,
+        metadata: row.metadata ?? {},
+      }),
+    );
+
+    return { chunks, embedding };
+  }
+
+  private async resolveAllowedPatientIds(
+    options: VectorSearchOptions,
+  ): Promise<string[]> {
+    const { userId, userRole, patientUserId } = options;
+
+    if (userRole === UserRole.PATIENT) {
+      if (patientUserId && patientUserId !== userId) {
+        throw new ForbiddenException('Patients can only access their own records');
+      }
+      return [userId];
+    }
+
+    if (userRole === UserRole.DOCTOR) {
+      const doctor = await this.doctorRepo.findOne({
+        where: { user_id: userId },
+      });
+      if (!doctor) throw new ForbiddenException('Doctor profile not found');
+
+      if (patientUserId) {
+        await this.assertDoctorAccess(doctor.id, patientUserId);
+        return [patientUserId];
+      }
+
+      const rows = await this.accessRepo.find({
+        where: {
+          doctor_id: doctor.id,
+          records_allowed: true,
+          blocked_by_patient: false,
+          blocked_by_doctor: false,
+        },
+      });
+      return rows.map((r) => r.patient_user_id);
+    }
+
+    if (userRole === UserRole.ADMIN || userRole === UserRole.CLINIC_ADMIN) {
+      if (patientUserId) return [patientUserId];
+      return [];
+    }
+
+    throw new ForbiddenException('Role not permitted for AI assistant');
+  }
+
+  private async assertDoctorAccess(
+    doctorId: string,
+    patientUserId: string,
+  ): Promise<void> {
+    const row = await this.accessRepo.findOne({
+      where: { doctor_id: doctorId, patient_user_id: patientUserId },
+    });
+    if (
+      !row ||
+      !row.records_allowed ||
+      row.blocked_by_patient ||
+      row.blocked_by_doctor
+    ) {
+      throw new ForbiddenException(
+        'You do not have permission to access this patient\'s records',
+      );
+    }
+  }
+}
