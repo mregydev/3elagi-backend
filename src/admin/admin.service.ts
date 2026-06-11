@@ -14,6 +14,7 @@ import {
   IntakeQuestion,
 } from '../entities/intake-test.entity';
 import { IntakeTestsService } from '../intake-tests/intake-tests.service';
+import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
 
 const APPROVAL_VALUES: ApprovalStatus[] = ['pending', 'approved', 'rejected'];
 
@@ -57,6 +58,7 @@ export class AdminService {
     private patientRepo: Repository<PatientProfile>,
     @InjectRepository(IntakeTest) private intakeRepo: Repository<IntakeTest>,
     private intakeService: IntakeTestsService,
+    private knowledgeIndexer: KnowledgeIndexerService,
   ) {}
 
   // ----- Doctors -----
@@ -98,6 +100,7 @@ export class AdminService {
         { approval_status: status },
       );
     }
+    void this.knowledgeIndexer.indexDoctor(id).catch(() => undefined);
     return this.doctorRepo.findOne({ where: { id } });
   }
 

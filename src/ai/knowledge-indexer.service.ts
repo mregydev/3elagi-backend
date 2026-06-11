@@ -1,8 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { Diagnosis } from '../entities/diagnosis.entity';
 import { Doctor } from '../entities/doctor.entity';
+import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
 import { MedicalDocument } from '../entities/medical-document.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
 import { Patient } from '../entities/patient.entity';
@@ -11,11 +12,14 @@ import { Symptom } from '../entities/symptom.entity';
 import { AiCacheService } from './ai-cache.service';
 import { EmbeddingsService } from './embeddings.service';
 import type { KnowledgeEntityType } from './types/knowledge-entity-type';
+import { PLATFORM_KNOWLEDGE_SCOPE } from './types/knowledge-entity-type';
 import {
   buildAllergyText,
   buildDiagnosisText,
+  buildDoctorDirectorySummary,
   buildDoctorProfileText,
   buildMedicalDocumentText,
+  buildSpecialityCatalogText,
   buildPatientProfileText,
   buildPrescriptionText,
   documentTypeLabel,
@@ -32,7 +36,7 @@ interface UpsertChunkInput {
 }
 
 @Injectable()
-export class KnowledgeIndexerService {
+export class KnowledgeIndexerService implements OnModuleInit {
   private readonly logger = new Logger(KnowledgeIndexerService.name);
 
   constructor(
@@ -43,6 +47,8 @@ export class KnowledgeIndexerService {
     private readonly profileRepo: Repository<PatientProfile>,
     @InjectRepository(Doctor)
     private readonly doctorRepo: Repository<Doctor>,
+    @InjectRepository(DoctorSpeciality)
+    private readonly specialityRepo: Repository<DoctorSpeciality>,
     @InjectRepository(Diagnosis)
     private readonly diagnosisRepo: Repository<Diagnosis>,
     @InjectRepository(Symptom)
@@ -54,6 +60,79 @@ export class KnowledgeIndexerService {
     @InjectRepository(Patient)
     private readonly clinicPatientRepo: Repository<Patient>,
   ) {}
+
+  onModuleInit(): void {
+    void this.indexDoctorDirectory().catch((err) =>
+      this.logger.warn(
+        `Initial doctor directory indexing failed: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      ),
+    );
+  }
+
+  async indexDoctorDirectory(): Promise<void> {
+    const [doctors, specialities] = await Promise.all([
+      this.doctorRepo.find({
+        where: { approval_status: 'approved' },
+        relations: ['speciality'],
+        order: { name: 'ASC' },
+      }),
+      this.specialityRepo.find({ order: { name_en: 'ASC' } }),
+    ]);
+
+    const doctorCountBySpeciality = new Map<string, number>();
+    for (const doctor of doctors) {
+      const key =
+        doctor.speciality?.name_en ?? doctor.professional_title ?? 'General';
+      doctorCountBySpeciality.set(key, (doctorCountBySpeciality.get(key) ?? 0) + 1);
+    }
+
+    await this.upsertChunk({
+      entityType: 'doctor_directory',
+      entityId: 'platform:summary',
+      patientId: null,
+      doctorId: null,
+      text: buildDoctorDirectorySummary(doctors, specialities),
+      metadata: {
+        scope: PLATFORM_KNOWLEDGE_SCOPE,
+        doctorCount: doctors.length,
+      },
+    });
+
+    await this.upsertChunk({
+      entityType: 'speciality_catalog',
+      entityId: 'platform:all',
+      patientId: null,
+      doctorId: null,
+      text: buildSpecialityCatalogText(specialities, doctorCountBySpeciality),
+      metadata: {
+        scope: PLATFORM_KNOWLEDGE_SCOPE,
+        specialityCount: specialities.length,
+      },
+    });
+
+    for (const doctor of doctors) {
+      await this.upsertChunk({
+        entityType: 'doctor_profile',
+        entityId: doctor.id,
+        patientId: null,
+        doctorId: doctor.id,
+        text: buildDoctorProfileText(doctor, doctor.speciality),
+        metadata: {
+          scope: PLATFORM_KNOWLEDGE_SCOPE,
+          name: doctor.name,
+          speciality: doctor.speciality?.name_en ?? null,
+          specialityAr: doctor.speciality?.name_ar ?? null,
+        },
+      });
+    }
+
+    this.logger.log(
+      `Indexed platform doctor directory (${doctors.length} doctors, ${specialities.length} specialities)`,
+    );
+    await this.cache.bumpKnowledgeBaseVersion();
+  }
 
   async reindexPatient(patientUserId: string): Promise<void> {
     await this.indexPatientProfile(patientUserId);
@@ -111,20 +190,33 @@ export class KnowledgeIndexerService {
   }
 
   async indexDoctor(doctorId: string): Promise<void> {
-    const doctor = await this.doctorRepo.findOne({ where: { id: doctorId } });
+    const doctor = await this.doctorRepo.findOne({
+      where: { id: doctorId },
+      relations: ['speciality'],
+    });
     if (!doctor) {
       await this.deleteChunk('doctor_profile', doctorId);
+      void this.indexDoctorDirectory().catch(() => undefined);
       return;
     }
-    await this.upsertChunk({
-      entityType: 'doctor_profile',
-      entityId: doctorId,
-      patientId: null,
-      doctorId: doctorId,
-      text: buildDoctorProfileText(doctor),
-      metadata: { name: doctor.name, userId: doctor.user_id },
-    });
-    await this.cache.bumpKnowledgeBaseVersion();
+    if (doctor.approval_status === 'approved') {
+      await this.upsertChunk({
+        entityType: 'doctor_profile',
+        entityId: doctorId,
+        patientId: null,
+        doctorId: doctorId,
+        text: buildDoctorProfileText(doctor, doctor.speciality),
+        metadata: {
+          scope: PLATFORM_KNOWLEDGE_SCOPE,
+          name: doctor.name,
+          userId: doctor.user_id,
+          speciality: doctor.speciality?.name_en ?? null,
+        },
+      });
+    } else {
+      await this.deleteChunk('doctor_profile', doctorId);
+    }
+    void this.indexDoctorDirectory().catch(() => undefined);
   }
 
   async indexDiagnosis(diagnosisId: string): Promise<void> {
@@ -266,6 +358,12 @@ export class KnowledgeIndexerService {
   private async upsertChunk(input: UpsertChunkInput): Promise<void> {
     try {
       const [embedding] = await this.embeddings.embedDocuments([input.text]);
+      if (!embedding?.length) {
+        this.logger.error(
+          `Skipping ${input.entityType}:${input.entityId} — empty embedding`,
+        );
+        return;
+      }
       const vectorLiteral = `[${embedding.join(',')}]`;
       await this.dataSource.query(
         `

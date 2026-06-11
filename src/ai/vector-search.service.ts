@@ -6,6 +6,7 @@ import { Doctor } from '../entities/doctor.entity';
 import { UserRole } from '../entities/user.entity';
 import { EmbeddingsService } from './embeddings.service';
 import type { RetrievedChunk } from './ai-prompt.service';
+import { PLATFORM_KNOWLEDGE_SCOPE } from './types/knowledge-entity-type';
 
 export interface VectorSearchOptions {
   userId: string;
@@ -37,11 +38,7 @@ export class VectorSearchService {
     options: VectorSearchOptions,
   ): Promise<VectorSearchResult> {
     const allowedPatientIds = await this.resolveAllowedPatientIds(options);
-    const limit = options.limit ?? 8;
-
-    if (!allowedPatientIds.length) {
-      return { chunks: [], embedding: [] };
-    }
+    const limit = options.limit ?? 10;
 
     try {
       const embedding = await this.embeddings.embedQuery(question);
@@ -51,8 +48,11 @@ export class VectorSearchService {
         SELECT entity_type, text, metadata,
                1 - (embedding <=> $1::vector) AS score
         FROM ai_knowledge_chunks
-        WHERE patient_id = ANY($2::uuid[])
-          AND embedding IS NOT NULL
+        WHERE embedding IS NOT NULL
+          AND (
+            (cardinality($2::uuid[]) > 0 AND patient_id = ANY($2::uuid[]))
+            OR metadata->>'scope' = 'platform'
+          )
         ORDER BY embedding <=> $1::vector
         LIMIT $3
         `,
@@ -71,15 +71,57 @@ export class VectorSearchService {
         }),
       );
 
+      if (!chunks.length) {
+        const fallback = await this.fetchPlatformChunks(limit);
+        if (fallback.length) {
+          this.logger.log(
+            `Vector search returned no chunks; using ${fallback.length} platform fallback chunk(s)`,
+          );
+          return { chunks: fallback, embedding };
+        }
+      }
+
       return { chunks, embedding };
     } catch (err) {
       this.logger.warn(
-        `Vector search unavailable, continuing without RAG context: ${
+        `Vector search unavailable, trying platform fallback: ${
           err instanceof Error ? err.message : String(err)
         }`,
       );
-      return { chunks: [], embedding: [] };
+      const fallback = await this.fetchPlatformChunks(limit);
+      return { chunks: fallback, embedding: [] };
     }
+  }
+
+  private async fetchPlatformChunks(limit: number): Promise<RetrievedChunk[]> {
+    const rows = await this.dataSource.query(
+      `
+      SELECT entity_type, text, metadata
+      FROM ai_knowledge_chunks
+      WHERE metadata->>'scope' = $1
+      ORDER BY
+        CASE entity_type
+          WHEN 'doctor_directory' THEN 0
+          WHEN 'speciality_catalog' THEN 1
+          ELSE 2
+        END,
+        updated_at DESC
+      LIMIT $2
+      `,
+      [PLATFORM_KNOWLEDGE_SCOPE, limit],
+    );
+
+    return rows.map(
+      (row: {
+        entity_type: string;
+        text: string;
+        metadata: Record<string, unknown>;
+      }) => ({
+        entityType: row.entity_type,
+        text: row.text,
+        metadata: row.metadata ?? {},
+      }),
+    );
   }
 
   private async resolveAllowedPatientIds(

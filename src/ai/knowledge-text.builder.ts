@@ -1,5 +1,6 @@
 import { Diagnosis } from '../entities/diagnosis.entity';
 import { Doctor } from '../entities/doctor.entity';
+import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
 import { MedicalDocument, DocumentType } from '../entities/medical-document.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
 import { Prescription } from '../entities/prescription.entity';
@@ -47,17 +48,98 @@ export function buildAllergyText(profile: PatientProfile): string {
   ].join('\n');
 }
 
-export function buildDoctorProfileText(doctor: Doctor): string {
+export function buildDoctorProfileText(
+  doctor: Doctor,
+  speciality?: DoctorSpeciality | null,
+): string {
   const lines = ['Doctor:', `Dr ${doctor.name}`];
+  const specialtyName =
+    speciality?.name_en ?? doctor.professional_title ?? null;
+  if (specialtyName) {
+    lines.push('', 'Speciality:', specialtyName);
+  }
+  if (speciality?.name_ar) {
+    lines.push('', 'Speciality (Arabic):', speciality.name_ar);
+  }
   if (doctor.phone) lines.push('', 'Phone:', doctor.phone);
   if (doctor.personal_clinic_location) {
     lines.push('', 'Location:', doctor.personal_clinic_location);
   }
-  if (doctor.professional_title) {
-    lines.push('', 'Title:', doctor.professional_title);
+  if (doctor.experience_years != null) {
+    lines.push('', 'Experience years:', String(doctor.experience_years));
+  }
+  if (doctor.consultation_fee_egp != null) {
+    lines.push('', 'Consultation fee (EGP):', String(doctor.consultation_fee_egp));
   }
   if (doctor.description) {
     lines.push('', 'Description:', doctor.description);
+  }
+  if (doctor.tags?.length) {
+    lines.push('', 'Tags:', doctor.tags.join(', '));
+  }
+  return lines.join('\n');
+}
+
+export function buildDoctorDirectorySummary(
+  doctors: Array<Doctor & { speciality?: DoctorSpeciality | null }>,
+  specialities: DoctorSpeciality[],
+): string {
+  const bySpeciality = new Map<string, string[]>();
+  for (const doctor of doctors) {
+    const spec =
+      doctor.speciality?.name_en ??
+      doctor.professional_title ??
+      'General';
+    const list = bySpeciality.get(spec) ?? [];
+    list.push(`Dr ${doctor.name}`);
+    bySpeciality.set(spec, list);
+  }
+
+  const lines = [
+    '3elagi platform doctor directory',
+    '',
+    'Total approved doctors:',
+    String(doctors.length),
+    '',
+    'Doctors by speciality:',
+  ];
+
+  for (const [spec, names] of [...bySpeciality.entries()].sort(([a], [b]) =>
+    a.localeCompare(b),
+  )) {
+    lines.push('', `${spec} (${names.length}):`, names.join(', '));
+  }
+
+  lines.push('', 'All specialities on the platform:');
+  if (!specialities.length) {
+    lines.push('No specialities recorded.');
+  } else {
+    for (const s of specialities) {
+      lines.push(`- ${s.name_en} (${s.name_ar})`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
+export function buildSpecialityCatalogText(
+  specialities: DoctorSpeciality[],
+  doctorCountBySpeciality: Map<string, number>,
+): string {
+  const lines = [
+    'Platform specialities catalog',
+    '',
+    'Total specialities:',
+    String(specialities.length),
+  ];
+  for (const s of specialities) {
+    const count = doctorCountBySpeciality.get(s.name_en) ?? 0;
+    lines.push(
+      '',
+      `Speciality: ${s.name_en}`,
+      `Arabic name: ${s.name_ar}`,
+      `Approved doctors in this speciality: ${count}`,
+    );
   }
   return lines.join('\n');
 }

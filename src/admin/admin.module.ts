@@ -8,11 +8,13 @@ import { Clinic } from '../entities/clinic.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
 import { IntakeTest } from '../entities/intake-test.entity';
 import { IntakeTestsModule } from '../intake-tests/intake-tests.module';
+import { AiModule } from '../ai/ai.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, Doctor, Clinic, PatientProfile, IntakeTest]),
     IntakeTestsModule,
+    AiModule,
   ],
   controllers: [AdminController],
   providers: [AdminService],
