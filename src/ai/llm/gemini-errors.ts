@@ -7,13 +7,13 @@ export function throwFriendlyGeminiError(err: unknown, modelName: string): never
     msg.includes('RESOURCE_EXHAUSTED')
   ) {
     throw new Error(
-      `Gemini quota exceeded for model "${modelName}". Try again later, switch GEMINI_CHAT_MODEL (e.g. gemini-flash-latest), or enable billing in Google AI Studio.`,
+      `Gemini quota exceeded for model "${modelName}". Try again later, switch GEMINI_CHAT_MODEL (e.g. gemini-3-flash-preview), or enable billing in Google AI Studio.`,
     );
   }
 
   if (msg.includes('404') || msg.includes('not found')) {
     throw new Error(
-      `Gemini model "${modelName}" is not available (1.5 Flash was retired). Set GEMINI_CHAT_MODEL to gemini-flash-latest.`,
+      `Gemini model "${modelName}" is not available. Set GEMINI_CHAT_MODEL to gemini-3-flash-preview.`,
     );
   }
 

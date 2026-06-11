@@ -19,8 +19,8 @@ function toLangChainMessages(messages: LlmMessage[]) {
 }
 
 const EMBEDDING_DIMENSIONS = 768;
-/** Tracks Google's latest Flash model (gemini-1.5-flash is retired). */
-const DEFAULT_CHAT_MODEL = 'gemini-flash-latest';
+/** Gemini 3 Flash (API id: gemini-3-flash-preview). */
+const DEFAULT_CHAT_MODEL = 'gemini-3-flash-preview';
 /** text-embedding-004 is unavailable on many API keys; gemini-embedding-001 works with 768-dim output. */
 const DEFAULT_EMBEDDING_MODEL = 'gemini-embedding-001';
 

@@ -40,7 +40,7 @@ Providers live in `src/ai/llm/`. Bind a different class to `LLM_PROVIDER` in `ai
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `GEMINI_API_KEY` | Yes | Google Gemini API key |
-| `GEMINI_CHAT_MODEL` | No | Default `gemini-flash-latest` (replaces retired `gemini-1.5-flash`) |
+| `GEMINI_CHAT_MODEL` | No | Default `gemini-3-flash-preview` (Gemini 3 Flash) |
 | `GEMINI_EMBEDDING_MODEL` | No | Default `gemini-embedding-001` |
 | `REDIS_URL` | No | Redis for answer cache (falls back to in-memory) |
 | `AI_CACHE_TTL_SECONDS` | No | Cache TTL (default `3600`) |
