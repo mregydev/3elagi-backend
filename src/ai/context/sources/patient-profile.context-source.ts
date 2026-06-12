@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PatientProfile } from '../../../entities/patient-profile.entity';
+import { UserRole } from '../../../entities/user.entity';
 import { buildPatientProfileText } from '../../knowledge-text.builder';
 import type { AIContextSource } from '../ai-context-source.interface';
 import type { AiContextUser, AiIntent } from '../ai-context.types';
@@ -24,6 +25,13 @@ export class PatientProfileContextSource implements AIContextSource {
   }
 
   async fetchContext(user: AiContextUser): Promise<PatientProfile | null> {
+    if (user.role === UserRole.DOCTOR) {
+      if (!user.patientContextId) return null;
+      return this.profileRepo.findOne({
+        where: { user_id: user.patientContextId },
+      });
+    }
+    if (user.role !== UserRole.PATIENT) return null;
     const patientId = user.patientContextId ?? user.id;
     if (!patientId) return null;
     return this.profileRepo.findOne({ where: { user_id: patientId } });
@@ -31,9 +39,7 @@ export class PatientProfileContextSource implements AIContextSource {
 
   buildContextText(data: unknown): string {
     const profile = data as PatientProfile | null;
-    if (!profile) {
-      return 'No patient profile found for the authenticated user.';
-    }
+    if (!profile) return '';
     return `[Patient Profile]\n${buildPatientProfileText(profile)}`;
   }
 

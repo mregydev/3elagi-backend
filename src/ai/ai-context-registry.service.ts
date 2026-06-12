@@ -1,5 +1,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import type { AIContextSource } from './context/ai-context-source.interface';
+import { DoctorPatientsContextSource } from './context/sources/doctor-patients.context-source';
+import { DoctorProfileContextSource } from './context/sources/doctor-profile.context-source';
 import { DoctorsContextSource } from './context/sources/doctors.context-source';
 import { GeneralKnowledgeContextSource } from './context/sources/general-knowledge.context-source';
 import { MedicalRecordsContextSource } from './context/sources/medical-records.context-source';
@@ -11,12 +13,16 @@ export class AiContextRegistryService implements OnModuleInit {
   private readonly sources: AIContextSource[] = [];
 
   constructor(
+    doctorProfile: DoctorProfileContextSource,
+    doctorPatients: DoctorPatientsContextSource,
     patientProfile: PatientProfileContextSource,
     medicalRecords: MedicalRecordsContextSource,
     doctors: DoctorsContextSource,
     generalKnowledge: GeneralKnowledgeContextSource,
   ) {
     this.sources = [
+      doctorProfile,
+      doctorPatients,
       patientProfile,
       medicalRecords,
       doctors,

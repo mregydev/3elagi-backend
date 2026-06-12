@@ -1,9 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Diagnosis } from '../../../entities/diagnosis.entity';
+import { DoctorPatientAccess } from '../../../entities/doctor-patient-access.entity';
+import { Doctor } from '../../../entities/doctor.entity';
 import { MedicalDocument } from '../../../entities/medical-document.entity';
+import { PatientProfile } from '../../../entities/patient-profile.entity';
 import { Symptom } from '../../../entities/symptom.entity';
+import { UserRole } from '../../../entities/user.entity';
 import {
   buildDiagnosisText,
   buildMedicalDocumentText,
@@ -13,8 +17,8 @@ import type { AIContextSource } from '../ai-context-source.interface';
 import type { AiContextUser, AiIntent } from '../ai-context.types';
 
 interface MedicalRecordsPayload {
-  diagnoses: Array<{ diagnosis: Diagnosis; symptoms: Symptom[] }>;
-  documents: MedicalDocument[];
+  diagnoses: Array<{ diagnosis: Diagnosis; symptoms: Symptom[]; patientName?: string }>;
+  documents: Array<{ document: MedicalDocument; patientName?: string }>;
 }
 
 @Injectable()
@@ -28,6 +32,12 @@ export class MedicalRecordsContextSource implements AIContextSource {
     private readonly symptomRepo: Repository<Symptom>,
     @InjectRepository(MedicalDocument)
     private readonly docRepo: Repository<MedicalDocument>,
+    @InjectRepository(Doctor)
+    private readonly doctorRepo: Repository<Doctor>,
+    @InjectRepository(DoctorPatientAccess)
+    private readonly accessRepo: Repository<DoctorPatientAccess>,
+    @InjectRepository(PatientProfile)
+    private readonly profileRepo: Repository<PatientProfile>,
   ) {}
 
   canHandle(_question: string, intent: AiIntent): boolean {
@@ -39,19 +49,61 @@ export class MedicalRecordsContextSource implements AIContextSource {
   }
 
   async fetchContext(user: AiContextUser): Promise<MedicalRecordsPayload | null> {
-    const patientId = user.patientContextId;
+    if (user.role === UserRole.DOCTOR) {
+      return this.fetchDoctorMedicalRecords(user);
+    }
+
+    const patientId = user.patientContextId ?? user.id;
     if (!patientId) return null;
+    return this.fetchPatientMedicalRecords([patientId]);
+  }
+
+  private async fetchDoctorMedicalRecords(
+    user: AiContextUser,
+  ): Promise<MedicalRecordsPayload | null> {
+    const doctor = await this.doctorRepo.findOne({ where: { user_id: user.id } });
+    if (!doctor) return null;
+
+    let patientIds: string[];
+    if (user.patientContextId) {
+      patientIds = [user.patientContextId];
+    } else {
+      const rows = await this.accessRepo.find({
+        where: {
+          doctor_id: doctor.id,
+          records_allowed: true,
+          blocked_by_patient: false,
+          blocked_by_doctor: false,
+        },
+      });
+      patientIds = rows.map((r) => r.patient_user_id);
+    }
+
+    if (!patientIds.length) {
+      return { diagnoses: [], documents: [] };
+    }
+
+    return this.fetchPatientMedicalRecords(patientIds);
+  }
+
+  private async fetchPatientMedicalRecords(
+    patientIds: string[],
+  ): Promise<MedicalRecordsPayload> {
+    const profiles = await this.profileRepo.find({
+      where: { user_id: In(patientIds) },
+    });
+    const nameByUserId = new Map(profiles.map((p) => [p.user_id, p.name]));
 
     const [diagnoses, documents] = await Promise.all([
       this.diagnosisRepo.find({
-        where: { patient_id: patientId },
+        where: { patient_id: In(patientIds) },
         order: { created_at: 'DESC' },
-        take: 15,
+        take: 30,
       }),
       this.docRepo.find({
-        where: { patient_id: patientId },
+        where: { patient_id: In(patientIds) },
         order: { created_at: 'DESC' },
-        take: 15,
+        take: 30,
       }),
     ]);
 
@@ -61,10 +113,17 @@ export class MedicalRecordsContextSource implements AIContextSource {
         symptoms: await this.symptomRepo.find({
           where: { diagnosis_id: diagnosis.id },
         }),
+        patientName: nameByUserId.get(diagnosis.patient_id),
       })),
     );
 
-    return { diagnoses: withSymptoms, documents };
+    return {
+      diagnoses: withSymptoms,
+      documents: documents.map((document) => ({
+        document,
+        patientName: nameByUserId.get(document.patient_id),
+      })),
+    };
   }
 
   buildContextText(data: unknown): string {
@@ -78,6 +137,9 @@ export class MedicalRecordsContextSource implements AIContextSource {
     if (payload.diagnoses.length) {
       sections.push('[Diagnoses]');
       for (const row of payload.diagnoses) {
+        if (row.patientName) {
+          sections.push(`Patient: ${row.patientName}`);
+        }
         sections.push(buildDiagnosisText(row.diagnosis, row.symptoms));
       }
     } else {
@@ -86,9 +148,12 @@ export class MedicalRecordsContextSource implements AIContextSource {
 
     if (payload.documents.length) {
       sections.push('\n[Medical Documents]');
-      for (const doc of payload.documents) {
+      for (const row of payload.documents) {
+        if (row.patientName) {
+          sections.push(`Patient: ${row.patientName}`);
+        }
         sections.push(
-          buildMedicalDocumentText(doc, documentTypeLabel(doc.type)),
+          buildMedicalDocumentText(row.document, documentTypeLabel(row.document.type)),
         );
       }
     } else {
@@ -99,7 +164,16 @@ export class MedicalRecordsContextSource implements AIContextSource {
   }
 
   async getVersionKey(user: AiContextUser): Promise<string> {
-    const patientId = user.patientContextId;
+    if (user.role === UserRole.DOCTOR) {
+      const doctor = await this.doctorRepo.findOne({ where: { user_id: user.id } });
+      if (!doctor) return 'records:doctor:none';
+      const accessCount = await this.accessRepo.count({
+        where: { doctor_id: doctor.id, records_allowed: true },
+      });
+      return `records:doctor:${doctor.id}:${accessCount}`;
+    }
+
+    const patientId = user.patientContextId ?? user.id;
     if (!patientId) return 'records:none';
 
     const [diagCount, docCount] = await Promise.all([

@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Doctor } from '../../../entities/doctor.entity';
 import { DoctorReview } from '../../../entities/review.entity';
+import { UserRole } from '../../../entities/user.entity';
 import { buildDoctorProfileText } from '../../knowledge-text.builder';
 import type { AIContextSource } from '../ai-context-source.interface';
 import type { AiContextUser, AiIntent } from '../ai-context.types';
@@ -32,7 +33,8 @@ export class DoctorsContextSource implements AIContextSource {
     );
   }
 
-  async fetchContext(_user: AiContextUser, question: string): Promise<DoctorRow[]> {
+  async fetchContext(user: AiContextUser, question: string): Promise<DoctorRow[]> {
+    if (user.role === UserRole.DOCTOR) return [];
     const doctors = await this.doctorRepo.find({
       where: { approval_status: 'approved' },
       relations: ['speciality'],

@@ -24,6 +24,8 @@ import { AiIntentClassifierService } from './ai-intent-classifier.service';
 import { AiPromptService } from './ai-prompt.service';
 import { AiService } from './ai.service';
 import { AiStreamService } from './ai-stream.service';
+import { DoctorPatientsContextSource } from './context/sources/doctor-patients.context-source';
+import { DoctorProfileContextSource } from './context/sources/doctor-profile.context-source';
 import { DoctorsContextSource } from './context/sources/doctors.context-source';
 import { GeneralKnowledgeContextSource } from './context/sources/general-knowledge.context-source';
 import { MedicalRecordsContextSource } from './context/sources/medical-records.context-source';
@@ -62,6 +64,8 @@ import { VectorSearchService } from './vector-search.service';
     AiIntentClassifierService,
     AiContextRegistryService,
     AiContextBuilderService,
+    DoctorProfileContextSource,
+    DoctorPatientsContextSource,
     PatientProfileContextSource,
     MedicalRecordsContextSource,
     DoctorsContextSource,

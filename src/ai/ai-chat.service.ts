@@ -219,6 +219,7 @@ export class AiChatService {
           built.contextText,
           built.intent,
           history,
+          user.role,
         );
         for await (const token of this.stream.streamTokens(llmMessages)) {
           fullContent += token;

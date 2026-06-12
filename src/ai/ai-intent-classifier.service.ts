@@ -3,6 +3,10 @@ import type { AiIntent } from './context/ai-context.types';
 
 const PROFILE =
   /\b(my name|what is my name|what's my name|my age|how old am i|about me|my profile|information about me|who am i)\b/i;
+const DOCTOR_PROFILE =
+  /\b(my specialty|my speciality|my practice|my clinic|my experience|my consultation fee|my rating|my reviews?|about me as a doctor)\b/i;
+const DOCTOR_PRACTICE =
+  /\b(my patients?|patients? i (treated|saw|dealt|diagnosed|worked)|patients? (i've|i have)|diagnos(e|is|es) i (added|made|created)|i diagnosed|patient records?|which patient)\b/i;
 const MEDICAL =
   /\b(diagnos|symptom|lab result|blood test|x-?ray|xray|scan|medical record|my record|my last|my latest|prescription|allerg)\b/i;
 const DOCTOR =
@@ -26,12 +30,18 @@ export class AiIntentClassifierService {
   classify(question: string): AiIntent {
     const q = question.trim();
     const profile = PROFILE.test(q);
+    const doctorProfile = DOCTOR_PROFILE.test(q);
+    const doctorPractice = DOCTOR_PRACTICE.test(q);
     const medical = MEDICAL.test(q);
     const doctor = DOCTOR.test(q);
     const general = GENERAL.test(q);
 
-    const hits = [profile, medical, doctor, general].filter(Boolean).length;
+    const hits = [profile, doctorProfile, doctorPractice, medical, doctor, general].filter(
+      Boolean,
+    ).length;
     if (hits >= 2) return 'mixed_question';
+    if (doctorPractice) return 'doctor_practice_question';
+    if (doctorProfile) return 'doctor_profile_question';
     if (profile) return 'patient_profile_question';
     if (medical) return 'medical_record_question';
     if (doctor) return 'doctor_recommendation_question';
@@ -45,6 +55,8 @@ export class AiIntentClassifierService {
     if (intent === 'mixed_question') {
       return [
         'patient_profile_question',
+        'doctor_profile_question',
+        'doctor_practice_question',
         'medical_record_question',
         'doctor_recommendation_question',
         'general_medical_question',

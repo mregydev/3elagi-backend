@@ -10,7 +10,7 @@ import type {
   AiContextUser,
 } from './context/ai-context.types';
 
-export const AI_PROMPT_VERSION = 'v2';
+export const AI_PROMPT_VERSION = 'v3';
 
 @Injectable()
 export class AiContextBuilderService {
@@ -61,6 +61,7 @@ export class AiContextBuilderService {
     if (
       !shouldSkipRetrieval(question) &&
       (intent === 'medical_record_question' ||
+        intent === 'doctor_practice_question' ||
         intent === 'mixed_question' ||
         intent === 'doctor_recommendation_question')
     ) {
