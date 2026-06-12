@@ -7,6 +7,8 @@ export type AiIntent =
   | 'general_medical_question'
   | 'mixed_question';
 
+import type { AiLinkEntry } from '../ai-response.service';
+
 export interface AiContextUser {
   id: string;
   role: string;
@@ -18,6 +20,7 @@ export interface AiContextBuildResult {
   intent: AiIntent;
   contextText: string;
   chunks: import('../ai-prompt.service').RetrievedChunk[];
+  links: AiLinkEntry[];
   contextVersion: string;
   promptVersion: string;
   urgent: boolean;

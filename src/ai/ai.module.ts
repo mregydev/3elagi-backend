@@ -22,6 +22,7 @@ import { AiController } from './ai.controller';
 import { AiGateway } from './ai.gateway';
 import { AiIntentClassifierService } from './ai-intent-classifier.service';
 import { AiPromptService } from './ai-prompt.service';
+import { AiResponseService } from './ai-response.service';
 import { AiService } from './ai.service';
 import { AiStreamService } from './ai-stream.service';
 import { DoctorPatientsContextSource } from './context/sources/doctor-patients.context-source';
@@ -64,6 +65,7 @@ import { VectorSearchService } from './vector-search.service';
     AiIntentClassifierService,
     AiContextRegistryService,
     AiContextBuilderService,
+    AiResponseService,
     DoctorProfileContextSource,
     DoctorPatientsContextSource,
     PatientProfileContextSource,

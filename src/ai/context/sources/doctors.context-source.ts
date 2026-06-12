@@ -94,6 +94,7 @@ export class DoctorsContextSource implements AIContextSource {
       lines.push(
         buildDoctorProfileText(row.doctor, row.doctor.speciality ?? null),
       );
+      lines.push(`Link: /doctor/${row.doctor.id} | Dr ${row.doctor.name}`);
       lines.push(
         `Average rating: ${row.avgRating || 'No ratings yet'} (${row.reviewCount} reviews)`,
       );

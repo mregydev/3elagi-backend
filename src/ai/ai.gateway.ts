@@ -197,6 +197,7 @@ export class AiGateway implements OnGatewayConnection {
             chatId: event.conversationId,
             messageId: event.messageId,
             cacheHit: event.cacheHit,
+            content: event.finalContent,
           };
           if (room || event.conversationId) {
             this.server

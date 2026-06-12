@@ -19,6 +19,10 @@ export class PresenceGateway implements OnGatewayDisconnect {
 
   constructor(private readonly presence: PresenceService) {}
 
+  private broadcastPresence(): void {
+    this.server.emit('presence:sync', { users: this.presence.getAll() });
+  }
+
   @SubscribeMessage('user:loggedIn')
   handleLoggedIn(
     @ConnectedSocket() client: Socket,
@@ -40,6 +44,8 @@ export class PresenceGateway implements OnGatewayDisconnect {
     if (!wasOnline) {
       this.server.emit('newlogin', user);
     }
+    client.emit('loggedIn:users', this.presence.getAll());
+    this.broadcastPresence();
   }
 
   @SubscribeMessage('user:loggedOut')
@@ -53,6 +59,7 @@ export class PresenceGateway implements OnGatewayDisconnect {
     const removed = this.presence.logoutByUserId(userId);
     if (removed) {
       this.server.emit('newlogout', removed);
+      this.broadcastPresence();
     }
   }
 
@@ -85,6 +92,7 @@ export class PresenceGateway implements OnGatewayDisconnect {
     const removed = this.presence.logout(client.id);
     if (removed) {
       this.server.emit('newlogout', removed);
+      this.broadcastPresence();
     }
   }
 

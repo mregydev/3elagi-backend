@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import type { AiIntent } from './context/ai-context.types';
 
+const IDENTITY =
+  /\b(who (created|made|built|owns)|who is your (owner|creator)|what company|which company|are you (google|gemini|chatgpt))\b/i;
 const PROFILE =
   /\b(my name|what is my name|what's my name|my age|how old am i|about me|my profile|information about me|who am i)\b/i;
 const DOCTOR_PROFILE =
@@ -29,6 +31,7 @@ export class AiIntentClassifierService {
 
   classify(question: string): AiIntent {
     const q = question.trim();
+    if (IDENTITY.test(q)) return 'general_medical_question';
     const profile = PROFILE.test(q);
     const doctorProfile = DOCTOR_PROFILE.test(q);
     const doctorPractice = DOCTOR_PRACTICE.test(q);

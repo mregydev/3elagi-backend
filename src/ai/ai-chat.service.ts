@@ -15,6 +15,7 @@ import { UserRole } from '../entities/user.entity';
 import { AiCacheService } from './ai-cache.service';
 import { AiContextBuilderService } from './ai-context-builder.service';
 import { AiPromptService } from './ai-prompt.service';
+import { AiResponseService } from './ai-response.service';
 import { AiStreamService } from './ai-stream.service';
 import {
   AI_RATE_LIMIT_CODE,
@@ -37,6 +38,7 @@ export interface StreamEvent {
   error?: string;
   code?: string;
   cacheHit?: boolean;
+  finalContent?: string;
 }
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -51,6 +53,7 @@ export class AiChatService {
     private readonly contextBuilder: AiContextBuilderService,
     private readonly prompt: AiPromptService,
     private readonly stream: AiStreamService,
+    private readonly response: AiResponseService,
     private readonly cache: AiCacheService,
     @InjectRepository(AiConversation)
     private readonly conversationRepo: Repository<AiConversation>,
@@ -178,21 +181,23 @@ export class AiChatService {
       const built = await this.contextBuilder.build(contextUser, message);
 
       if (built.urgent && built.urgentMessage) {
+        const urgentText = this.finalizeAnswer(built.urgentMessage, built.links);
         const assistantMessage = await this.messageRepo.save(
           this.messageRepo.create({
             conversation_id: conversation.id,
             role: 'assistant',
-            content: built.urgentMessage,
+            content: urgentText,
           }),
         );
         conversation.updated_at = new Date();
         await this.conversationRepo.save(conversation);
-        yield { type: 'token', content: built.urgentMessage };
+        yield { type: 'token', content: urgentText };
         yield {
           type: 'done',
           conversationId: conversation.id,
           messageId: assistantMessage.id,
           cacheHit: false,
+          finalContent: urgentText,
         };
         return;
       }
@@ -210,9 +215,9 @@ export class AiChatService {
       let cacheHit = false;
 
       if (cached) {
-        fullContent = cached;
+        fullContent = this.finalizeAnswer(cached, built.links);
         cacheHit = true;
-        yield { type: 'token', content: cached };
+        yield { type: 'token', content: fullContent };
       } else {
         const llmMessages = await this.prompt.buildMessages(
           message,
@@ -227,6 +232,8 @@ export class AiChatService {
         }
         await this.cache.set(answerKey, fullContent);
       }
+
+      fullContent = this.finalizeAnswer(fullContent, built.links);
 
       const assistantMessage = await this.messageRepo.save(
         this.messageRepo.create({
@@ -253,6 +260,7 @@ export class AiChatService {
         conversationId: conversation.id,
         messageId: assistantMessage.id,
         cacheHit,
+        finalContent: fullContent,
       };
     } catch (err) {
       if (
@@ -275,6 +283,11 @@ export class AiChatService {
       this.logger.error(raw, err instanceof Error ? err.stack : undefined);
       yield { type: 'error', error };
     }
+  }
+
+  private finalizeAnswer(content: string, links: import('./ai-response.service').AiLinkEntry[]): string {
+    const branded = this.response.sanitizeBranding(content);
+    return this.response.enrichWithLinks(branded, links);
   }
 
   private async loadConversation(

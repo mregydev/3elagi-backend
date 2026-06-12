@@ -141,6 +141,7 @@ export class MedicalRecordsContextSource implements AIContextSource {
           sections.push(`Patient: ${row.patientName}`);
         }
         sections.push(buildDiagnosisText(row.diagnosis, row.symptoms));
+        sections.push(`Link: /medical/${row.diagnosis.id} | ${row.diagnosis.desc}`);
       }
     } else {
       sections.push('[Diagnoses]\nNo diagnoses recorded.');
@@ -155,6 +156,8 @@ export class MedicalRecordsContextSource implements AIContextSource {
         sections.push(
           buildMedicalDocumentText(row.document, documentTypeLabel(row.document.type)),
         );
+        const title = row.document.title?.trim() || row.document.file_name || 'Medical document';
+        sections.push(`Link: /medical/${row.document.id} | ${title}`);
       }
     } else {
       sections.push('\n[Medical Documents]\nNo lab results or imaging reports recorded.');

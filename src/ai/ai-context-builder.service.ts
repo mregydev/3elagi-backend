@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { createHash } from 'crypto';
+import { AiResponseService, type AiLinkEntry } from './ai-response.service';
 import type { RetrievedChunk } from './ai-prompt.service';
 import { AiIntentClassifierService } from './ai-intent-classifier.service';
 import { AiContextRegistryService } from './ai-context-registry.service';
@@ -10,7 +11,18 @@ import type {
   AiContextUser,
 } from './context/ai-context.types';
 
-export const AI_PROMPT_VERSION = 'v3';
+export const AI_PROMPT_VERSION = 'v4';
+
+const MEDICAL_ENTITY_TYPES = new Set([
+  'diagnosis',
+  'lab_result',
+  'imaging',
+  'prescription',
+  'medical_record',
+  'allergy',
+  'doctor_note',
+  'consultation_summary',
+]);
 
 @Injectable()
 export class AiContextBuilderService {
@@ -18,6 +30,7 @@ export class AiContextBuilderService {
     private readonly registry: AiContextRegistryService,
     private readonly intentClassifier: AiIntentClassifierService,
     private readonly vectorSearch: VectorSearchService,
+    private readonly response: AiResponseService,
   ) {}
 
   async build(
@@ -29,6 +42,7 @@ export class AiContextBuilderService {
         intent: 'mixed_question',
         contextText: '',
         chunks: [],
+        links: [],
         contextVersion: 'urgent',
         promptVersion: AI_PROMPT_VERSION,
         urgent: true,
@@ -41,6 +55,7 @@ export class AiContextBuilderService {
 
     const sections: string[] = [];
     const versionParts: string[] = [AI_PROMPT_VERSION, intent];
+    const links: AiLinkEntry[] = [];
 
     for (const source of this.registry.getSources()) {
       if (!source.canHandle(question, intent)) continue;
@@ -54,6 +69,7 @@ export class AiContextBuilderService {
       const data = await source.fetchContext(user, question);
       const text = source.buildContextText(data).trim();
       if (text) sections.push(text);
+      this.collectLinksFromText(text, links);
       versionParts.push(await source.getVersionKey(user));
     }
 
@@ -72,18 +88,23 @@ export class AiContextBuilderService {
         limit: 8,
       });
       chunks = search.chunks;
+      this.collectLinksFromChunks(chunks, links);
       if (chunks.length) {
         sections.push(
           '[Vector search — authorized records]\n' +
             chunks
-              .map(
-                (c, i) =>
-                  `[${i + 1} | ${c.entityType}]\n${c.text}`,
-              )
+              .map((c, i) => {
+                const link = this.linkPathForChunk(c);
+                const linkLine = link ? `\nLink: ${link}` : '';
+                return `[${i + 1} | ${c.entityType}]\n${c.text}${linkLine}`;
+              })
               .join('\n\n'),
         );
       }
     }
+
+    const linkCatalog = this.response.buildLinkCatalog(links);
+    if (linkCatalog) sections.push(linkCatalog);
 
     const contextVersion = createHash('sha256')
       .update(versionParts.join('|'))
@@ -94,9 +115,72 @@ export class AiContextBuilderService {
       intent,
       contextText: sections.join('\n\n---\n\n') || 'No context retrieved.',
       chunks,
+      links,
       contextVersion,
       promptVersion: AI_PROMPT_VERSION,
       urgent: false,
     };
+  }
+
+  private collectLinksFromChunks(chunks: RetrievedChunk[], links: AiLinkEntry[]) {
+    for (const chunk of chunks) {
+      const path = this.linkPathForChunk(chunk);
+      if (!path) continue;
+      const label = this.labelForChunk(chunk);
+      this.pushLink(links, { label, path, kind: chunk.entityType === 'doctor_profile' ? 'doctor_profile' : 'medical_record' });
+    }
+  }
+
+  private collectLinksFromText(text: string, links: AiLinkEntry[]) {
+    const lines = text.split('\n');
+    for (const line of lines) {
+      const medical = line.match(/^Link:\s*(\/medical\/[0-9a-f-]+)\s*(?:\|\s*(.+))?$/i);
+      if (medical) {
+        this.pushLink(links, {
+          label: medical[2]?.trim() || 'Medical record',
+          path: medical[1],
+          kind: 'medical_record',
+        });
+        continue;
+      }
+      const doctor = line.match(/^Link:\s*(\/doctor\/[0-9a-f-]+)\s*(?:\|\s*(.+))?$/i);
+      if (doctor) {
+        this.pushLink(links, {
+          label: doctor[2]?.trim() || 'Doctor profile',
+          path: doctor[1],
+          kind: 'doctor_profile',
+        });
+      }
+    }
+  }
+
+  private linkPathForChunk(chunk: RetrievedChunk): string | null {
+    if (!chunk.entityId) return null;
+    if (chunk.entityType === 'doctor_profile') {
+      return `/doctor/${chunk.entityId}`;
+    }
+    if (MEDICAL_ENTITY_TYPES.has(chunk.entityType)) {
+      return `/medical/${chunk.entityId}`;
+    }
+    return null;
+  }
+
+  private labelForChunk(chunk: RetrievedChunk): string {
+    const metadata = chunk.metadata ?? {};
+    const title =
+      (typeof metadata.title === 'string' && metadata.title) ||
+      (typeof metadata.diagnosis === 'string' && metadata.diagnosis) ||
+      (typeof metadata.name === 'string' && metadata.name) ||
+      null;
+    if (title) {
+      return chunk.entityType === 'doctor_profile' ? `Dr ${title}` : title;
+    }
+    const firstLine = chunk.text.split('\n').find((line) => line.trim()) ?? 'Record';
+    return firstLine.replace(/^(Diagnosis|Record type|Doctor):\s*/i, '').trim() || 'Record';
+  }
+
+  private pushLink(links: AiLinkEntry[], entry: AiLinkEntry) {
+    if (links.some((link) => link.path === entry.path)) return;
+    links.push(entry);
   }
 }

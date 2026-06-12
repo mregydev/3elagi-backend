@@ -45,7 +45,7 @@ export class VectorSearchService {
       const vectorLiteral = `[${embedding.join(',')}]`;
       const rows = await this.dataSource.query(
         `
-        SELECT entity_type, text, metadata,
+        SELECT entity_type, entity_id, text, metadata,
                1 - (embedding <=> $1::vector) AS score
         FROM ai_knowledge_chunks
         WHERE embedding IS NOT NULL
@@ -62,10 +62,12 @@ export class VectorSearchService {
       const chunks: RetrievedChunk[] = rows.map(
         (row: {
           entity_type: string;
+          entity_id: string;
           text: string;
           metadata: Record<string, unknown>;
         }) => ({
           entityType: row.entity_type,
+          entityId: row.entity_id,
           text: row.text,
           metadata: row.metadata ?? {},
         }),
