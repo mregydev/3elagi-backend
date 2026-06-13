@@ -15,7 +15,7 @@ import { UserRole } from '../entities/user.entity';
 import { AiCacheService } from './ai-cache.service';
 import { AiContextBuilderService } from './ai-context-builder.service';
 import { AiPromptService } from './ai-prompt.service';
-import { AiResponseService } from './ai-response.service';
+import { MessageEmotionsService } from '../message-emotions/message-emotions.service';
 import { AiStreamService } from './ai-stream.service';
 import {
   AI_RATE_LIMIT_CODE,
@@ -54,6 +54,7 @@ export class AiChatService {
     private readonly prompt: AiPromptService,
     private readonly stream: AiStreamService,
     private readonly response: AiResponseService,
+    private readonly messageEmotions: MessageEmotionsService,
     private readonly cache: AiCacheService,
     @InjectRepository(AiConversation)
     private readonly conversationRepo: Repository<AiConversation>,
@@ -90,6 +91,10 @@ export class AiChatService {
           where: { conversation_id: c.id },
           order: { created_at: 'ASC' },
         });
+        const grouped = await this.messageEmotions.getForMessages(
+          messages.map((m) => m.id),
+          'ai',
+        );
         return {
           id: c.id,
           title: c.title,
@@ -101,6 +106,7 @@ export class AiChatService {
             role: m.role,
             content: m.content,
             createdAt: m.created_at.toISOString(),
+            emotions: grouped[m.id] ?? [],
           })),
         };
       }),

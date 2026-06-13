@@ -19,7 +19,7 @@ import { PointsService } from '../points/points.service';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { UsersService } from '../users/users.service';
 import { CreateMessageDto } from './dto/create-message.dto';
-import { UpdateMessageDto } from './dto/update-message.dto';
+import { MessageEmotionsService } from '../message-emotions/message-emotions.service';
 
 const ACCESS_ACTIONS: AccessActionType[] = [
   'grant_records',
@@ -41,6 +41,7 @@ export class MessagesService {
     private presenceGateway: PresenceGateway,
     private doctorPatientAccessService: DoctorPatientAccessService,
     private pointsService: PointsService,
+    private messageEmotionsService: MessageEmotionsService,
   ) {}
 
   private mapMessage(row: Message, pointsBalance?: number, messageCost?: number) {
@@ -140,7 +141,15 @@ export class MessagesService {
       .orderBy('m.datetime', 'ASC')
       .getMany();
 
-    return rows.map((row) => this.mapMessage(row));
+    const grouped = await this.messageEmotionsService.getForMessages(
+      rows.map((row) => row.id),
+      'chat',
+    );
+
+    return rows.map((row) => ({
+      ...this.mapMessage(row),
+      emotions: grouped[row.id] ?? [],
+    }));
   }
 
   async markRead(userId: string, peerId: string) {

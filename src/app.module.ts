@@ -85,7 +85,9 @@ import { AiModule } from './ai/ai.module';
 import { AiConversation } from './entities/ai-conversation.entity';
 import { AiMessage } from './entities/ai-message.entity';
 import { AiUsageLog } from './entities/ai-usage-log.entity';
-import { AiAssistant1778120000000 } from './migrations/1778120000000-AiAssistant';
+import { MessageEmotions1778130000000 } from './migrations/1778130000000-MessageEmotions';
+import { MessageEmotion } from './entities/message-emotion.entity';
+import { MessageEmotionsModule } from './message-emotions/message-emotions.module';
 
 @Module({
   imports: [
@@ -119,6 +121,7 @@ import { AiAssistant1778120000000 } from './migrations/1778120000000-AiAssistant
           AiConversation,
           AiMessage,
           AiUsageLog,
+          MessageEmotion,
         ],
         synchronize: false,
         migrations: [
@@ -158,6 +161,7 @@ import { AiAssistant1778120000000 } from './migrations/1778120000000-AiAssistant
           EnsureDefaultMessagePoints1778100000001,
           DoctorMessagePrice1778110000000,
           AiAssistant1778120000000,
+          MessageEmotions1778130000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
@@ -194,6 +198,7 @@ import { AiAssistant1778120000000 } from './migrations/1778120000000-AiAssistant
     DoctorPatientAccessModule,
     PointsModule,
     AiModule,
+    MessageEmotionsModule,
   ],
 })
 export class AppModule {}
