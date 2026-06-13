@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -46,6 +47,7 @@ export class MessageEmotionsService {
     source: MessageEmotionSource,
     emotion: MessageEmotionType,
   ): Promise<MessageEmotionsPayload> {
+    this.assertAllowedEmotion(source, emotion);
     await this.assertCanReact(userId, messageId, source);
 
     const existing = await this.emotionRepo.findOne({
@@ -138,6 +140,15 @@ export class MessageEmotionsService {
       message_source: source,
       emotions: grouped[messageId] ?? [],
     };
+  }
+
+  private assertAllowedEmotion(
+    source: MessageEmotionSource,
+    emotion: MessageEmotionType,
+  ): void {
+    if (source === 'ai' && emotion !== 'like' && emotion !== 'dislike') {
+      throw new BadRequestException('AI messages only support like and dislike');
+    }
   }
 
   private async assertCanReact(

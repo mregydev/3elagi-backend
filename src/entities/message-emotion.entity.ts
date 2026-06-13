@@ -13,7 +13,7 @@ import { User } from './user.entity';
 
 export type MessageEmotionSource = 'chat' | 'ai';
 
-export type MessageEmotionType = 'love' | 'like' | 'laugh' | 'thumbsup';
+export type MessageEmotionType = 'love' | 'like' | 'laugh' | 'thumbsup' | 'dislike';
 
 @Entity('message_emotions')
 @Unique('UQ_message_emotion_user', ['message_id', 'message_source', 'user_id'])

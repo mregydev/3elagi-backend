@@ -87,6 +87,7 @@ import { AiConversation } from './entities/ai-conversation.entity';
 import { AiMessage } from './entities/ai-message.entity';
 import { AiUsageLog } from './entities/ai-usage-log.entity';
 import { MessageEmotions1778130000000 } from './migrations/1778130000000-MessageEmotions';
+import { MessageEmotionDislike1778140000000 } from './migrations/1778140000000-MessageEmotionDislike';
 import { MessageEmotion } from './entities/message-emotion.entity';
 import { MessageEmotionsModule } from './message-emotions/message-emotions.module';
 
@@ -163,6 +164,7 @@ import { MessageEmotionsModule } from './message-emotions/message-emotions.modul
           DoctorMessagePrice1778110000000,
           AiAssistant1778120000000,
           MessageEmotions1778130000000,
+          MessageEmotionDislike1778140000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',

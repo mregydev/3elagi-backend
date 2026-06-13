@@ -11,7 +11,7 @@ export class SetMessageEmotionDto {
   @IsIn(['chat', 'ai'])
   message_source: MessageEmotionSource;
 
-  @IsIn(['love', 'like', 'laugh', 'thumbsup'])
+  @IsIn(['love', 'like', 'laugh', 'thumbsup', 'dislike'])
   emotion: MessageEmotionType;
 }
 
