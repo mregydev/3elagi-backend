@@ -8,26 +8,29 @@ import { AddPatientSymptomDto } from './dto/add-patient-symptom.dto';
 
 @Controller('patient/diagnoses')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('patient', 'doctor')
 export class PatientDiagnosisController {
   constructor(private readonly service: DiagnosisService) {}
 
   @Get()
+  @Roles('patient', 'doctor')
   findMine(@Request() req) {
     return this.service.findForPatientUser(req.user.id);
   }
 
   @Post()
+  @Roles('patient', 'doctor')
   create(@Body() dto: CreatePatientDiagnosisDto, @Request() req) {
     return this.service.createForPatientUser(req.user.id, dto);
   }
 
   @Get(':id')
+  @Roles('patient', 'doctor')
   findOne(@Param('id') id: string, @Request() req) {
     return this.service.findOneForPatientUser(id, req.user.id);
   }
 
   @Post(':id/symptoms')
+  @Roles('patient', 'doctor')
   addSymptom(
     @Param('id') id: string,
     @Body() dto: AddPatientSymptomDto,

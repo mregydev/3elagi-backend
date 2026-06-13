@@ -20,6 +20,7 @@ export class PatientProfileContextSource implements AIContextSource {
     return (
       intent === 'patient_profile_question' ||
       intent === 'medical_record_question' ||
+      intent === 'health_recommendation_question' ||
       intent === 'mixed_question'
     );
   }

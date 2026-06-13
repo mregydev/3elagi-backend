@@ -26,10 +26,12 @@ import { AiResponseService } from './ai-response.service';
 import { AiService } from './ai.service';
 import { AiStreamService } from './ai-stream.service';
 import { DoctorPatientsContextSource } from './context/sources/doctor-patients.context-source';
+import { DoctorPracticeInsightsContextSource } from './context/sources/doctor-practice-insights.context-source';
 import { DoctorProfileContextSource } from './context/sources/doctor-profile.context-source';
 import { DoctorsContextSource } from './context/sources/doctors.context-source';
 import { GeneralKnowledgeContextSource } from './context/sources/general-knowledge.context-source';
 import { MedicalRecordsContextSource } from './context/sources/medical-records.context-source';
+import { PatientHealthInsightsContextSource } from './context/sources/patient-health-insights.context-source';
 import { PatientProfileContextSource } from './context/sources/patient-profile.context-source';
 import { EmbeddingsService, embeddingsProviderFactory } from './embeddings.service';
 import { KnowledgeIndexerService } from './knowledge-indexer.service';
@@ -71,7 +73,9 @@ import { MessageEmotionsService } from '../message-emotions/message-emotions.ser
     AiResponseService,
     DoctorProfileContextSource,
     DoctorPatientsContextSource,
+    DoctorPracticeInsightsContextSource,
     PatientProfileContextSource,
+    PatientHealthInsightsContextSource,
     MedicalRecordsContextSource,
     DoctorsContextSource,
     GeneralKnowledgeContextSource,

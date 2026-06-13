@@ -62,18 +62,20 @@ export class AiCacheService implements OnModuleDestroy {
     return `ai:${suffix}:${userId}:${role}:${this.knowledgeBaseVersion}:${normalized}`;
   }
 
-  /** Spec cache key — never shared between patients. */
+  /** Spec cache key — scoped per user role and patient context. */
   buildAnswerKey(
     patientId: string,
     question: string,
     contextVersion: string,
     promptVersion: string = AI_PROMPT_VERSION,
+    userRole?: string,
   ): string {
     const hash = createHash('sha256')
       .update(normalizeQuestion(question))
       .digest('hex')
       .slice(0, 24);
-    return `ai:answer:${patientId}:${hash}:${contextVersion}:${promptVersion}`;
+    const rolePart = userRole ?? 'unknown';
+    return `ai:answer:${patientId}:${rolePart}:${hash}:${contextVersion}:${promptVersion}`;
   }
 
   async get<T>(key: string): Promise<T | null> {

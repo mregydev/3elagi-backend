@@ -232,26 +232,14 @@ export class DiagnosisService {
     if (rows.length) await this.symptomRepo.save(rows);
   }
 
-  async createForPatientUser(userId: string, dto: CreatePatientDiagnosisDto) {
+  async createForPatientUser(userId: string, _dto: CreatePatientDiagnosisDto) {
     const user = await this.userRepo.findOne({ where: { id: userId } });
-    if (
-      !user ||
-      (user.role !== UserRole.PATIENT && user.role !== UserRole.DOCTOR)
-    ) {
-      throw new ForbiddenException(
-        'Only patients and doctors can create personal diagnoses',
-      );
+    if (!user) {
+      throw new ForbiddenException('User not found');
     }
-    const row = this.diagnosisRepo.create({
-      desc: dto.desc.trim(),
-      patient_id: userId,
-      doctor_id: null,
-    });
-    const saved = await this.diagnosisRepo.save(row);
-    await this.saveSymptoms(saved.id, dto.symptoms, null);
-    await this.linkDocumentsToDiagnosis(saved.id, userId, dto.document_ids);
-    this.scheduleIndexDiagnosis(saved.id);
-    return this.findOneForPatientUser(saved.id, userId);
+    throw new ForbiddenException(
+      'Only licensed doctors can add diagnoses. Please ask your doctor to record a diagnosis for you.',
+    );
   }
 
   async addSymptomForPatientUser(

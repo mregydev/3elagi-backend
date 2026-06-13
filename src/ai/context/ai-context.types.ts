@@ -4,6 +4,8 @@ export type AiIntent =
   | 'doctor_practice_question'
   | 'medical_record_question'
   | 'doctor_recommendation_question'
+  | 'health_recommendation_question'
+  | 'doctor_coaching_question'
   | 'general_medical_question'
   | 'mixed_question';
 

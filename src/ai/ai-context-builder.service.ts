@@ -11,7 +11,7 @@ import type {
   AiContextUser,
 } from './context/ai-context.types';
 
-export const AI_PROMPT_VERSION = 'v4';
+export const AI_PROMPT_VERSION = 'v5';
 
 const MEDICAL_ENTITY_TYPES = new Set([
   'diagnosis',
@@ -46,7 +46,7 @@ export class AiContextBuilderService {
         contextVersion: 'urgent',
         promptVersion: AI_PROMPT_VERSION,
         urgent: true,
-        urgentMessage: this.intentClassifier.urgentResponse(),
+        urgentMessage: this.intentClassifier.urgentResponse(question),
       };
     }
 
@@ -76,8 +76,10 @@ export class AiContextBuilderService {
     let chunks: RetrievedChunk[] = [];
     if (
       !shouldSkipRetrieval(question) &&
-      (intent === 'medical_record_question' ||
+      (      intent === 'medical_record_question' ||
         intent === 'doctor_practice_question' ||
+        intent === 'health_recommendation_question' ||
+        intent === 'doctor_coaching_question' ||
         intent === 'mixed_question' ||
         intent === 'doctor_recommendation_question')
     ) {

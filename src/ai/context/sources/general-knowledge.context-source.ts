@@ -8,7 +8,10 @@ export class GeneralKnowledgeContextSource implements AIContextSource {
 
   canHandle(_question: string, intent: AiIntent): boolean {
     return (
-      intent === 'general_medical_question' || intent === 'mixed_question'
+      intent === 'general_medical_question' ||
+      intent === 'health_recommendation_question' ||
+      intent === 'doctor_coaching_question' ||
+      intent === 'mixed_question'
     );
   }
 

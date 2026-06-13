@@ -215,6 +215,7 @@ export class AiChatService {
         message,
         built.contextVersion,
         built.promptVersion,
+        user.role,
       );
 
       const cached = await this.cache.get<string>(answerKey);

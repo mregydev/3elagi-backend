@@ -43,6 +43,7 @@ export class MedicalRecordsContextSource implements AIContextSource {
   canHandle(_question: string, intent: AiIntent): boolean {
     return (
       intent === 'medical_record_question' ||
+      intent === 'health_recommendation_question' ||
       intent === 'doctor_recommendation_question' ||
       intent === 'mixed_question'
     );
