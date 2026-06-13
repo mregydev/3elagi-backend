@@ -15,6 +15,7 @@ import { UserRole } from '../entities/user.entity';
 import { AiCacheService } from './ai-cache.service';
 import { AiContextBuilderService } from './ai-context-builder.service';
 import { AiPromptService } from './ai-prompt.service';
+import { AiResponseService } from './ai-response.service';
 import { MessageEmotionsService } from '../message-emotions/message-emotions.service';
 import { AiStreamService } from './ai-stream.service';
 import {

@@ -19,6 +19,7 @@ import { PointsService } from '../points/points.service';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { UsersService } from '../users/users.service';
 import { CreateMessageDto } from './dto/create-message.dto';
+import { UpdateMessageDto } from './dto/update-message.dto';
 import { MessageEmotionsService } from '../message-emotions/message-emotions.service';
 
 const ACCESS_ACTIONS: AccessActionType[] = [

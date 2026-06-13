@@ -35,6 +35,7 @@ import { EmbeddingsService, embeddingsProviderFactory } from './embeddings.servi
 import { KnowledgeIndexerService } from './knowledge-indexer.service';
 import { GeminiLlmProvider } from './llm/gemini.provider';
 import { LLM_PROVIDER } from './llm/llm.tokens';
+import { VectorSearchService } from './vector-search.service';
 import { MessageEmotionsModule } from '../message-emotions/message-emotions.module';
 import { MessageEmotionsService } from '../message-emotions/message-emotions.service';
 

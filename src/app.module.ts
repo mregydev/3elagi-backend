@@ -79,6 +79,7 @@ import { DoctorPatientAccess } from './entities/doctor-patient-access.entity';
 import { DoctorPatientAccessModule } from './doctor-patient-access/doctor-patient-access.module';
 import { UserMessagePoints1778100000000 } from './migrations/1778100000000-UserMessagePoints';
 import { DoctorMessagePrice1778110000000 } from './migrations/1778110000000-DoctorMessagePrice';
+import { AiAssistant1778120000000 } from './migrations/1778120000000-AiAssistant';
 import { EnsureDefaultMessagePoints1778100000001 } from './migrations/1778100000001-EnsureDefaultMessagePoints';
 import { PointsModule } from './points/points.module';
 import { AiModule } from './ai/ai.module';
