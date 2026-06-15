@@ -4,11 +4,13 @@ import {
   Column,
   CreateDateColumn,
   ManyToOne,
+  OneToMany,
   JoinColumn,
 } from 'typeorm';
 import { Doctor } from './doctor.entity';
 import { Patient } from './patient.entity';
 import { Clinic } from './clinic.entity';
+import { PrescriptionMedication } from './prescription-medication.entity';
 
 export interface PrescriptionItem {
   name: string;
@@ -23,19 +25,23 @@ export class Prescription {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
-  doctor_id: string;
+  @Column({ nullable: true })
+  doctor_id: string | null;
 
-  @ManyToOne(() => Doctor, { eager: false })
+  @ManyToOne(() => Doctor, { eager: false, nullable: true })
   @JoinColumn({ name: 'doctor_id' })
   doctor: Doctor;
 
-  @Column()
-  patient_id: string;
+  @Column({ nullable: true })
+  patient_id: string | null;
 
-  @ManyToOne(() => Patient, { eager: false })
+  @ManyToOne(() => Patient, { eager: false, nullable: true })
   @JoinColumn({ name: 'patient_id' })
   patient: Patient;
+
+  /** Registered app user (users.id) for mobile medical records. */
+  @Column({ nullable: true })
+  patient_user_id: string | null;
 
   @Column({ nullable: true })
   clinic_id: string;
@@ -52,6 +58,11 @@ export class Prescription {
 
   @Column({ type: 'jsonb', default: () => "'[]'::jsonb" })
   items: PrescriptionItem[];
+
+  @OneToMany(() => PrescriptionMedication, (medication) => medication.prescription, {
+    cascade: true,
+  })
+  medications: PrescriptionMedication[];
 
   @Column({ nullable: true })
   pdf_url: string;

@@ -266,15 +266,22 @@ export class KnowledgeIndexerService implements OnModuleInit {
   async indexPrescription(prescriptionId: string): Promise<void> {
     const prescription = await this.prescriptionRepo.findOne({
       where: { id: prescriptionId },
-      relations: ['doctor', 'patient'],
+      relations: ['doctor', 'patient', 'medications'],
     });
     if (!prescription) {
       await this.deleteChunk('prescription', prescriptionId);
       return;
     }
-    const patientUserId = await this.resolveClinicPatientUserId(
-      prescription.patient,
-    );
+    const patientUserId =
+      prescription.patient_user_id ??
+      (await this.resolveClinicPatientUserId(prescription.patient));
+    let patientName = prescription.patient?.name ?? null;
+    if (!patientName && prescription.patient_user_id) {
+      const profile = await this.profileRepo.findOne({
+        where: { user_id: prescription.patient_user_id },
+      });
+      patientName = profile?.name ?? null;
+    }
     await this.upsertChunk({
       entityType: 'prescription',
       entityId: prescriptionId,
@@ -283,7 +290,7 @@ export class KnowledgeIndexerService implements OnModuleInit {
       text: buildPrescriptionText(
         prescription,
         prescription.doctor ? `Dr ${prescription.doctor.name}` : null,
-        prescription.patient?.name ?? null,
+        patientName,
       ),
       metadata: { title: prescription.title },
     });

@@ -235,7 +235,21 @@ export function buildPrescriptionText(
   if (prescription.symptoms) {
     lines.push('', 'Symptoms:', prescription.symptoms);
   }
-  if (prescription.items?.length) {
+  if (prescription.medications?.length) {
+    lines.push(
+      '',
+      'Medications:',
+      prescription.medications
+        .map((item) => {
+          const parts = [item.medication_name];
+          if (item.dose) parts.push(`dose: ${item.dose}`);
+          if (item.interval) parts.push(`interval: ${item.interval}`);
+          if (item.notes) parts.push(`notes: ${item.notes}`);
+          return parts.join(', ');
+        })
+        .join('\n'),
+    );
+  } else if (prescription.items?.length) {
     lines.push(
       '',
       'Medications:',

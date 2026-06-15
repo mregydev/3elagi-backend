@@ -11,6 +11,7 @@ import { MedicalDocument } from './entities/medical-document.entity';
 import { Diagnosis } from './entities/diagnosis.entity';
 import { Symptom } from './entities/symptom.entity';
 import { Prescription } from './entities/prescription.entity';
+import { PrescriptionMedication } from './entities/prescription-medication.entity';
 import { PrescriptionTemplate } from './entities/prescription-template.entity';
 import { IntakeTest } from './entities/intake-test.entity';
 import { PatientProfile } from './entities/patient-profile.entity';
@@ -90,6 +91,7 @@ import { MessageEmotions1778130000000 } from './migrations/1778130000000-Message
 import { MessageEmotionDislike1778140000000 } from './migrations/1778140000000-MessageEmotionDislike';
 import { MessageEmotion } from './entities/message-emotion.entity';
 import { MessageEmotionsModule } from './message-emotions/message-emotions.module';
+import { PrescriptionMedications1778160000000 } from './migrations/1778160000000-PrescriptionMedications';
 
 @Module({
   imports: [
@@ -110,6 +112,7 @@ import { MessageEmotionsModule } from './message-emotions/message-emotions.modul
           Diagnosis,
           Symptom,
           Prescription,
+          PrescriptionMedication,
           PrescriptionTemplate,
           IntakeTest,
           PatientProfile,
@@ -165,6 +168,7 @@ import { MessageEmotionsModule } from './message-emotions/message-emotions.modul
           AiAssistant1778120000000,
           MessageEmotions1778130000000,
           MessageEmotionDislike1778140000000,
+          PrescriptionMedications1778160000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
