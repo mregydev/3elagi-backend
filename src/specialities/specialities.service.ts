@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { resolveSpecialityPublicUrl } from '../constants/speciality-images';
@@ -37,20 +37,18 @@ export class SpecialitiesService {
     const requestedSpec = await this.specialityRepo.findOne({
       where: { id: specialityId },
     });
+    if (!requestedSpec) {
+      throw new NotFoundException('Speciality not found');
+    }
 
-    const doctors = await this.doctorRepo
-      .createQueryBuilder('d')
-      .leftJoinAndSelect('d.speciality', 'spec')
-      .where('d.approval_status = :status', { status: 'approved' })
-      .andWhere(
-        `(d.speciality_id = :specialityId OR EXISTS (
-          SELECT 1 FROM doctor_speciality_links link
-          WHERE link.doctor_id = d.id AND link.speciality_id = :specialityId
-        ))`,
-        { specialityId },
-      )
-      .orderBy('d.name', 'ASC')
-      .getMany();
+    const doctors = await this.doctorRepo.find({
+      where: {
+        speciality_id: specialityId,
+        approval_status: 'approved',
+      },
+      relations: ['speciality'],
+      order: { name: 'ASC' },
+    });
 
     if (doctors.length === 0) return [];
 
@@ -129,11 +127,11 @@ export class SpecialitiesService {
       name,
       photo_url: d.photo_url ?? user?.photo_url ?? null,
       specialty:
-        requestedSpec?.name_en ??
         d.speciality?.name_en ??
+        requestedSpec?.name_en ??
         d.professional_title ??
         null,
-      speciality_id: d.speciality_id!,
+      speciality_id: d.speciality_id ?? requestedSpec?.id ?? '',
       professional_title: d.professional_title,
       experience_years: d.experience_years,
       consultation_fee_egp: d.consultation_fee_egp,
