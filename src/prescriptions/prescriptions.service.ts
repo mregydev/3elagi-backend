@@ -275,6 +275,13 @@ export class PrescriptionsService {
     return enriched;
   }
 
+  async analyzeImageBuffer(buffer: Buffer, mimeType: string) {
+    return this.imageAnalyzer.extractMedications(
+      buffer.toString('base64'),
+      mimeType,
+    );
+  }
+
   async analyzeImage(
     imageBase64: string,
     mimeType: string,

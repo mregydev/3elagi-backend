@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   Post,
@@ -6,8 +7,11 @@ import {
   Param,
   Query,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
   Request,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -16,6 +20,15 @@ import {
   PrescriptionsService,
 } from './prescriptions.service';
 import { PrescriptionItem } from '../entities/prescription.entity';
+
+const PRESCRIPTION_IMAGE_MIMES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'image/heic',
+  'image/heif',
+]);
 
 @Controller('prescriptions')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -59,12 +72,26 @@ export class PrescriptionsController {
 
   @Post('analyze-image')
   @Roles('doctor', 'patient')
-  analyzeImage(
-    @Body() body: { image_base64?: string; mime_type?: string },
-  ) {
-    return this.service.analyzeImage(
-      body.image_base64 ?? '',
-      body.mime_type ?? 'image/jpeg',
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        const mime = (file.mimetype || '').toLowerCase();
+        if (PRESCRIPTION_IMAGE_MIMES.has(mime) || mime.startsWith('image/')) {
+          cb(null, true);
+          return;
+        }
+        cb(new BadRequestException('Only image files are allowed'), false);
+      },
+    }),
+  )
+  analyzeImage(@UploadedFile() file: Express.Multer.File) {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('Image file is required');
+    }
+    return this.service.analyzeImageBuffer(
+      file.buffer,
+      file.mimetype || 'image/jpeg',
     );
   }
 
