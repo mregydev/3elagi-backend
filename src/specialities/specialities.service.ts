@@ -6,6 +6,9 @@ import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
 import { Doctor } from '../entities/doctor.entity';
 import { DoctorReview } from '../entities/review.entity';
 import { User, UserRole } from '../entities/user.entity';
+import type { DoctorRosterPayload } from './doctor-roster.types';
+
+export { DoctorRosterPayload };
 
 @Injectable()
 export class SpecialitiesService {
@@ -79,29 +82,65 @@ export class SpecialitiesService {
       ]),
     );
 
-    return doctors.map((d) => {
-      const user = userById.get(d.user_id);
-      let name = d.name;
-      if (!name.startsWith('Dr.')) name = `Dr. ${name}`;
-      const rating = ratingByDoctorId.get(d.id);
-      return {
-        id: user?.id ?? d.user_id,
-        doctor_id: d.id,
-        name,
-        photo_url: d.photo_url ?? user?.photo_url ?? null,
-        specialty:
-          requestedSpec?.name_en ??
-          d.speciality?.name_en ??
-          d.professional_title ??
-          null,
-        professional_title: d.professional_title,
-        experience_years: d.experience_years,
-        consultation_fee_egp: d.consultation_fee_egp,
-        message_price: d.message_price ?? 1,
-        rating_average: rating?.average ?? 0,
-        rating_total: rating?.total ?? 0,
-        role: UserRole.DOCTOR,
-      };
+    return doctors.map((d) => this.mapDoctorRow(d, userById.get(d.user_id), requestedSpec, ratingByDoctorId.get(d.id)));
+  }
+
+  /** Build a realtime roster payload for an approved doctor. */
+  async buildDoctorRosterPayload(doctorId: string): Promise<DoctorRosterPayload | null> {
+    const doctor = await this.doctorRepo.findOne({
+      where: { id: doctorId, approval_status: 'approved' },
+      relations: ['speciality'],
     });
+    if (!doctor?.speciality_id) return null;
+
+    const user = await this.userRepo.findOne({ where: { id: doctor.user_id } });
+    const requestedSpec = doctor.speciality ?? (await this.specialityRepo.findOne({
+      where: { id: doctor.speciality_id },
+    }));
+
+    const ratingRow = await this.reviewRepo
+      .createQueryBuilder('r')
+      .select('COALESCE(AVG(r.rating), 0)', 'avg')
+      .addSelect('COUNT(*)', 'total')
+      .where('r.doctor_id = :doctorId', { doctorId: doctor.id })
+      .getRawOne<{ avg: string; total: string }>();
+
+    const rating = ratingRow
+      ? {
+          average: Math.round(Number(ratingRow.avg) * 10) / 10,
+          total: Number(ratingRow.total),
+        }
+      : { average: 0, total: 0 };
+
+    return this.mapDoctorRow(doctor, user, requestedSpec, rating);
+  }
+
+  private mapDoctorRow(
+    d: Doctor,
+    user: User | undefined,
+    requestedSpec: DoctorSpeciality | null | undefined,
+    rating?: { average: number; total: number },
+  ): DoctorRosterPayload {
+    let name = d.name;
+    if (!name.startsWith('Dr.')) name = `Dr. ${name}`;
+    return {
+      id: user?.id ?? d.user_id,
+      doctor_id: d.id,
+      name,
+      photo_url: d.photo_url ?? user?.photo_url ?? null,
+      specialty:
+        requestedSpec?.name_en ??
+        d.speciality?.name_en ??
+        d.professional_title ??
+        null,
+      speciality_id: d.speciality_id!,
+      professional_title: d.professional_title,
+      experience_years: d.experience_years,
+      consultation_fee_egp: d.consultation_fee_egp,
+      message_price: d.message_price ?? 1,
+      rating_average: rating?.average ?? 0,
+      rating_total: rating?.total ?? 0,
+      role: UserRole.DOCTOR,
+    };
   }
 }

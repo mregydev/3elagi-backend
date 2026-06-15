@@ -18,6 +18,8 @@ import { RegisterDoctorDto } from './dto/register-doctor.dto';
 import { RegisterPatientDto } from './dto/register-patient.dto';
 import { DEFAULT_MESSAGE_POINTS } from '../points/points.constants';
 import { clampDoctorMessagePrice } from '../points/message-price.constants';
+import { PresenceGateway } from '../presence/presence.gateway';
+import { SpecialitiesService } from '../specialities/specialities.service';
 
 @Injectable()
 export class AuthService {
@@ -30,7 +32,16 @@ export class AuthService {
     @InjectRepository(PatientProfile)
     private patientProfileRepo: Repository<PatientProfile>,
     private jwtService: JwtService,
+    private presenceGateway: PresenceGateway,
+    private specialitiesService: SpecialitiesService,
   ) {}
+
+  private async broadcastDoctorListed(doctorId: string): Promise<void> {
+    const payload = await this.specialitiesService.buildDoctorRosterPayload(doctorId);
+    if (payload) {
+      this.presenceGateway.broadcastDoctorRegistered(payload);
+    }
+  }
 
   async login(dto: LoginDto) {
     const user = await this.userRepo.findOne({ where: { email: dto.email } });
@@ -153,6 +164,7 @@ export class AuthService {
       location: '',
       owner_id: user.id,
       is_personal: true,
+      approval_status: 'approved',
     });
     await this.clinicRepo.save(personalClinic);
 
@@ -175,15 +187,23 @@ export class AuthService {
       email: dto.email,
       speciality_id: speciality.id,
       message_price: clampDoctorMessagePrice(dto.message_price),
+      approval_status: 'approved',
     });
     await this.doctorRepo.save(doctor);
 
     user.doctor_info_id = doctor.id;
     await this.userRepo.save(user);
 
+    void this.broadcastDoctorListed(doctor.id);
+
+    const profile = await this.doctorRepo.findOne({
+      where: { id: doctor.id },
+      relations: ['speciality'],
+    });
+
     const payload = { sub: user.id, email: user.email, role: user.role };
     const token = this.jwtService.sign(payload);
 
-    return { access_token: token, role: user.role, user_id: user.id, profile: doctor };
+    return { access_token: token, role: user.role, user_id: user.id, profile: profile ?? doctor };
   }
 }

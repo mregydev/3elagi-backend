@@ -37,6 +37,8 @@ export class PresenceGateway implements OnGatewayDisconnect {
       email: payload.email,
       photo_url: payload.photo_url ?? null,
       specialty: payload.specialty ?? null,
+      speciality_id: payload.speciality_id ?? null,
+      doctor_id: payload.doctor_id ?? null,
     };
 
     const wasOnline = this.presence.isUserOnline(user.id);
@@ -94,6 +96,11 @@ export class PresenceGateway implements OnGatewayDisconnect {
       this.server.emit('newlogout', removed);
       this.broadcastPresence();
     }
+  }
+
+  /** Notify all connected clients that a doctor is now listed under a speciality. */
+  broadcastDoctorRegistered(payload: unknown): void {
+    this.server.emit('doctor:registered', payload);
   }
 
   emitToUser(userId: string, event: string, payload: unknown) {
