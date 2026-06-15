@@ -62,7 +62,7 @@ export class MessagesService {
     };
   }
 
-  private async assertDoctorPatientPair(senderId: string, recipientId: string) {
+  private async assertChatParticipants(senderId: string, recipientId: string) {
     if (senderId === recipientId) {
       throw new BadRequestException('Cannot message yourself');
     }
@@ -77,20 +77,39 @@ export class MessagesService {
     }
 
     const roles = new Set([sender.role, recipient.role]);
-    const allowed =
+    const isDoctorPatient =
       roles.has(UserRole.DOCTOR) &&
       roles.has(UserRole.PATIENT) &&
       roles.size === 2;
+    const isDoctorDoctor =
+      sender.role === UserRole.DOCTOR && recipient.role === UserRole.DOCTOR;
 
-    if (!allowed) {
-      throw new ForbiddenException('Chat is only allowed between doctors and patients');
+    if (!isDoctorPatient && !isDoctorDoctor) {
+      throw new ForbiddenException(
+        'Chat is only allowed between doctors and patients, or between two doctors',
+      );
     }
 
     return { sender, recipient };
   }
 
+  /** @deprecated alias */
+  private async assertDoctorPatientPair(senderId: string, recipientId: string) {
+    return this.assertChatParticipants(senderId, recipientId);
+  }
+
+  private isDoctorDoctorPair(sender: User, recipient: User): boolean {
+    return sender.role === UserRole.DOCTOR && recipient.role === UserRole.DOCTOR;
+  }
+
   private async assertCanChat(senderId: string, recipientId: string) {
-    await this.assertDoctorPatientPair(senderId, recipientId);
+    const { sender, recipient } = await this.assertChatParticipants(
+      senderId,
+      recipientId,
+    );
+    if (this.isDoctorDoctorPair(sender, recipient)) {
+      return;
+    }
     await this.doctorPatientAccessService.assertCanChat(senderId, recipientId);
   }
 
@@ -200,6 +219,18 @@ export class MessagesService {
     }
 
     if (type === 'access_action') {
+      const pair = await this.assertChatParticipants(userId, dto.recipient_id);
+      const roles = new Set([pair.sender.role, pair.recipient.role]);
+      const isDoctorPatient =
+        roles.has(UserRole.DOCTOR) &&
+        roles.has(UserRole.PATIENT) &&
+        roles.size === 2;
+      if (!isDoctorPatient) {
+        throw new BadRequestException(
+          'Access actions are only available in doctor-patient chats',
+        );
+      }
+
       const action = (dto.attachment_meta as { action?: AccessActionType } | undefined)?.action;
       if (!action || !ACCESS_ACTIONS.includes(action)) {
         throw new BadRequestException('invalid access action');
