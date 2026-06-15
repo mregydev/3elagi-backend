@@ -6,11 +6,15 @@ import { Doctor } from '../entities/doctor.entity';
 import { Clinic } from '../entities/clinic.entity';
 import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
 import { AiModule } from '../ai/ai.module';
+import { PresenceModule } from '../presence/presence.module';
+import { SpecialitiesModule } from '../specialities/specialities.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Doctor, Clinic, DoctorSpeciality]),
     AiModule,
+    PresenceModule,
+    SpecialitiesModule,
   ],
   controllers: [DoctorsController],
   providers: [DoctorsService],
