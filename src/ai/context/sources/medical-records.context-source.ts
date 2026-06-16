@@ -6,11 +6,13 @@ import { DoctorPatientAccess } from '../../../entities/doctor-patient-access.ent
 import { Doctor } from '../../../entities/doctor.entity';
 import { MedicalDocument } from '../../../entities/medical-document.entity';
 import { PatientProfile } from '../../../entities/patient-profile.entity';
+import { Prescription } from '../../../entities/prescription.entity';
 import { Symptom } from '../../../entities/symptom.entity';
 import { UserRole } from '../../../entities/user.entity';
 import {
   buildDiagnosisText,
   buildMedicalDocumentText,
+  buildPrescriptionText,
   documentTypeLabel,
 } from '../../knowledge-text.builder';
 import type { AIContextSource } from '../ai-context-source.interface';
@@ -19,6 +21,11 @@ import type { AiContextUser, AiIntent } from '../ai-context.types';
 interface MedicalRecordsPayload {
   diagnoses: Array<{ diagnosis: Diagnosis; symptoms: Symptom[]; patientName?: string }>;
   documents: Array<{ document: MedicalDocument; patientName?: string }>;
+  prescriptions: Array<{
+    prescription: Prescription;
+    patientName?: string;
+    doctorName?: string | null;
+  }>;
 }
 
 @Injectable()
@@ -32,6 +39,8 @@ export class MedicalRecordsContextSource implements AIContextSource {
     private readonly symptomRepo: Repository<Symptom>,
     @InjectRepository(MedicalDocument)
     private readonly docRepo: Repository<MedicalDocument>,
+    @InjectRepository(Prescription)
+    private readonly prescriptionRepo: Repository<Prescription>,
     @InjectRepository(Doctor)
     private readonly doctorRepo: Repository<Doctor>,
     @InjectRepository(DoctorPatientAccess)
@@ -81,7 +90,7 @@ export class MedicalRecordsContextSource implements AIContextSource {
     }
 
     if (!patientIds.length) {
-      return { diagnoses: [], documents: [] };
+      return { diagnoses: [], documents: [], prescriptions: [] };
     }
 
     return this.fetchPatientMedicalRecords(patientIds);
@@ -95,7 +104,7 @@ export class MedicalRecordsContextSource implements AIContextSource {
     });
     const nameByUserId = new Map(profiles.map((p) => [p.user_id, p.name]));
 
-    const [diagnoses, documents] = await Promise.all([
+    const [diagnoses, documents, prescriptions] = await Promise.all([
       this.diagnosisRepo.find({
         where: { patient_id: In(patientIds) },
         order: { created_at: 'DESC' },
@@ -103,6 +112,12 @@ export class MedicalRecordsContextSource implements AIContextSource {
       }),
       this.docRepo.find({
         where: { patient_id: In(patientIds) },
+        order: { created_at: 'DESC' },
+        take: 30,
+      }),
+      this.prescriptionRepo.find({
+        where: { patient_user_id: In(patientIds) },
+        relations: ['medications', 'doctor'],
         order: { created_at: 'DESC' },
         take: 30,
       }),
@@ -123,6 +138,13 @@ export class MedicalRecordsContextSource implements AIContextSource {
       documents: documents.map((document) => ({
         document,
         patientName: nameByUserId.get(document.patient_id),
+      })),
+      prescriptions: prescriptions.map((prescription) => ({
+        prescription,
+        patientName: prescription.patient_user_id
+          ? nameByUserId.get(prescription.patient_user_id)
+          : undefined,
+        doctorName: prescription.doctor?.name ?? null,
       })),
     };
   }
@@ -164,6 +186,27 @@ export class MedicalRecordsContextSource implements AIContextSource {
       sections.push('\n[Medical Documents]\nNo lab results or imaging reports recorded.');
     }
 
+    if (payload.prescriptions.length) {
+      sections.push('\n[Prescriptions]');
+      for (const row of payload.prescriptions) {
+        if (row.patientName) {
+          sections.push(`Patient: ${row.patientName}`);
+        }
+        sections.push(
+          buildPrescriptionText(
+            row.prescription,
+            row.doctorName ? `Dr ${row.doctorName}` : null,
+            row.patientName ?? null,
+          ),
+        );
+        sections.push(
+          `Link: /medical/${row.prescription.id} | ${row.prescription.title}`,
+        );
+      }
+    } else {
+      sections.push('\n[Prescriptions]\nNo prescriptions recorded.');
+    }
+
     return sections.join('\n\n');
   }
 
@@ -180,10 +223,11 @@ export class MedicalRecordsContextSource implements AIContextSource {
     const patientId = user.patientContextId ?? user.id;
     if (!patientId) return 'records:none';
 
-    const [diagCount, docCount] = await Promise.all([
+    const [diagCount, docCount, rxCount] = await Promise.all([
       this.diagnosisRepo.count({ where: { patient_id: patientId } }),
       this.docRepo.count({ where: { patient_id: patientId } }),
+      this.prescriptionRepo.count({ where: { patient_user_id: patientId } }),
     ]);
-    return `records:${patientId}:${diagCount}:${docCount}`;
+    return `records:${patientId}:${diagCount}:${docCount}:${rxCount}`;
   }
 }

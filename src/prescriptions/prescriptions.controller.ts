@@ -85,13 +85,18 @@ export class PrescriptionsController {
       },
     }),
   )
-  analyzeImage(@UploadedFile() file: Express.Multer.File) {
+  analyzeImage(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('lang') lang?: string,
+  ) {
     if (!file?.buffer?.length) {
       throw new BadRequestException('Image file is required');
     }
+    const outputLang: 'ar' | 'en' = lang?.trim().toLowerCase() === 'ar' ? 'ar' : 'en';
     return this.service.analyzeImageBuffer(
       file.buffer,
       file.mimetype || 'image/jpeg',
+      outputLang,
     );
   }
 

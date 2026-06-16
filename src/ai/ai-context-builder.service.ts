@@ -11,7 +11,7 @@ import type {
   AiContextUser,
 } from './context/ai-context.types';
 
-export const AI_PROMPT_VERSION = 'v5';
+export const AI_PROMPT_VERSION = 'v6';
 
 const MEDICAL_ENTITY_TYPES = new Set([
   'diagnosis',

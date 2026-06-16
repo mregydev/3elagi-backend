@@ -275,18 +275,28 @@ export class PrescriptionsService {
     return enriched;
   }
 
-  async analyzeImageBuffer(buffer: Buffer, mimeType: string) {
+  async analyzeImageBuffer(
+    buffer: Buffer,
+    mimeType: string,
+    outputLang: 'ar' | 'en' = 'en',
+  ) {
     return this.imageAnalyzer.extractMedications(
       buffer.toString('base64'),
       mimeType,
+      outputLang,
     );
   }
 
   async analyzeImage(
     imageBase64: string,
     mimeType: string,
+    outputLang: 'ar' | 'en' = 'en',
   ): Promise<ExtractedPrescriptionMedication[]> {
-    return this.imageAnalyzer.extractMedications(imageBase64, mimeType);
+    return this.imageAnalyzer.extractMedications(
+      imageBase64,
+      mimeType,
+      outputLang,
+    );
   }
 
   async createForPatientUser(

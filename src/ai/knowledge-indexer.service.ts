@@ -332,21 +332,34 @@ export class KnowledgeIndexerService implements OnModuleInit {
   }
 
   private async indexPatientPrescriptions(patientUserId: string): Promise<void> {
+    const prescriptionIds = new Set<string>();
+
+    const byUser = await this.prescriptionRepo.find({
+      where: { patient_user_id: patientUserId },
+      select: ['id'],
+    });
+    for (const rx of byUser) prescriptionIds.add(rx.id);
+
     const profile = await this.profileRepo.findOne({
       where: { user_id: patientUserId },
     });
-    if (!profile) return;
-    const phone = profile.phone.replace(/\s/g, '');
-    const clinicPatients = await this.clinicPatientRepo
-      .createQueryBuilder('p')
-      .where("REPLACE(p.phone, ' ', '') = :phone", { phone })
-      .getMany();
-    if (!clinicPatients.length) return;
-    const prescriptions = await this.prescriptionRepo.find({
-      where: clinicPatients.map((p) => ({ patient_id: p.id })),
-    });
-    for (const rx of prescriptions) {
-      await this.indexPrescription(rx.id);
+    if (profile?.phone) {
+      const phone = profile.phone.replace(/\s/g, '');
+      const clinicPatients = await this.clinicPatientRepo
+        .createQueryBuilder('p')
+        .where("REPLACE(p.phone, ' ', '') = :phone", { phone })
+        .getMany();
+      if (clinicPatients.length) {
+        const legacy = await this.prescriptionRepo.find({
+          where: clinicPatients.map((p) => ({ patient_id: p.id })),
+          select: ['id'],
+        });
+        for (const rx of legacy) prescriptionIds.add(rx.id);
+      }
+    }
+
+    for (const id of prescriptionIds) {
+      await this.indexPrescription(id);
     }
   }
 

@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Diagnosis } from '../../../entities/diagnosis.entity';
 import { MedicalDocument } from '../../../entities/medical-document.entity';
+import { Prescription } from '../../../entities/prescription.entity';
 import { Symptom } from '../../../entities/symptom.entity';
 import { UserRole } from '../../../entities/user.entity';
 import type { AIContextSource } from '../ai-context-source.interface';
@@ -11,8 +12,11 @@ import type { AiContextUser, AiIntent } from '../ai-context.types';
 interface PatientHealthInsightsPayload {
   diagnosisCount: number;
   doctorDiagnosisCount: number;
+  prescriptionCount: number;
   symptomTerms: string[];
   diagnosisTerms: string[];
+  prescriptionTitles: string[];
+  currentMedications: string[];
   documentTypes: Record<string, number>;
   recurringThemes: string[];
   latestRecordDate: string | null;
@@ -29,6 +33,8 @@ export class PatientHealthInsightsContextSource implements AIContextSource {
     private readonly symptomRepo: Repository<Symptom>,
     @InjectRepository(MedicalDocument)
     private readonly docRepo: Repository<MedicalDocument>,
+    @InjectRepository(Prescription)
+    private readonly prescriptionRepo: Repository<Prescription>,
   ) {}
 
   canHandle(_question: string, intent: AiIntent): boolean {
@@ -45,7 +51,7 @@ export class PatientHealthInsightsContextSource implements AIContextSource {
     const patientId = user.patientContextId ?? user.id;
     if (!patientId) return null;
 
-    const [diagnoses, documents] = await Promise.all([
+    const [diagnoses, documents, prescriptions] = await Promise.all([
       this.diagnosisRepo.find({
         where: { patient_id: patientId },
         order: { created_at: 'DESC' },
@@ -55,6 +61,12 @@ export class PatientHealthInsightsContextSource implements AIContextSource {
         where: { patient_id: patientId },
         order: { created_at: 'DESC' },
         take: 40,
+      }),
+      this.prescriptionRepo.find({
+        where: { patient_user_id: patientId },
+        relations: ['medications'],
+        order: { created_at: 'DESC' },
+        take: 20,
       }),
     ]);
 
@@ -70,13 +82,30 @@ export class PatientHealthInsightsContextSource implements AIContextSource {
       .filter(Boolean);
     const symptomTerms = symptoms.map((s) => s.desc.trim()).filter(Boolean);
 
+    const prescriptionTitles = prescriptions
+      .map((rx) => rx.title.trim())
+      .filter(Boolean);
+    const currentMedications = prescriptions.flatMap((rx) =>
+      (rx.medications ?? []).map((med) => {
+        const parts = [med.medication_name.trim()];
+        if (med.dose?.trim()) parts.push(med.dose.trim());
+        if (med.interval?.trim()) parts.push(med.interval.trim());
+        return parts.filter(Boolean).join(' — ');
+      }),
+    ).filter(Boolean);
+
     const documentTypes: Record<string, number> = {};
     for (const doc of documents) {
       documentTypes[doc.type] = (documentTypes[doc.type] ?? 0) + 1;
     }
 
     const wordCounts = new Map<string, number>();
-    for (const term of [...diagnosisTerms, ...symptomTerms]) {
+    for (const term of [
+      ...diagnosisTerms,
+      ...symptomTerms,
+      ...prescriptionTitles,
+      ...currentMedications,
+    ]) {
       for (const word of term.toLowerCase().split(/\s+/)) {
         if (word.length < 4) continue;
         wordCounts.set(word, (wordCounts.get(word) ?? 0) + 1);
@@ -91,6 +120,7 @@ export class PatientHealthInsightsContextSource implements AIContextSource {
     const dates = [
       ...diagnoses.map((d) => d.created_at),
       ...documents.map((d) => d.created_at),
+      ...prescriptions.map((rx) => rx.created_at),
     ].filter(Boolean);
     const latest = dates.length
       ? new Date(Math.max(...dates.map((d) => d.getTime()))).toISOString().slice(0, 10)
@@ -99,8 +129,11 @@ export class PatientHealthInsightsContextSource implements AIContextSource {
     return {
       diagnosisCount: diagnoses.length,
       doctorDiagnosisCount: diagnoses.filter((d) => d.doctor_id).length,
+      prescriptionCount: prescriptions.length,
       symptomTerms: [...new Set(symptomTerms)].slice(0, 20),
       diagnosisTerms: [...new Set(diagnosisTerms)].slice(0, 15),
+      prescriptionTitles: [...new Set(prescriptionTitles)].slice(0, 10),
+      currentMedications: [...new Set(currentMedications)].slice(0, 25),
       documentTypes,
       recurringThemes,
       latestRecordDate: latest,
@@ -119,6 +152,14 @@ export class PatientHealthInsightsContextSource implements AIContextSource {
     if (payload.diagnosisTerms.length) {
       lines.push(`Diagnosis themes: ${payload.diagnosisTerms.join('; ')}`);
     }
+    if (payload.prescriptionTitles.length) {
+      lines.push(`Prescription conditions: ${payload.prescriptionTitles.join('; ')}`);
+    }
+    if (payload.currentMedications.length) {
+      lines.push(
+        `Medications from saved prescriptions (for context only — do not prescribe or change doses): ${payload.currentMedications.join('; ')}`,
+      );
+    }
     if (payload.symptomTerms.length) {
       lines.push(`Reported symptoms: ${payload.symptomTerms.join('; ')}`);
     }
@@ -136,7 +177,7 @@ export class PatientHealthInsightsContextSource implements AIContextSource {
     }
 
     lines.push(
-      'Use these patterns to suggest things to avoid, healthy habits, and suitable foods — always tie advice to the patterns above and remind the patient to confirm with their doctor.',
+      'Use these patterns — including diagnoses, symptoms, lab/imaging themes, and prescription medications — to suggest things to avoid, healthy habits, and suitable foods. Never prescribe or change medications; remind the patient to confirm with their doctor.',
     );
 
     return lines.join('\n');
@@ -147,10 +188,11 @@ export class PatientHealthInsightsContextSource implements AIContextSource {
     const patientId = user.patientContextId ?? user.id;
     if (!patientId) return 'patient_insights:none';
 
-    const [diagCount, docCount] = await Promise.all([
+    const [diagCount, docCount, rxCount] = await Promise.all([
       this.diagnosisRepo.count({ where: { patient_id: patientId } }),
       this.docRepo.count({ where: { patient_id: patientId } }),
+      this.prescriptionRepo.count({ where: { patient_user_id: patientId } }),
     ]);
-    return `patient_insights:${patientId}:${diagCount}:${docCount}`;
+    return `patient_insights:${patientId}:${diagCount}:${docCount}:${rxCount}`;
   }
 }

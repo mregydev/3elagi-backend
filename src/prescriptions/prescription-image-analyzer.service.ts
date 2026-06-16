@@ -11,17 +11,26 @@ export interface ExtractedPrescriptionMedication {
 
 const DEFAULT_CHAT_MODEL = 'gemini-3-flash-preview';
 
-const EXTRACTION_PROMPT = `You analyze prescription or medication-list images for a medical app.
+function buildExtractionPrompt(outputLang: 'ar' | 'en'): string {
+  const langLabel = outputLang === 'ar' ? 'Arabic' : 'English';
+  const doseExample =
+    outputLang === 'ar' ? '500 مج، قرص واحد' : '500 mg, 1 tablet';
+  const intervalExample =
+    outputLang === 'ar'
+      ? 'مرتين يوميًا، كل 8 ساعات'
+      : 'twice daily, every 8 hours';
+
+  return `You analyze prescription or medication-list images for a medical app.
 
 Extract every medication you can read from the image.
 
 Return ONLY a valid JSON array (no markdown, no explanation) with objects shaped like:
 [
   {
-    "medication_name": "Drug name",
-    "dose": "amount/strength if visible",
-    "interval": "frequency/schedule if visible (e.g. twice daily, every 8 hours)",
-    "notes": "extra instructions if visible"
+    "medication_name": "Drug name as written on the prescription",
+    "dose": "amount/strength in ${langLabel}",
+    "interval": "frequency/schedule in ${langLabel}",
+    "notes": "extra instructions in ${langLabel} if any"
   }
 ]
 
@@ -29,7 +38,12 @@ Rules:
 - Use empty string for fields that are not visible.
 - Do not invent medications not shown in the image.
 - Do not diagnose or give medical advice.
-- Preserve Arabic or English text as written on the image.`;
+- medication_name: keep the drug name as shown on the prescription (do not translate).
+- dose: ALWAYS write in ${langLabel}, even if the prescription is in another language. Translate/normalize (e.g. ${doseExample}).
+- interval: ALWAYS write in ${langLabel}, even if the prescription is in another language. Translate/normalize (e.g. ${intervalExample}).
+- notes: if present, write in ${langLabel} (translate from the prescription if needed).
+- Never copy dose or interval text verbatim from the prescription if that language is not ${langLabel}.`;
+}
 
 @Injectable()
 export class PrescriptionImageAnalyzerService {
@@ -44,6 +58,7 @@ export class PrescriptionImageAnalyzerService {
   async extractMedications(
     imageBase64: string,
     mimeType: string,
+    outputLang: 'ar' | 'en' = 'en',
   ): Promise<ExtractedPrescriptionMedication[]> {
     const apiKey = this.config.get<string>('GEMINI_API_KEY');
     if (!apiKey) {
@@ -59,7 +74,7 @@ export class PrescriptionImageAnalyzerService {
 
     try {
       const result = await model.generateContent([
-        { text: EXTRACTION_PROMPT },
+        { text: buildExtractionPrompt(outputLang) },
         {
           inlineData: {
             mimeType: normalizedMime,
