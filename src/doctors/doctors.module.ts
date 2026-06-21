@@ -8,6 +8,7 @@ import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
 import { AiModule } from '../ai/ai.module';
 import { PresenceModule } from '../presence/presence.module';
 import { SpecialitiesModule } from '../specialities/specialities.module';
+import { ReviewsModule } from '../reviews/reviews.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { SpecialitiesModule } from '../specialities/specialities.module';
     AiModule,
     PresenceModule,
     SpecialitiesModule,
+    ReviewsModule,
   ],
   controllers: [DoctorsController],
   providers: [DoctorsService],

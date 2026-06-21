@@ -67,6 +67,10 @@ export class Prescription {
   @Column({ nullable: true })
   pdf_url: string;
 
+  /** Scanned/uploaded prescription photo saved with the record. */
+  @Column({ nullable: true })
+  image_url: string;
+
   @CreateDateColumn()
   created_at: Date;
 }

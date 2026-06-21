@@ -5,10 +5,12 @@ import {
   Delete,
   Param,
   Body,
+  Query,
   UseGuards,
   Request,
 } from '@nestjs/common';
 import { DoctorsService } from './doctors.service';
+import { ReviewsService } from '../reviews/reviews.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -17,7 +19,10 @@ import { Public } from '../auth/public.decorator';
 @Controller('doctors')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class DoctorsController {
-  constructor(private readonly doctorsService: DoctorsService) {}
+  constructor(
+    private readonly doctorsService: DoctorsService,
+    private readonly reviewsService: ReviewsService,
+  ) {}
 
   @Get('clinic/:clinicId')
   @Public()
@@ -29,6 +34,18 @@ export class DoctorsController {
   @Roles('doctor')
   findMe(@Request() req) {
     return this.doctorsService.findByUserId(req.user.id);
+  }
+
+  @Get('me/reviews')
+  @Roles('doctor')
+  getMyReviews(
+    @Request() req,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const p = Math.max(1, parseInt(page ?? '1', 10) || 1);
+    const l = Math.max(1, parseInt(limit ?? '10', 10) || 10);
+    return this.reviewsService.listForDoctorUser(req.user.id, p, l);
   }
 
   @Get(':id')

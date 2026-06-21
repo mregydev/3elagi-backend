@@ -11,6 +11,22 @@ import { Doctor } from '../entities/doctor.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
 import { Diagnosis } from '../entities/diagnosis.entity';
 
+export interface ReviewsPage {
+  data: {
+    id: string;
+    rating: number;
+    comment: string | null;
+    patientName: string;
+    createdAt: Date;
+  }[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 interface ReviewDto {
   rating: number;
   comment?: string | null;
@@ -58,6 +74,38 @@ export class ReviewsService {
             comment: existing.comment,
           }
         : null,
+    };
+  }
+
+  async listForDoctorUser(userId: string, page: number, limit: number): Promise<ReviewsPage> {
+    const doctor = await this.doctorRepo.findOne({ where: { user_id: userId } });
+    if (!doctor) throw new NotFoundException('Doctor profile not found');
+
+    const safePage = Math.max(1, Math.floor(page));
+    const safeLimit = Math.min(100, Math.max(1, Math.floor(limit)));
+    const skip = (safePage - 1) * safeLimit;
+
+    const [reviews, total] = await this.reviewRepo.findAndCount({
+      where: { doctor_id: doctor.id },
+      order: { created_at: 'DESC' },
+      skip,
+      take: safeLimit,
+    });
+
+    return {
+      data: reviews.map((r) => ({
+        id: r.id,
+        rating: r.rating,
+        comment: r.comment,
+        patientName: r.patient_name,
+        createdAt: r.created_at,
+      })),
+      pagination: {
+        page: safePage,
+        limit: safeLimit,
+        total,
+        totalPages: Math.ceil(total / safeLimit),
+      },
     };
   }
 

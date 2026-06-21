@@ -11,5 +11,6 @@ import { Diagnosis } from '../entities/diagnosis.entity';
   imports: [TypeOrmModule.forFeature([DoctorReview, Doctor, PatientProfile, Diagnosis])],
   controllers: [ReviewsController],
   providers: [ReviewsService],
+  exports: [ReviewsService],
 })
 export class ReviewsModule {}

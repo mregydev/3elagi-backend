@@ -45,6 +45,7 @@ export interface CreatePrescriptionForUserDto {
   title: string;
   symptoms?: string;
   medications: PrescriptionMedicationInput[];
+  image_url?: string;
   lang?: 'ar' | 'en';
 }
 
@@ -333,6 +334,8 @@ export class PrescriptionsService {
     });
     if (!profile) throw new NotFoundException('Patient profile not found');
 
+    const imageUrl = dto.image_url?.trim() || null;
+
     const prescription = this.repo.create({
       doctor_id: doctor?.id ?? null,
       patient_id: null,
@@ -340,6 +343,7 @@ export class PrescriptionsService {
       clinic_id: doctor?.default_clinic_id ?? null,
       title: dto.title.trim(),
       symptoms: dto.symptoms?.trim() || null,
+      image_url: imageUrl,
       items: medications.map((med) => ({
         name: med.medication_name,
         dose: med.dose,
