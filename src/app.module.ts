@@ -92,6 +92,7 @@ import { MessageEmotionDislike1778140000000 } from './migrations/1778140000000-M
 import { MessageEmotion } from './entities/message-emotion.entity';
 import { MessageEmotionsModule } from './message-emotions/message-emotions.module';
 import { PrescriptionMedications1778160000000 } from './migrations/1778160000000-PrescriptionMedications';
+import { PrescriptionImageUrl1778170000000 } from './migrations/1778170000000-PrescriptionImageUrl';
 
 @Module({
   imports: [
@@ -169,6 +170,7 @@ import { PrescriptionMedications1778160000000 } from './migrations/1778160000000
           MessageEmotions1778130000000,
           MessageEmotionDislike1778140000000,
           PrescriptionMedications1778160000000,
+          PrescriptionImageUrl1778170000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
