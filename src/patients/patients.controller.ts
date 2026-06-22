@@ -44,9 +44,16 @@ export class PatientsController {
     return this.patientsService.findAll();
   }
 
-  @Get(':id')
-  findById(@Param('id') id: string, @Request() req) {
-    return this.patientsService.findByIdWithDocuments(id, req.user.id, req.user.role);
+  @Get('registered')
+  @Roles('doctor')
+  getRegisteredPatients(@Request() req) {
+    return this.patientsService.getRegisteredPatientsForDoctorUser(req.user.id);
+  }
+
+  @Get('by-doctor/:doctorId')
+  @Roles('doctor')
+  getDoctorPatients(@Param('doctorId') doctorId: string, @Request() req) {
+    return this.patientsService.getDoctorPatients(doctorId, req.user.id);
   }
 
   @Get(':id/intake-history')
@@ -54,10 +61,9 @@ export class PatientsController {
     return this.patientsService.getIntakeHistory(id, req.user.id, req.user.role);
   }
 
-  @Get('by-doctor/:doctorId')
-  @Roles('doctor')
-  getDoctorPatients(@Param('doctorId') doctorId: string, @Request() req) {
-    return this.patientsService.getDoctorPatients(doctorId, req.user.id);
+  @Get(':id')
+  findById(@Param('id') id: string, @Request() req) {
+    return this.patientsService.findByIdWithDocuments(id, req.user.id, req.user.role);
   }
 
   @Post()
@@ -88,5 +94,10 @@ export class PatientSelfController {
   @Patch()
   updateMe(@Body() dto: UpdatePatientDto, @Request() req) {
     return this.patientsService.updateSelf(req.user.id, dto);
+  }
+
+  @Get()
+  getMe(@Request() req) {
+    return this.patientsService.findById(req.user.id);
   }
 }

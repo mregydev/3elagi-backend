@@ -5,10 +5,12 @@ import { ReviewsController } from './reviews.controller';
 import { DoctorReview } from '../entities/review.entity';
 import { Doctor } from '../entities/doctor.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
+import { Diagnosis } from '../entities/diagnosis.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([DoctorReview, Doctor, PatientProfile])],
+  imports: [TypeOrmModule.forFeature([DoctorReview, Doctor, PatientProfile, Diagnosis])],
   controllers: [ReviewsController],
   providers: [ReviewsService],
+  exports: [ReviewsService],
 })
 export class ReviewsModule {}

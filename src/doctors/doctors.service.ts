@@ -2,17 +2,28 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Doctor } from '../entities/doctor.entity';
 import { Clinic } from '../entities/clinic.entity';
+import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
+import { clampDoctorMessagePrice } from '../points/message-price.constants';
+import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
+import { PresenceGateway } from '../presence/presence.gateway';
+import { SpecialitiesService } from '../specialities/specialities.service';
 
 @Injectable()
 export class DoctorsService {
   constructor(
     @InjectRepository(Doctor) private doctorRepo: Repository<Doctor>,
     @InjectRepository(Clinic) private clinicRepo: Repository<Clinic>,
+    @InjectRepository(DoctorSpeciality)
+    private specialityRepo: Repository<DoctorSpeciality>,
+    private knowledgeIndexer: KnowledgeIndexerService,
+    private presenceGateway: PresenceGateway,
+    private specialitiesService: SpecialitiesService,
   ) {}
 
   async findByClinic(clinicId: string) {
@@ -32,7 +43,16 @@ export class DoctorsService {
   }
 
   async findByUserId(userId: string) {
-    return this.doctorRepo.findOne({ where: { user_id: userId } });
+    const doctor = await this.doctorRepo.findOne({
+      where: { user_id: userId },
+      relations: ['speciality'],
+    });
+    if (!doctor) return null;
+    return {
+      ...doctor,
+      speciality_name_en: doctor.speciality?.name_en ?? null,
+      speciality_name_ar: doctor.speciality?.name_ar ?? null,
+    };
   }
 
   async removeFromClinic(doctorId: string, clinicId: string) {
@@ -57,7 +77,7 @@ export class DoctorsService {
       graduation_cert_url, work_permit_url,
       digital_signature_url, personal_clinic_location,
       professional_title, description, experience_years, consultation_fee_egp,
-      faqs, tags,
+      faqs, tags, speciality_id, message_price,
     } = updates as Partial<Doctor>;
     const safeUpdates: Partial<Doctor> = {};
     if (name !== undefined) safeUpdates.name = name;
@@ -98,12 +118,35 @@ export class DoctorsService {
         })
         .slice(0, 20);
     }
+    if (speciality_id !== undefined) {
+      const spec = await this.specialityRepo.findOne({ where: { id: speciality_id } });
+      if (!spec) throw new BadRequestException('Invalid speciality');
+      safeUpdates.speciality_id = speciality_id;
+      if (doctor.approval_status === 'pending') {
+        safeUpdates.approval_status = 'approved';
+      }
+    }
+    if (message_price !== undefined) {
+      safeUpdates.message_price = clampDoctorMessagePrice(message_price);
+    }
     await this.doctorRepo.update(doctor.id, safeUpdates);
-    return this.doctorRepo.findOne({ where: { id: doctor.id } });
+    void this.knowledgeIndexer.indexDoctor(doctor.id).catch(() => undefined);
+
+    const becameApproved =
+      doctor.approval_status === 'pending' &&
+      safeUpdates.approval_status === 'approved';
+    if (becameApproved) {
+      void this.specialitiesService.buildDoctorRosterPayload(doctor.id).then((payload) => {
+        if (payload) this.presenceGateway.broadcastDoctorRegistered(payload);
+      });
+    }
+
+    return this.findByUserId(userId);
   }
 
   async updateDoctor(id: string, updates: Partial<Doctor>) {
     await this.doctorRepo.update(id, updates);
+    void this.knowledgeIndexer.indexDoctor(id).catch(() => undefined);
     return this.doctorRepo.findOne({ where: { id } });
   }
 }

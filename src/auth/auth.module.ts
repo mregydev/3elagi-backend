@@ -9,11 +9,16 @@ import { JwtStrategy } from './jwt.strategy';
 import { User } from '../entities/user.entity';
 import { Clinic } from '../entities/clinic.entity';
 import { Doctor } from '../entities/doctor.entity';
+import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
+import { PresenceModule } from '../presence/presence.module';
+import { SpecialitiesModule } from '../specialities/specialities.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Clinic, Doctor, PatientProfile]),
+    TypeOrmModule.forFeature([User, Clinic, Doctor, DoctorSpeciality, PatientProfile]),
+    PresenceModule,
+    SpecialitiesModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

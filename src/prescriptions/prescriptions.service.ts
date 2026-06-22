@@ -2,24 +2,50 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import * as PDFDocument from 'pdfkit';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as QRCode from 'qrcode';
 import { Prescription, PrescriptionItem } from '../entities/prescription.entity';
+import { PrescriptionMedication } from '../entities/prescription-medication.entity';
 import { Doctor } from '../entities/doctor.entity';
 import { Patient } from '../entities/patient.entity';
 import { Clinic } from '../entities/clinic.entity';
+import { PatientProfile } from '../entities/patient-profile.entity';
+import { User, UserRole } from '../entities/user.entity';
 import { UploadsService } from '../uploads/uploads.service';
+import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
+import { DoctorPatientAccessService } from '../doctor-patient-access/doctor-patient-access.service';
+import {
+  ExtractedPrescriptionMedication,
+  PrescriptionImageAnalyzerService,
+} from './prescription-image-analyzer.service';
 
 interface CreatePrescriptionDto {
   patient_id: string;
   title: string;
   symptoms?: string;
   items: PrescriptionItem[];
+  lang?: 'ar' | 'en';
+}
+
+export interface PrescriptionMedicationInput {
+  medication_name: string;
+  interval?: string;
+  dose?: string;
+  notes?: string;
+}
+
+export interface CreatePrescriptionForUserDto {
+  patient_user_id: string;
+  title: string;
+  symptoms?: string;
+  medications: PrescriptionMedicationInput[];
+  image_url?: string;
   lang?: 'ar' | 'en';
 }
 
@@ -69,11 +95,80 @@ function buildRefNumber(rx: { id: string; created_at?: Date | string | null }): 
 export class PrescriptionsService {
   constructor(
     @InjectRepository(Prescription) private repo: Repository<Prescription>,
+    @InjectRepository(PrescriptionMedication)
+    private medicationRepo: Repository<PrescriptionMedication>,
     @InjectRepository(Doctor) private doctorRepo: Repository<Doctor>,
     @InjectRepository(Patient) private patientRepo: Repository<Patient>,
     @InjectRepository(Clinic) private clinicRepo: Repository<Clinic>,
+    @InjectRepository(PatientProfile)
+    private patientProfileRepo: Repository<PatientProfile>,
+    @InjectRepository(User) private userRepo: Repository<User>,
     private uploads: UploadsService,
+    private knowledgeIndexer: KnowledgeIndexerService,
+    private doctorPatientAccessService: DoctorPatientAccessService,
+    private imageAnalyzer: PrescriptionImageAnalyzerService,
   ) {}
+
+  private normalizeMedicationInputs(
+    rows: PrescriptionMedicationInput[] | undefined,
+  ): PrescriptionMedicationInput[] {
+    if (!Array.isArray(rows)) return [];
+    return rows
+      .map((row) => ({
+        medication_name: row?.medication_name?.trim() ?? '',
+        interval: row?.interval?.trim() || undefined,
+        dose: row?.dose?.trim() || undefined,
+        notes: row?.notes?.trim() || undefined,
+      }))
+      .filter((row) => row.medication_name.length > 0);
+  }
+
+  private medicationsToItems(
+    medications: PrescriptionMedication[] | undefined,
+  ): PrescriptionItem[] {
+    return (medications ?? []).map((med) => ({
+      name: med.medication_name,
+      dose: med.dose ?? undefined,
+      frequency: med.interval ?? undefined,
+      notes: med.notes ?? undefined,
+    }));
+  }
+
+  private resolveItems(rx: Prescription): PrescriptionItem[] {
+    if (rx.medications?.length) return this.medicationsToItems(rx.medications);
+    return rx.items ?? [];
+  }
+
+  private async saveMedications(
+    prescriptionId: string,
+    medications: PrescriptionMedicationInput[],
+  ): Promise<PrescriptionMedication[]> {
+    await this.medicationRepo.delete({ prescription_id: prescriptionId });
+    if (!medications.length) return [];
+    const rows = medications.map((med) =>
+      this.medicationRepo.create({
+        prescription_id: prescriptionId,
+        medication_name: med.medication_name,
+        interval: med.interval ?? null,
+        dose: med.dose ?? null,
+        notes: med.notes ?? null,
+      }),
+    );
+    return this.medicationRepo.save(rows);
+  }
+
+  private async attachDoctorNames(rows: Prescription[]): Promise<
+    (Prescription & { doctor_name?: string | null })[]
+  > {
+    if (!rows.length) return rows;
+    const doctorIds = [...new Set(rows.map((row) => row.doctor_id))];
+    const doctors = await this.doctorRepo.find({ where: { id: In(doctorIds) } });
+    const byId = new Map(doctors.map((doctor) => [doctor.id, doctor.name]));
+    return rows.map((row) => ({
+      ...row,
+      doctor_name: byId.get(row.doctor_id) ?? null,
+    }));
+  }
 
   private async getDoctor(userId: string): Promise<Doctor> {
     const doctor = await this.doctorRepo.findOne({ where: { user_id: userId } });
@@ -123,7 +218,184 @@ export class PrescriptionsService {
       order: { created_at: 'DESC' },
     });
     if (!last) return null;
-    return { items: last.items ?? [], symptoms: last.symptoms ?? null };
+    const withMeds = await this.repo.findOne({
+      where: { id: last.id },
+      relations: ['medications'],
+    });
+    const items = withMeds?.medications?.length
+      ? this.medicationsToItems(withMeds.medications)
+      : last.items ?? [];
+    return { items, symptoms: last.symptoms ?? null };
+  }
+
+  async listForPatientUser(patientUserId: string, userId: string, role: string) {
+    if (role === UserRole.DOCTOR) {
+      await this.doctorPatientAccessService.assertDoctorCanEditRecords(
+        userId,
+        patientUserId,
+      );
+    } else if (role === UserRole.PATIENT) {
+      if (patientUserId !== userId) {
+        throw new ForbiddenException('You can only view your own prescriptions');
+      }
+    } else {
+      throw new ForbiddenException('Insufficient role');
+    }
+
+    const rows = await this.repo.find({
+      where: { patient_user_id: patientUserId },
+      relations: ['medications'],
+      order: { created_at: 'DESC' },
+    });
+    return this.attachDoctorNames(rows);
+  }
+
+  async findOneForPatientUser(id: string, userId: string, role: string) {
+    const row = await this.repo.findOne({
+      where: { id },
+      relations: ['medications'],
+    });
+    if (!row || !row.patient_user_id) {
+      throw new NotFoundException('Prescription not found');
+    }
+
+    if (role === UserRole.DOCTOR) {
+      await this.doctorPatientAccessService.assertDoctorCanEditRecords(
+        userId,
+        row.patient_user_id,
+      );
+    } else if (role === UserRole.PATIENT) {
+      if (row.patient_user_id !== userId) {
+        throw new ForbiddenException('You can only view your own prescriptions');
+      }
+    } else {
+      throw new ForbiddenException('Insufficient role');
+    }
+
+    const [enriched] = await this.attachDoctorNames([row]);
+    return enriched;
+  }
+
+  async analyzeImageBuffer(
+    buffer: Buffer,
+    mimeType: string,
+    outputLang: 'ar' | 'en' = 'en',
+  ) {
+    return this.imageAnalyzer.extractMedications(
+      buffer.toString('base64'),
+      mimeType,
+      outputLang,
+    );
+  }
+
+  async analyzeImage(
+    imageBase64: string,
+    mimeType: string,
+    outputLang: 'ar' | 'en' = 'en',
+  ): Promise<ExtractedPrescriptionMedication[]> {
+    return this.imageAnalyzer.extractMedications(
+      imageBase64,
+      mimeType,
+      outputLang,
+    );
+  }
+
+  async createForPatientUser(
+    dto: CreatePrescriptionForUserDto,
+    userId: string,
+    role: string,
+  ): Promise<Prescription> {
+    const patientUserId = dto.patient_user_id?.trim();
+    if (!patientUserId) throw new BadRequestException('patient_user_id is required');
+    if (!dto.title?.trim()) throw new BadRequestException('title is required');
+
+    const medications = this.normalizeMedicationInputs(dto.medications);
+    if (!medications.length) {
+      throw new BadRequestException('At least one medication is required');
+    }
+
+    let doctor: Doctor | null = null;
+    if (role === UserRole.DOCTOR) {
+      await this.doctorPatientAccessService.assertDoctorCanEditRecords(
+        userId,
+        patientUserId,
+      );
+      doctor = await this.getDoctor(userId);
+    } else if (role === UserRole.PATIENT) {
+      if (patientUserId !== userId) {
+        throw new ForbiddenException('You can only add prescriptions to your own record');
+      }
+    } else {
+      throw new ForbiddenException('Insufficient role');
+    }
+
+    const profile = await this.patientProfileRepo.findOne({
+      where: { user_id: patientUserId },
+    });
+    if (!profile) throw new NotFoundException('Patient profile not found');
+
+    const imageUrl = dto.image_url?.trim() || null;
+
+    const prescription = this.repo.create({
+      doctor_id: doctor?.id ?? null,
+      patient_id: null,
+      patient_user_id: patientUserId,
+      clinic_id: doctor?.default_clinic_id ?? null,
+      title: dto.title.trim(),
+      symptoms: dto.symptoms?.trim() || null,
+      image_url: imageUrl,
+      items: medications.map((med) => ({
+        name: med.medication_name,
+        dose: med.dose,
+        frequency: med.interval,
+        notes: med.notes,
+      })),
+    });
+
+    const saved = await this.repo.save(prescription);
+    saved.medications = await this.saveMedications(saved.id, medications);
+    void this.knowledgeIndexer.indexPrescription(saved.id).catch(() => undefined);
+
+    if (doctor) {
+      try {
+        const clinic = saved.clinic_id
+          ? await this.clinicRepo.findOne({ where: { id: saved.clinic_id } })
+          : null;
+        const signatureBuffer = doctor.digital_signature_url
+          ? await this.uploads.getBufferFromUrl(doctor.digital_signature_url)
+          : null;
+        const logoBuffer = clinic?.logo_url
+          ? await this.uploads.getBufferFromUrl(clinic.logo_url).catch(() => null)
+          : null;
+        const pseudoPatient = {
+          name: profile.name,
+          phone: profile.phone ?? '',
+          age: null as number | null,
+        } as Patient;
+        const pdfBuffer = await this.renderPdf(
+          saved,
+          doctor,
+          pseudoPatient,
+          clinic,
+          signatureBuffer,
+          logoBuffer,
+          dto.lang === 'ar' ? 'ar' : 'en',
+        );
+        const upload = await this.uploads.uploadFile({
+          originalname: `prescription-${saved.id}.pdf`,
+          mimetype: 'application/pdf',
+          buffer: pdfBuffer,
+          size: pdfBuffer.length,
+        } as Express.Multer.File);
+        saved.pdf_url = upload.url;
+        await this.repo.update(saved.id, { pdf_url: upload.url });
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('[prescriptions] PDF generation failed', err);
+      }
+    }
+
+    return saved;
   }
 
   async create(dto: CreatePrescriptionDto, userId: string): Promise<Prescription> {
@@ -159,6 +431,16 @@ export class PrescriptionsService {
     });
 
     const saved = await this.repo.save(prescription);
+    saved.medications = await this.saveMedications(
+      saved.id,
+      items.map((item) => ({
+        medication_name: item.name,
+        dose: item.dose,
+        interval: item.frequency,
+        notes: item.notes,
+      })),
+    );
+    void this.knowledgeIndexer.indexPrescription(saved.id).catch(() => undefined);
 
     // Generate PDF and upload
     try {
@@ -401,7 +683,7 @@ export class PrescriptionsService {
         write(L.medications, 50, y, 16, PRIMARY);
         y = doc.y + 10;
 
-        const items = rx.items ?? [];
+        const items = this.resolveItems(rx);
         if (items.length === 0) {
           write(L.noMeds, 60, y, 11, '#94a3b8', { width: pageWidth - 120 });
           y = doc.y + 8;

@@ -11,6 +11,7 @@ import { MedicalDocument } from './entities/medical-document.entity';
 import { Diagnosis } from './entities/diagnosis.entity';
 import { Symptom } from './entities/symptom.entity';
 import { Prescription } from './entities/prescription.entity';
+import { PrescriptionMedication } from './entities/prescription-medication.entity';
 import { PrescriptionTemplate } from './entities/prescription-template.entity';
 import { IntakeTest } from './entities/intake-test.entity';
 import { PatientProfile } from './entities/patient-profile.entity';
@@ -36,7 +37,17 @@ import { DiagnosisAndSymptoms1777940000000 } from './migrations/1777940000000-Di
 import { AddPatientsPhotoUrl1777950000000 } from './migrations/1777950000000-AddPatientsPhotoUrl';
 import { AddUsersPhotoUrl1777960000000 } from './migrations/1777960000000-AddUsersPhotoUrl';
 import { MedicalDocumentsTitle1777970000000 } from './migrations/1777970000000-MedicalDocumentsTitle';
+import { NullableDiagnosisDoctor1777980000000 } from './migrations/1777980000000-NullableDiagnosisDoctor';
+import { SymptomDoctorId1777990000000 } from './migrations/1777990000000-SymptomDoctorId';
+import { SpecialitiesAndAdvertisements1778000000000 } from './migrations/1778000000000-SpecialitiesAndAdvertisements';
+import { FixSpecialityImagesAndAssignDoctors1778010000000 } from './migrations/1778010000000-FixSpecialityImagesAndAssignDoctors';
+import { UpdateSpecialityExpressiveImages1778020000000 } from './migrations/1778020000000-UpdateSpecialityExpressiveImages';
+import { BundledSpecialityImages1778030000000 } from './migrations/1778030000000-BundledSpecialityImages';
+import { SurgeryAndAlaadocSpecialities1778040000000 } from './migrations/1778040000000-SurgeryAndAlaadocSpecialities';
+import { RemoveDemoDoctors1778050000000 } from './migrations/1778050000000-RemoveDemoDoctors';
 import { DoctorReview } from './entities/review.entity';
+import { DoctorSpeciality } from './entities/doctor-speciality.entity';
+import { Advertisement } from './entities/advertisement.entity';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { ClinicsModule } from './clinics/clinics.module';
@@ -56,6 +67,32 @@ import { HealthModule } from './health/health.module';
 import { UsersModule } from './users/users.module';
 import { DiagnosisModule } from './diagnosis/diagnosis.module';
 import { SymptomsModule } from './symptoms/symptoms.module';
+import { SpecialitiesModule } from './specialities/specialities.module';
+import { AdvertisementsModule } from './advertisements/advertisements.module';
+import { PresenceModule } from './presence/presence.module';
+import { MessagesModule } from './messages/messages.module';
+import { Message } from './entities/message.entity';
+import { MessagesTable1778060000000 } from './migrations/1778060000000-MessagesTable';
+import { MessageAttachmentsAndRead1778070000000 } from './migrations/1778070000000-MessageAttachmentsAndRead';
+import { MessageEditedAt1778080000000 } from './migrations/1778080000000-MessageEditedAt';
+import { DoctorPatientAccess1778090000000 } from './migrations/1778090000000-DoctorPatientAccess';
+import { DoctorPatientAccess } from './entities/doctor-patient-access.entity';
+import { DoctorPatientAccessModule } from './doctor-patient-access/doctor-patient-access.module';
+import { UserMessagePoints1778100000000 } from './migrations/1778100000000-UserMessagePoints';
+import { DoctorMessagePrice1778110000000 } from './migrations/1778110000000-DoctorMessagePrice';
+import { AiAssistant1778120000000 } from './migrations/1778120000000-AiAssistant';
+import { EnsureDefaultMessagePoints1778100000001 } from './migrations/1778100000001-EnsureDefaultMessagePoints';
+import { PointsModule } from './points/points.module';
+import { AiModule } from './ai/ai.module';
+import { AiConversation } from './entities/ai-conversation.entity';
+import { AiMessage } from './entities/ai-message.entity';
+import { AiUsageLog } from './entities/ai-usage-log.entity';
+import { MessageEmotions1778130000000 } from './migrations/1778130000000-MessageEmotions';
+import { MessageEmotionDislike1778140000000 } from './migrations/1778140000000-MessageEmotionDislike';
+import { MessageEmotion } from './entities/message-emotion.entity';
+import { MessageEmotionsModule } from './message-emotions/message-emotions.module';
+import { PrescriptionMedications1778160000000 } from './migrations/1778160000000-PrescriptionMedications';
+import { PrescriptionImageUrl1778170000000 } from './migrations/1778170000000-PrescriptionImageUrl';
 
 @Module({
   imports: [
@@ -76,12 +113,21 @@ import { SymptomsModule } from './symptoms/symptoms.module';
           Diagnosis,
           Symptom,
           Prescription,
+          PrescriptionMedication,
           PrescriptionTemplate,
           IntakeTest,
           PatientProfile,
           DoctorSchedule,
           DoctorScheduleOverride,
           DoctorReview,
+          DoctorSpeciality,
+          Advertisement,
+          Message,
+          DoctorPatientAccess,
+          AiConversation,
+          AiMessage,
+          AiUsageLog,
+          MessageEmotion,
         ],
         synchronize: false,
         migrations: [
@@ -105,6 +151,26 @@ import { SymptomsModule } from './symptoms/symptoms.module';
           AddPatientsPhotoUrl1777950000000,
           AddUsersPhotoUrl1777960000000,
           MedicalDocumentsTitle1777970000000,
+          NullableDiagnosisDoctor1777980000000,
+          SymptomDoctorId1777990000000,
+          SpecialitiesAndAdvertisements1778000000000,
+          FixSpecialityImagesAndAssignDoctors1778010000000,
+          UpdateSpecialityExpressiveImages1778020000000,
+          BundledSpecialityImages1778030000000,
+          SurgeryAndAlaadocSpecialities1778040000000,
+          RemoveDemoDoctors1778050000000,
+          MessagesTable1778060000000,
+          MessageAttachmentsAndRead1778070000000,
+          MessageEditedAt1778080000000,
+          DoctorPatientAccess1778090000000,
+          UserMessagePoints1778100000000,
+          EnsureDefaultMessagePoints1778100000001,
+          DoctorMessagePrice1778110000000,
+          AiAssistant1778120000000,
+          MessageEmotions1778130000000,
+          MessageEmotionDislike1778140000000,
+          PrescriptionMedications1778160000000,
+          PrescriptionImageUrl1778170000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
@@ -134,6 +200,14 @@ import { SymptomsModule } from './symptoms/symptoms.module';
     HealthModule,
     UsersModule,
     AdminModule,
+    SpecialitiesModule,
+    AdvertisementsModule,
+    PresenceModule,
+    MessagesModule,
+    DoctorPatientAccessModule,
+    PointsModule,
+    AiModule,
+    MessageEmotionsModule,
   ],
 })
 export class AppModule {}

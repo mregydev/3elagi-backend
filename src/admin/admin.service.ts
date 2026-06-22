@@ -14,6 +14,9 @@ import {
   IntakeQuestion,
 } from '../entities/intake-test.entity';
 import { IntakeTestsService } from '../intake-tests/intake-tests.service';
+import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
+import { PresenceGateway } from '../presence/presence.gateway';
+import { SpecialitiesService } from '../specialities/specialities.service';
 
 const APPROVAL_VALUES: ApprovalStatus[] = ['pending', 'approved', 'rejected'];
 
@@ -57,6 +60,9 @@ export class AdminService {
     private patientRepo: Repository<PatientProfile>,
     @InjectRepository(IntakeTest) private intakeRepo: Repository<IntakeTest>,
     private intakeService: IntakeTestsService,
+    private knowledgeIndexer: KnowledgeIndexerService,
+    private presenceGateway: PresenceGateway,
+    private specialitiesService: SpecialitiesService,
   ) {}
 
   // ----- Doctors -----
@@ -97,6 +103,12 @@ export class AdminService {
         { id: doc.default_clinic_id, is_personal: true },
         { approval_status: status },
       );
+    }
+    void this.knowledgeIndexer.indexDoctor(id).catch(() => undefined);
+    if (status === 'approved') {
+      void this.specialitiesService.buildDoctorRosterPayload(id).then((payload) => {
+        if (payload) this.presenceGateway.broadcastDoctorRegistered(payload);
+      });
     }
     return this.doctorRepo.findOne({ where: { id } });
   }

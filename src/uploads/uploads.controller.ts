@@ -33,7 +33,7 @@ export class UploadsController {
           cb(null, true);
         } else {
           cb(new HttpException(
-            'Only JPEG, PNG, WebP, GIF images and PDF files are allowed',
+            'File type not allowed. Supported: images, PDF, audio, and video.',
             HttpStatus.UNPROCESSABLE_ENTITY,
           ), false);
         }

@@ -15,7 +15,12 @@ import {
   AppointmentStatus,
 } from '../entities/appointment.entity';
 import { IntakeTest } from '../entities/intake-test.entity';
+import { DoctorReview } from '../entities/review.entity';
+import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
+import { User } from '../entities/user.entity';
 import { SchedulesService } from '../schedules/schedules.service';
+import { UploadsService } from '../uploads/uploads.service';
+import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
 
 interface OnboardingDto {
   birth_date?: string | null;
@@ -49,8 +54,37 @@ export class PatientPortalService {
     private appointmentRepo: Repository<Appointment>,
     @InjectRepository(IntakeTest)
     private intakeRepo: Repository<IntakeTest>,
+    @InjectRepository(DoctorReview)
+    private reviewRepo: Repository<DoctorReview>,
+    @InjectRepository(DoctorSpeciality)
+    private specialityRepo: Repository<DoctorSpeciality>,
+    @InjectRepository(User) private userRepo: Repository<User>,
     private schedulesService: SchedulesService,
+    private uploadsService: UploadsService,
+    private knowledgeIndexer: KnowledgeIndexerService,
   ) {}
+
+  private resolveDoctorPhotoUrl(
+    doctorPhoto: string | null | undefined,
+    userPhoto: string | null | undefined,
+  ): string | null {
+    const raw = doctorPhoto?.trim() || userPhoto?.trim() || '';
+    if (!raw) return null;
+    return this.uploadsService.resolvePublicFileUrl(raw);
+  }
+
+  private async doctorRatingStats(doctorId: string) {
+    const stats = await this.reviewRepo
+      .createQueryBuilder('r')
+      .select('COUNT(*)', 'total')
+      .addSelect('COALESCE(AVG(r.rating), 0)', 'avg')
+      .where('r.doctor_id = :doctorId', { doctorId })
+      .getRawOne<{ total: string; avg: string }>();
+    return {
+      rating_total: Number(stats?.total ?? 0),
+      rating_average: Math.round(Number(stats?.avg ?? 0) * 10) / 10,
+    };
+  }
 
   async listDoctors() {
     const doctors = await this.doctorRepo.find({
@@ -64,12 +98,21 @@ export class PatientPortalService {
       ? await this.clinicRepo.findByIds(clinicIds)
       : [];
     const clinicMap = new Map(clinics.map((c) => [c.id, c]));
+    const userIds = Array.from(
+      new Set(doctors.map((d) => d.user_id).filter((x): x is string => !!x)),
+    );
+    const users = userIds.length
+      ? await this.userRepo.find({ where: { id: In(userIds) } })
+      : [];
+    const userById = new Map(users.map((u) => [u.id, u]));
     return doctors.map((d) => {
       const c = d.default_clinic_id ? clinicMap.get(d.default_clinic_id) : null;
+      const user = d.user_id ? userById.get(d.user_id) : undefined;
       return {
         id: d.id,
+        user_id: d.user_id,
         name: d.name,
-        photo_url: d.photo_url,
+        photo_url: this.resolveDoctorPhotoUrl(d.photo_url, user?.photo_url),
         phone: d.phone,
         professional_title: d.professional_title,
         description: d.description,
@@ -89,11 +132,15 @@ export class PatientPortalService {
   }
 
   async getDoctor(id: string) {
-    const doctor = await this.doctorRepo.findOne({ where: { id } });
+    const doctor = await this.doctorRepo.findOne({
+      where: { id },
+      relations: ['speciality'],
+    });
     if (!doctor) throw new NotFoundException('Doctor not found');
     if (doctor.approval_status !== 'approved') {
       throw new NotFoundException('Doctor not found');
     }
+    const rating = await this.doctorRatingStats(doctor.id);
     const clinic = doctor.default_clinic_id
       ? await this.clinicRepo.findOne({ where: { id: doctor.default_clinic_id } })
       : null;
@@ -106,16 +153,26 @@ export class PatientPortalService {
         where: { is_default_template: true, is_active: true },
       });
     }
+    const user = doctor.user_id
+      ? await this.userRepo.findOne({ where: { id: doctor.user_id } })
+      : null;
     return {
       id: doctor.id,
+      user_id: doctor.user_id,
       name: doctor.name,
-      photo_url: doctor.photo_url,
+      photo_url: this.resolveDoctorPhotoUrl(doctor.photo_url, user?.photo_url),
       phone: doctor.phone,
       age: doctor.age,
       professional_title: doctor.professional_title,
       description: doctor.description,
       experience_years: doctor.experience_years,
       consultation_fee_egp: doctor.consultation_fee_egp,
+      message_price: doctor.message_price ?? 1,
+      speciality_id: doctor.speciality_id,
+      specialty: doctor.speciality?.name_en ?? doctor.professional_title ?? null,
+      specialty_ar: doctor.speciality?.name_ar ?? null,
+      rating_average: rating.rating_average,
+      rating_total: rating.rating_total,
       faqs: Array.isArray(doctor.faqs) ? doctor.faqs : [],
       tags: Array.isArray(doctor.tags) ? doctor.tags : [],
       clinic: clinic
@@ -157,7 +214,9 @@ export class PatientPortalService {
       profile.intake_answers = (dto.intake_answers || {}) as Record<string, string[]>;
     }
     profile.onboarded_at = new Date();
-    return this.profileRepo.save(profile);
+    const saved = await this.profileRepo.save(profile);
+    void this.knowledgeIndexer.reindexPatient(userId).catch(() => undefined);
+    return saved;
   }
 
   async getOnboardingIntake() {

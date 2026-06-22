@@ -27,12 +27,12 @@ export class Diagnosis {
   @JoinColumn({ name: 'patient_id' })
   patient: Patient;
 
-  @Column()
-  doctor_id: string;
+  @Column({ nullable: true })
+  doctor_id: string | null;
 
-  @ManyToOne(() => Doctor, { eager: false })
+  @ManyToOne(() => Doctor, { eager: false, nullable: true })
   @JoinColumn({ name: 'doctor_id' })
-  doctor: Doctor;
+  doctor: Doctor | null;
 
   @OneToMany(() => Symptom, (s) => s.diagnosis)
   symptoms: Symptom[];

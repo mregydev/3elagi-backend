@@ -25,6 +25,14 @@ export const ALLOWED_UPLOAD_MIMES = [
   'image/webp',
   'image/gif',
   'application/pdf',
+  'audio/m4a',
+  'audio/mp4',
+  'audio/mpeg',
+  'audio/aac',
+  'audio/x-m4a',
+  'audio/x-caf',
+  'video/mp4',
+  'video/quicktime',
 ] as const;
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -204,6 +212,36 @@ export class UploadsService {
   private makeServeUrl(objectPath: string): string {
     const domain = this.publicDomain();
     return `${domain}/3eyadahub-api/uploads/serve${objectPath}`;
+  }
+
+  /** Normalize stored file paths to an absolute browser URL for API responses. */
+  resolvePublicFileUrl(urlOrPath: string | null | undefined): string | null {
+    const trimmed = (urlOrPath ?? '').trim();
+    if (!trimmed) return null;
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+
+    const serveSuffix = trimmed.match(
+      /\/uploads\/serve(\/(?:objects|local-uploads)\/.+)$/i,
+    );
+    if (serveSuffix) {
+      return this.makeServeUrl(serveSuffix[1]);
+    }
+
+    if (trimmed.startsWith('/objects/') || trimmed.startsWith('/local-uploads/')) {
+      return this.makeServeUrl(trimmed);
+    }
+
+    if (trimmed.startsWith('/3eyadahub-api/uploads/serve/')) {
+      const domain = this.publicDomain();
+      return domain ? `${domain}${trimmed}` : trimmed;
+    }
+
+    if (!trimmed.startsWith('/')) {
+      return this.makeServeUrl(`/objects/${trimmed.replace(/^\/+/, '')}`);
+    }
+
+    const domain = this.publicDomain();
+    return domain ? `${domain}${trimmed}` : trimmed;
   }
 
   /**

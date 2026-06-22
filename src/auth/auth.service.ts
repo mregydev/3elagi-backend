@@ -10,11 +10,16 @@ import * as bcrypt from 'bcryptjs';
 import { User, UserRole } from '../entities/user.entity';
 import { Clinic } from '../entities/clinic.entity';
 import { Doctor } from '../entities/doctor.entity';
+import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
 import { LoginDto } from './dto/login.dto';
 import { RegisterClinicDto } from './dto/register-clinic.dto';
 import { RegisterDoctorDto } from './dto/register-doctor.dto';
 import { RegisterPatientDto } from './dto/register-patient.dto';
+import { DEFAULT_MESSAGE_POINTS } from '../points/points.constants';
+import { clampDoctorMessagePrice } from '../points/message-price.constants';
+import { PresenceGateway } from '../presence/presence.gateway';
+import { SpecialitiesService } from '../specialities/specialities.service';
 
 @Injectable()
 export class AuthService {
@@ -22,10 +27,21 @@ export class AuthService {
     @InjectRepository(User) private userRepo: Repository<User>,
     @InjectRepository(Clinic) private clinicRepo: Repository<Clinic>,
     @InjectRepository(Doctor) private doctorRepo: Repository<Doctor>,
+    @InjectRepository(DoctorSpeciality)
+    private specialityRepo: Repository<DoctorSpeciality>,
     @InjectRepository(PatientProfile)
     private patientProfileRepo: Repository<PatientProfile>,
     private jwtService: JwtService,
+    private presenceGateway: PresenceGateway,
+    private specialitiesService: SpecialitiesService,
   ) {}
+
+  private async broadcastDoctorListed(doctorId: string): Promise<void> {
+    const payload = await this.specialitiesService.buildDoctorRosterPayload(doctorId);
+    if (payload) {
+      this.presenceGateway.broadcastDoctorRegistered(payload);
+    }
+  }
 
   async login(dto: LoginDto) {
     const user = await this.userRepo.findOne({ where: { email: dto.email } });
@@ -78,6 +94,9 @@ export class AuthService {
       password_hash: hash,
       role: UserRole.PATIENT,
       photo_url: dto.photo_url ?? null,
+      message_points: DEFAULT_MESSAGE_POINTS,
+      points_spent_total: 0,
+      points_purchased_total: 0,
     });
     await this.userRepo.save(user);
 
@@ -133,6 +152,9 @@ export class AuthService {
       password_hash: hash,
       role: UserRole.DOCTOR,
       photo_url: dto.photo_url ?? null,
+      message_points: DEFAULT_MESSAGE_POINTS,
+      points_spent_total: 0,
+      points_purchased_total: 0,
     });
     await this.userRepo.save(user);
 
@@ -142,8 +164,16 @@ export class AuthService {
       location: '',
       owner_id: user.id,
       is_personal: true,
+      approval_status: 'approved',
     });
     await this.clinicRepo.save(personalClinic);
+
+    const speciality = await this.specialityRepo.findOne({
+      where: { id: dto.speciality_id },
+    });
+    if (!speciality) {
+      throw new ConflictException('Invalid speciality');
+    }
 
     const doctor = this.doctorRepo.create({
       user_id: user.id,
@@ -155,12 +185,25 @@ export class AuthService {
       work_permit_url: dto.work_permit_url,
       default_clinic_id: personalClinic.id,
       email: dto.email,
+      speciality_id: speciality.id,
+      message_price: clampDoctorMessagePrice(dto.message_price),
+      approval_status: 'approved',
     });
     await this.doctorRepo.save(doctor);
+
+    user.doctor_info_id = doctor.id;
+    await this.userRepo.save(user);
+
+    void this.broadcastDoctorListed(doctor.id);
+
+    const profile = await this.doctorRepo.findOne({
+      where: { id: doctor.id },
+      relations: ['speciality'],
+    });
 
     const payload = { sub: user.id, email: user.email, role: user.role };
     const token = this.jwtService.sign(payload);
 
-    return { access_token: token, role: user.role, user_id: user.id, profile: doctor };
+    return { access_token: token, role: user.role, user_id: user.id, profile: profile ?? doctor };
   }
 }

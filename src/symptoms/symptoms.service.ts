@@ -70,7 +70,10 @@ export class SymptomsService {
   async create(dto: CreateSymptomDto, userId: string, userRole: string) {
     const doctor = await this.assertDoctorUser(userId, userRole);
     await this.assertDiagnosisAccess(dto.diagnosis_id, doctor);
-    const row = this.symptomRepo.create(dto);
+    const row = this.symptomRepo.create({
+      ...dto,
+      doctor_id: doctor.id,
+    });
     return this.symptomRepo.save(row);
   }
 
