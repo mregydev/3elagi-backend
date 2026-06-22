@@ -96,7 +96,20 @@ export class MedicalDocumentsService {
       dto.diagnosis_id,
       dto.symptom_id,
     );*/
-      const doc = this.docRepo.create(dto);
+      const title =
+        typeof dto.title === 'string' && dto.title.trim() ? dto.title.trim() : null;
+      this.logger.log(`creating document title="${title ?? ''}" for user ${dto.patient_id}`);
+
+      const doc = this.docRepo.create({
+        patient_id: dto.patient_id,
+        type: dto.type,
+        file_url: dto.file_url,
+        file_name: dto.file_name,
+        notes: dto.notes,
+        title,
+        diagnosis_id: dto.diagnosis_id ?? null,
+        symptom_id: dto.symptom_id ?? null,
+      });
       return this.docRepo.save(doc);
     } catch (error) {
       this.logger.error('Error creating medical document: ' + JSON.stringify(error));
