@@ -19,6 +19,7 @@ import { AiLinkValidatorService } from './ai-link-validator.service';
 import { AiResponseService } from './ai-response.service';
 import { MessageEmotionsService } from '../message-emotions/message-emotions.service';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
+import { PointsService } from '../points/points.service';
 import { AiStreamService } from './ai-stream.service';
 import {
   AI_RATE_LIMIT_CODE,
@@ -46,6 +47,7 @@ export interface StreamEvent {
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 20;
+const AI_MESSAGE_POINT_COST = 1;
 
 @Injectable()
 export class AiChatService {
@@ -60,6 +62,7 @@ export class AiChatService {
     private readonly linkValidator: AiLinkValidatorService,
     private readonly messageEmotions: MessageEmotionsService,
     private readonly pushNotifications: PushNotificationsService,
+    private readonly pointsService: PointsService,
     private readonly cache: AiCacheService,
     @InjectRepository(AiConversation)
     private readonly conversationRepo: Repository<AiConversation>,
@@ -157,6 +160,7 @@ export class AiChatService {
   ): AsyncGenerator<StreamEvent> {
     try {
       this.assertRateLimit(user.id);
+      await this.pointsService.deductForMessage(user.id, AI_MESSAGE_POINT_COST);
       const started = Date.now();
       const patientScope = this.resolvePatientScope(user, patientUserId);
       const contextUser: AiContextUser = {
@@ -292,6 +296,15 @@ export class AiChatService {
         finalContent: fullContent,
       };
     } catch (err) {
+      if (err instanceof ForbiddenException) {
+        yield {
+          type: 'error',
+          error: err.message,
+          code: 'insufficient_points',
+        };
+        return;
+      }
+
       if (
         err instanceof HttpException &&
         err.getStatus() === HttpStatus.TOO_MANY_REQUESTS

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
+import { PointsModule } from '../points/points.module';
 import { PushNotificationsModule } from '../push-notifications/push-notifications.module';
 import { AiConversation } from '../entities/ai-conversation.entity';
 import { AiMessage } from '../entities/ai-message.entity';
@@ -46,6 +47,7 @@ import { MessageEmotionsService } from '../message-emotions/message-emotions.ser
 @Module({
   imports: [
     AuthModule,
+    PointsModule,
     PushNotificationsModule,
     MessageEmotionsModule,
     TypeOrmModule.forFeature([

@@ -8,7 +8,7 @@ import {
 } from '@nestjs/websockets';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { HttpException, HttpStatus, Logger } from '@nestjs/common';
+import { HttpException, HttpStatus, Logger, ForbiddenException } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { AiChatService, type AuthUser } from './ai-chat.service';
 import {
@@ -75,6 +75,13 @@ export class AiGateway implements OnGatewayConnection {
   }
 
   private emitChatError(client: AuthenticatedSocket, err: unknown): void {
+    if (err instanceof ForbiddenException) {
+      client.emit('ai:message:error', {
+        error: err.message,
+        code: 'insufficient_points',
+      });
+      return;
+    }
     if (
       err instanceof HttpException &&
       err.getStatus() === HttpStatus.TOO_MANY_REQUESTS
