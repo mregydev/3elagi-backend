@@ -329,10 +329,24 @@ export class MessagesService {
       messageCost,
     );
 
-    this.presenceGateway.emitToUser(dto.recipient_id, 'message:new', {
+    const [senderName, recipientName] = await Promise.all([
+      this.usersService.getDisplayName(userId),
+      this.usersService.getDisplayName(dto.recipient_id),
+    ]);
+
+    const recipientPayload = {
       message: mapped,
       peer_id: userId,
-    });
+      peer_name: senderName,
+    };
+    const senderPayload = {
+      message: mapped,
+      peer_id: dto.recipient_id,
+      peer_name: recipientName,
+    };
+
+    this.presenceGateway.emitToUser(dto.recipient_id, 'message:new', recipientPayload);
+    this.presenceGateway.emitToUser(userId, 'message:new', senderPayload);
     void this.notifyRecipientPush(dto.recipient_id, userId, {
       id: mapped.id,
       type: mapped.type as MessageType,
@@ -447,7 +461,9 @@ export class MessagesService {
 
     const conversations = await Promise.all(
       peerIds.map(async (peerId) => {
-        const peer = contactById.get(peerId);
+        const peer =
+          contactById.get(peerId) ??
+          (await this.usersService.getContactCard(peerId));
         if (!peer) return null;
 
         const lastMessage = await this.messageRepo

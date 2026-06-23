@@ -203,4 +203,82 @@ export class UsersService {
 
     return user.email.split('@')[0];
   }
+
+  /** Contact card for chat UI — includes users with existing threads even if not listable. */
+  async getContactCard(userId: string) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) return null;
+    if (user.role !== UserRole.DOCTOR && user.role !== UserRole.PATIENT) {
+      return null;
+    }
+
+    const doctor =
+      user.role === UserRole.DOCTOR
+        ? user.doctor_info_id
+          ? await this.doctorRepo.findOne({
+              where: { id: user.doctor_info_id },
+              relations: ['speciality'],
+            })
+          : await this.doctorRepo.findOne({
+              where: { user_id: userId },
+              relations: ['speciality'],
+            })
+        : null;
+
+    const profile =
+      user.role === UserRole.PATIENT
+        ? await this.patientProfileRepo.findOne({ where: { user_id: userId } })
+        : null;
+
+    let name = user.email.split('@')[0];
+    let photo_url = user.photo_url ?? null;
+    let specialty: string | null = null;
+    let doctor_id: string | null = null;
+    let message_price: number | null = null;
+    let rating_average: number | null = null;
+    let rating_total: number | null = null;
+
+    if (user.role === UserRole.DOCTOR && doctor) {
+      name = doctor.name;
+      photo_url = doctor.photo_url ?? user.photo_url ?? null;
+      specialty =
+        doctor.speciality?.name_en ?? doctor.professional_title ?? null;
+      doctor_id = doctor.id;
+      message_price = doctor.message_price ?? 1;
+      const rating = await this.reviewRepo
+        .createQueryBuilder('r')
+        .select('COALESCE(AVG(r.rating), 0)', 'avg')
+        .addSelect('COUNT(*)', 'total')
+        .where('r.doctor_id = :doctorId', { doctorId: doctor.id })
+        .getRawOne<{ avg: string; total: string }>();
+      rating_average = Math.round(Number(rating?.avg ?? 0) * 10) / 10;
+      rating_total = Number(rating?.total ?? 0);
+    } else if (user.role === UserRole.PATIENT && profile) {
+      name = profile.name;
+      photo_url = profile.photo_url ?? user.photo_url ?? null;
+    }
+
+    if (user.role === UserRole.DOCTOR && !name.startsWith('Dr.')) {
+      name = `Dr. ${name}`;
+    }
+
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      name,
+      photo_url,
+      specialty,
+      doctor_id,
+      message_price,
+      rating_average,
+      rating_total,
+    };
+  }
+
+  async getContactCardOrThrow(userId: string) {
+    const card = await this.getContactCard(userId);
+    if (!card) throw new NotFoundException('User not found');
+    return card;
+  }
 }

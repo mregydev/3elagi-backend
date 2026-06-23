@@ -41,14 +41,16 @@ export class SpecialitiesService {
       throw new NotFoundException('Speciality not found');
     }
 
-    const doctors = await this.doctorRepo.find({
-      where: {
-        speciality_id: specialityId,
-        approval_status: 'approved',
-      },
-      relations: ['speciality'],
-      order: { name: 'ASC' },
-    });
+    const doctors = await this.doctorRepo
+      .createQueryBuilder('d')
+      .leftJoinAndSelect('d.speciality', 'speciality')
+      .where('d.approval_status = :approved', { approved: 'approved' })
+      .andWhere(
+        '(d.speciality_id = :specialityId OR EXISTS (SELECT 1 FROM doctor_speciality_links dsl WHERE dsl.doctor_id = d.id AND dsl.speciality_id = :specialityId))',
+        { specialityId },
+      )
+      .orderBy('d.name', 'ASC')
+      .getMany();
 
     if (doctors.length === 0) return [];
 

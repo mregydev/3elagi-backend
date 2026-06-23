@@ -3,10 +3,12 @@ import {
   Controller,
   Delete,
   Get,
+  Param,
   Patch,
   Post,
   Request,
   UseGuards,
+  NotFoundException,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -34,6 +36,17 @@ export class UsersController {
   @Roles('doctor', 'patient')
   listContacts(@Request() req: { user: { id: string } }) {
     return this.usersService.listContacts(req.user.id);
+  }
+
+  @Get('contacts/:userId')
+  @UseGuards(RolesGuard)
+  @Roles('doctor', 'patient', 'admin')
+  getContact(
+    @Request() req: { user: { id: string } },
+    @Param('userId') userId: string,
+  ) {
+    void req;
+    return this.usersService.getContactCardOrThrow(userId);
   }
 
   @Patch('me')

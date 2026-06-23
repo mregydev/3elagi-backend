@@ -41,9 +41,9 @@ export class PresenceGateway implements OnGatewayDisconnect {
       doctor_id: payload.doctor_id ?? null,
     };
 
+    void client.join(this.userRoom(user.id));
     const wasOnline = this.presence.isUserOnline(user.id);
     this.presence.login(client.id, user);
-    void client.join(this.userRoom(user.id));
     if (!wasOnline) {
       this.server.emit('newlogin', user);
     }
