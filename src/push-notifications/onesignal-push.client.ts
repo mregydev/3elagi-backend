@@ -39,7 +39,6 @@ export class OneSignalPushClient {
           headings: { en: payload.title },
           contents: { en: payload.body },
           data: payload.data,
-          android_channel_id: 'chat-messages',
         }),
       });
 
