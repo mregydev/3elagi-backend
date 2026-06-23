@@ -2,14 +2,22 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DeviceToken } from '../entities/device-token.entity';
 import { DeviceTokensService } from './device-tokens.service';
+import { ExpoPushClient } from './expo-push.client';
 import { OneSignalPushClient } from './onesignal-push.client';
+import { ExpoPushProvider } from './providers/expo-push.provider';
+import { OneSignalPushProvider } from './providers/onesignal-push.provider';
+import { PushProviderFactory } from './push-provider.factory';
 import { PushNotificationsService } from './push-notifications.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([DeviceToken])],
   providers: [
     DeviceTokensService,
+    ExpoPushClient,
     OneSignalPushClient,
+    ExpoPushProvider,
+    OneSignalPushProvider,
+    PushProviderFactory,
     PushNotificationsService,
   ],
   exports: [DeviceTokensService, PushNotificationsService],

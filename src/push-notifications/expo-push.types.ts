@@ -21,18 +21,4 @@ export interface ExpoPushTicket {
   details?: { error?: string };
 }
 
-export interface ChatPushInput {
-  recipientId: string;
-  chatId: string;
-  messageId: string;
-  senderId: string;
-  senderName: string;
-  body: string;
-}
-
-export interface AiPushInput {
-  recipientId: string;
-  chatId: string;
-  messageId: string;
-  body: string;
-}
+export type { AiPushInput, ChatPushInput } from './push.types';
