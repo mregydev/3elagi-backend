@@ -1,14 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { DeviceTokensService } from './device-tokens.service';
-import { ExpoPushClient } from './expo-push.client';
-import type {
-  AiPushInput,
-  ChatPushInput,
-  ExpoPushMessage,
-} from './expo-push.types';
-import { isValidExpoPushToken } from './expo-push.tokens';
-
-const CHAT_CHANNEL_ID = 'chat-messages';
+import { OneSignalPushClient } from './onesignal-push.client';
+import type { AiPushInput, ChatPushInput } from './expo-push.types';
 
 function truncateTitle(text: string, max = 64): string {
   const trimmed = text?.trim() ?? '';
@@ -22,73 +14,49 @@ function truncateBody(text: string, max = 200): string {
   return trimmed.length > max ? `${trimmed.slice(0, max - 3)}...` : trimmed;
 }
 
-/** Sends push notifications via the Expo Push API (`ExponentPushToken[...]`). */
+/** Sends push notifications via OneSignal (user external_id = auth user id). */
 @Injectable()
 export class PushNotificationsService {
   private readonly logger = new Logger(PushNotificationsService.name);
 
-  constructor(
-    private readonly deviceTokens: DeviceTokensService,
-    private readonly expoPush: ExpoPushClient,
-  ) {}
+  constructor(private readonly oneSignal: OneSignalPushClient) {}
 
   async sendChatMessage(input: ChatPushInput): Promise<void> {
     const body = truncateBody(input.body);
     const title = truncateTitle(input.senderName);
-    await this.sendToUser(input.recipientId, (to) => ({
-      to,
-      title,
-      body,
-      data: {
-        chatId: input.chatId,
-        messageId: input.messageId,
-        senderId: input.senderId,
-        type: 'chat',
-      },
-      sound: 'default',
-      channelId: CHAT_CHANNEL_ID,
-      priority: 'high',
-    }));
+    await this.sendToUser(input.recipientId, title, body, {
+      chatId: input.chatId,
+      messageId: input.messageId,
+      senderId: input.senderId,
+      type: 'chat',
+    });
   }
 
   async sendAiMessage(input: AiPushInput): Promise<void> {
     const body = truncateBody(input.body);
-    await this.sendToUser(input.recipientId, (to) => ({
-      to,
-      title: 'AI Assistant',
-      body,
-      data: {
-        chatId: input.chatId,
-        messageId: input.messageId,
-        type: 'ai',
-      },
-      sound: 'default',
-      channelId: CHAT_CHANNEL_ID,
-      priority: 'high',
-    }));
+    await this.sendToUser(input.recipientId, 'AI Assistant', body, {
+      chatId: input.chatId,
+      messageId: input.messageId,
+      type: 'ai',
+    });
   }
 
   private async sendToUser(
     recipientId: string,
-    buildMessage: (token: string) => ExpoPushMessage,
+    title: string,
+    body: string,
+    data: Record<string, string>,
   ): Promise<void> {
-    const tokens = await this.deviceTokens.listTokensForUser(recipientId);
-    const expoTokens = tokens.filter(isValidExpoPushToken);
-    if (!expoTokens.length) {
-      this.logger.debug(
-        `Expo push skipped — no Expo tokens for user ${recipientId}`,
-      );
+    if (!recipientId.trim()) {
+      this.logger.debug('OneSignal push skipped — empty recipient id');
       return;
     }
 
-    const messages = expoTokens.map(buildMessage);
-    const invalid = await this.expoPush.send(messages);
-    this.logger.log(
-      `Expo push to ${recipientId}: ${messages.length - invalid.length} ok, ${invalid.length} invalid`,
-    );
-
-    if (invalid.length) {
-      await this.deviceTokens.removeInvalidTokens(invalid);
-    }
+    await this.oneSignal.send({
+      externalUserIds: [recipientId],
+      title,
+      body,
+      data,
+    });
   }
 }
