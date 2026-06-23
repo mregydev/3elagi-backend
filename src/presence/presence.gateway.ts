@@ -43,6 +43,7 @@ export class PresenceGateway implements OnGatewayDisconnect {
 
     const wasOnline = this.presence.isUserOnline(user.id);
     this.presence.login(client.id, user);
+    void client.join(this.userRoom(user.id));
     if (!wasOnline) {
       this.server.emit('newlogin', user);
     }
@@ -58,8 +59,9 @@ export class PresenceGateway implements OnGatewayDisconnect {
     const userId = payload?.id ?? this.presence.getUserIdForSocket(client.id);
     if (!userId) return;
 
-    const removed = this.presence.logoutByUserId(userId);
-    if (removed) {
+    // Only detach this socket from presence — keep the room so chat events still deliver.
+    const removed = this.presence.logout(client.id);
+    if (removed && !this.presence.isUserOnline(removed.id)) {
       this.server.emit('newlogout', removed);
       this.broadcastPresence();
     }
@@ -103,10 +105,11 @@ export class PresenceGateway implements OnGatewayDisconnect {
     this.server.emit('doctor:registered', payload);
   }
 
+  private userRoom(userId: string): string {
+    return `user:${userId}`;
+  }
+
   emitToUser(userId: string, event: string, payload: unknown) {
-    const socketIds = this.presence.getSocketIdsForUser(userId);
-    for (const socketId of socketIds) {
-      this.server.to(socketId).emit(event, payload);
-    }
+    this.server.to(this.userRoom(userId)).emit(event, payload);
   }
 }

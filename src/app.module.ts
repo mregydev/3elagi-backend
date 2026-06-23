@@ -94,7 +94,9 @@ import { MessageEmotionsModule } from './message-emotions/message-emotions.modul
 import { PrescriptionMedications1778160000000 } from './migrations/1778160000000-PrescriptionMedications';
 import { PrescriptionImageUrl1778170000000 } from './migrations/1778170000000-PrescriptionImageUrl';
 import { DeviceTokens1778180000000 } from './migrations/1778180000000-DeviceTokens';
+import { DiagnosisDocumentsManyToMany1778190000000 } from './migrations/1778190000000-DiagnosisDocumentsManyToMany';
 import { DeviceToken } from './entities/device-token.entity';
+import { DiagnosisDocument } from './entities/diagnosis-document.entity';
 import { PushNotificationsModule } from './push-notifications/push-notifications.module';
 
 @Module({
@@ -132,6 +134,7 @@ import { PushNotificationsModule } from './push-notifications/push-notifications
           AiUsageLog,
           MessageEmotion,
           DeviceToken,
+          DiagnosisDocument,
         ],
         synchronize: false,
         migrations: [
@@ -176,6 +179,7 @@ import { PushNotificationsModule } from './push-notifications/push-notifications
           PrescriptionMedications1778160000000,
           PrescriptionImageUrl1778170000000,
           DeviceTokens1778180000000,
+          DiagnosisDocumentsManyToMany1778190000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',

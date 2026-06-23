@@ -11,11 +11,13 @@ import { Diagnosis } from '../entities/diagnosis.entity';
 import { Symptom } from '../entities/symptom.entity';
 import { DoctorPatientAccessModule } from '../doctor-patient-access/doctor-patient-access.module';
 import { AiModule } from '../ai/ai.module';
+import { DiagnosisModule } from '../diagnosis/diagnosis.module';
 
 @Module({
   imports: [
     DoctorPatientAccessModule,
     AiModule,
+    DiagnosisModule,
     TypeOrmModule.forFeature([MedicalDocument, Patient, User, Doctor, Diagnosis, Symptom]),
   ],
   controllers: [MedicalDocumentsController, PatientMedicalDocumentsController],

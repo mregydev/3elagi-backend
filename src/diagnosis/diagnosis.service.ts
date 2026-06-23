@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Injectable,
   NotFoundException,
   ForbiddenException,
@@ -16,12 +15,10 @@ import { PatientProfile } from '../entities/patient-profile.entity';
 import { CreateDiagnosisDto } from './dto/create-diagnosis.dto';
 import { CreatePatientDiagnosisDto } from './dto/create-patient-diagnosis.dto';
 import { UpdateDiagnosisDto } from './dto/update-diagnosis.dto';
-import {
-  DocumentType,
-  MedicalDocument,
-} from '../entities/medical-document.entity';
+import { MedicalDocument } from '../entities/medical-document.entity';
 import { DoctorPatientAccessService } from '../doctor-patient-access/doctor-patient-access.service';
 import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
+import { DiagnosisDocumentService } from './diagnosis-document.service';
 
 type DiagnosisWithDocuments = Diagnosis & { documents?: MedicalDocument[] };
 
@@ -37,10 +34,9 @@ export class DiagnosisService {
     private appointmentRepo: Repository<Appointment>,
     @InjectRepository(PatientProfile)
     private patientProfileRepo: Repository<PatientProfile>,
-    @InjectRepository(MedicalDocument)
-    private medicalDocRepo: Repository<MedicalDocument>,
     private doctorPatientAccessService: DoctorPatientAccessService,
     private knowledgeIndexer: KnowledgeIndexerService,
+    private diagnosisDocuments: DiagnosisDocumentService,
   ) {}
 
   private scheduleIndexDiagnosis(diagnosisId: string): void {
@@ -110,48 +106,13 @@ export class DiagnosisService {
     return rows;
   }
 
-  private async linkDocumentsToDiagnosis(
-    diagnosisId: string,
-    patientUserId: string,
-    documentIds: string[] | undefined,
-  ): Promise<void> {
-    if (!documentIds?.length) return;
-    const uniqueIds = [...new Set(documentIds)];
-    const docs = await this.medicalDocRepo.find({
-      where: { id: In(uniqueIds), patient_id: patientUserId },
-    });
-    if (docs.length !== uniqueIds.length) {
-      throw new BadRequestException('One or more documents were not found for this patient');
-    }
-    for (const doc of docs) {
-      if (doc.type !== DocumentType.LAB && doc.type !== DocumentType.XRAY) {
-        throw new BadRequestException(
-          'Only lab results and X-rays can be linked to a diagnosis',
-        );
-      }
-    }
-    await this.medicalDocRepo.update(
-      { id: In(uniqueIds) },
-      { diagnosis_id: diagnosisId },
-    );
-  }
-
   private async attachDocuments(
     rows: Diagnosis[],
   ): Promise<DiagnosisWithDocuments[]> {
     if (!rows.length) return rows;
-    const diagnosisIds = rows.map((r) => r.id);
-    const docs = await this.medicalDocRepo.find({
-      where: { diagnosis_id: In(diagnosisIds) },
-      order: { created_at: 'ASC' },
-    });
-    const byDiagnosis = new Map<string, MedicalDocument[]>();
-    for (const doc of docs) {
-      if (!doc.diagnosis_id) continue;
-      const list = byDiagnosis.get(doc.diagnosis_id) ?? [];
-      list.push(doc);
-      byDiagnosis.set(doc.diagnosis_id, list);
-    }
+    const byDiagnosis = await this.diagnosisDocuments.documentsForDiagnosisIds(
+      rows.map((row) => row.id),
+    );
     return rows.map((row) => ({
       ...row,
       documents: byDiagnosis.get(row.id) ?? [],
@@ -269,7 +230,7 @@ export class DiagnosisService {
     const row = this.diagnosisRepo.create(diagnosisFields);
     const saved = await this.diagnosisRepo.save(row);
     await this.saveSymptoms(saved.id, symptoms, doctor.id);
-    await this.linkDocumentsToDiagnosis(
+    await this.diagnosisDocuments.linkDocuments(
       saved.id,
       dto.patient_id,
       document_ids,
@@ -296,15 +257,17 @@ export class DiagnosisService {
     if (dto.doctor_id && dto.doctor_id !== doctor.id) {
       throw new ForbiddenException('You cannot reassign diagnosis to another doctor');
     }
-    Object.assign(row, dto);
+    const { document_ids, ...fields } = dto;
+    Object.assign(row, fields);
     const saved = await this.diagnosisRepo.save(row);
+    if (document_ids?.length) {
+      await this.diagnosisDocuments.linkDocuments(
+        saved.id,
+        row.patient_id,
+        document_ids,
+      );
+    }
     this.scheduleIndexDiagnosis(saved.id);
-    const [enriched] = await this.attachDoctorNamesToDiagnoses([
-      await this.diagnosisRepo.findOne({
-        where: { id: saved.id },
-        relations: ['symptoms'],
-      }) as Diagnosis,
-    ]);
-    return enriched;
+    return this.findOne(saved.id, userId, userRole);
   }
 }

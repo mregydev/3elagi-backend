@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsArray, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class UpdateDiagnosisDto {
   @IsString()
@@ -12,4 +12,9 @@ export class UpdateDiagnosisDto {
   @IsUUID()
   @IsOptional()
   doctor_id?: string;
+
+  @IsArray()
+  @IsUUID('4', { each: true })
+  @IsOptional()
+  document_ids?: string[];
 }

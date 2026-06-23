@@ -122,24 +122,12 @@ export class DoctorsService {
       const spec = await this.specialityRepo.findOne({ where: { id: speciality_id } });
       if (!spec) throw new BadRequestException('Invalid speciality');
       safeUpdates.speciality_id = speciality_id;
-      if (doctor.approval_status === 'pending') {
-        safeUpdates.approval_status = 'approved';
-      }
     }
     if (message_price !== undefined) {
       safeUpdates.message_price = clampDoctorMessagePrice(message_price);
     }
     await this.doctorRepo.update(doctor.id, safeUpdates);
     void this.knowledgeIndexer.indexDoctor(doctor.id).catch(() => undefined);
-
-    const becameApproved =
-      doctor.approval_status === 'pending' &&
-      safeUpdates.approval_status === 'approved';
-    if (becameApproved) {
-      void this.specialitiesService.buildDoctorRosterPayload(doctor.id).then((payload) => {
-        if (payload) this.presenceGateway.broadcastDoctorRegistered(payload);
-      });
-    }
 
     return this.findByUserId(userId);
   }

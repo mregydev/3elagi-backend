@@ -67,7 +67,10 @@ export class AdminService {
 
   // ----- Doctors -----
   listDoctors() {
-    return this.doctorRepo.find({ order: { name: 'ASC' } });
+    return this.doctorRepo.find({
+      relations: ['speciality'],
+      order: { created_at: 'DESC' },
+    });
   }
 
   async updateDoctor(id: string, dto: UpdateDoctorDto) {

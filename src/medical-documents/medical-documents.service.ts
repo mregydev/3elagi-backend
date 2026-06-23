@@ -17,6 +17,7 @@ import { CreateDocumentDto } from './dto/create-document.dto';
 import { CreatePatientMedicalDocumentDto } from './dto/create-patient-medical-document.dto';
 import { DoctorPatientAccessService } from '../doctor-patient-access/doctor-patient-access.service';
 import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
+import { DiagnosisDocumentService } from '../diagnosis/diagnosis-document.service';
 
 @Injectable()
 export class MedicalDocumentsService {
@@ -37,7 +38,16 @@ export class MedicalDocumentsService {
     private symptomRepo: Repository<Symptom>,
     private doctorPatientAccessService: DoctorPatientAccessService,
     private knowledgeIndexer: KnowledgeIndexerService,
+    private diagnosisDocuments: DiagnosisDocumentService,
   ) {}
+
+  private async enrichPatientDocuments(docs: MedicalDocument[]) {
+    if (!docs.length) return docs;
+    const summaries = await this.diagnosisDocuments.diagnosisSummariesForDocumentIds(
+      docs.map((doc) => doc.id),
+    );
+    return this.diagnosisDocuments.enrichDocuments(docs, summaries);
+  }
 
   private scheduleIndexDocument(documentId: string): void {
     void this.knowledgeIndexer.indexMedicalDocument(documentId).catch(() => undefined);
@@ -57,10 +67,11 @@ export class MedicalDocumentsService {
   ) {
     const where: { patient_id: string; type?: DocumentType } = { patient_id: userId };
     if (type) where.type = type;
-    return this.docRepo.find({
+    const docs = await this.docRepo.find({
       where,
       order: { created_at: 'DESC' },
     });
+    return this.enrichPatientDocuments(docs);
   }
 
   async createForPatientUser(
@@ -120,7 +131,8 @@ export class MedicalDocumentsService {
       patient_id: patientId,
     };
     if (type) where.type = type;
-    return this.docRepo.find({ where, order: { created_at: 'DESC' } });
+    const docs = await this.docRepo.find({ where, order: { created_at: 'DESC' } });
+    return this.enrichPatientDocuments(docs);
   }
 
   /** `subjectUserId` is the patient user's id (stored in medical_documents.patient_id). */
@@ -195,10 +207,16 @@ export class MedicalDocumentsService {
         file_name: dto.file_name,
         notes: dto.notes,
         title,
-        diagnosis_id: dto.diagnosis_id ?? null,
         symptom_id: dto.symptom_id ?? null,
       });
       const saved = await this.docRepo.save(doc);
+      if (dto.diagnosis_id) {
+        await this.diagnosisDocuments.linkDocuments(
+          dto.diagnosis_id,
+          dto.patient_id,
+          [saved.id],
+        );
+      }
       this.scheduleIndexDocument(saved.id);
       return saved;
     } catch (error) {

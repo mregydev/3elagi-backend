@@ -3,7 +3,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { DiagnosisController } from './diagnosis.controller';
 import { PatientDiagnosisController } from './patient-diagnosis.controller';
 import { DiagnosisService } from './diagnosis.service';
+import { DiagnosisDocumentService } from './diagnosis-document.service';
 import { Diagnosis } from '../entities/diagnosis.entity';
+import { DiagnosisDocument } from '../entities/diagnosis-document.entity';
 import { Patient } from '../entities/patient.entity';
 import { Doctor } from '../entities/doctor.entity';
 import { Symptom } from '../entities/symptom.entity';
@@ -20,6 +22,7 @@ import { AiModule } from '../ai/ai.module';
     AiModule,
     TypeOrmModule.forFeature([
       Diagnosis,
+      DiagnosisDocument,
       Patient,
       Doctor,
       Symptom,
@@ -30,7 +33,7 @@ import { AiModule } from '../ai/ai.module';
     ]),
   ],
   controllers: [DiagnosisController, PatientDiagnosisController],
-  providers: [DiagnosisService],
-  exports: [DiagnosisService],
+  providers: [DiagnosisService, DiagnosisDocumentService],
+  exports: [DiagnosisService, DiagnosisDocumentService],
 })
 export class DiagnosisModule {}
