@@ -5,7 +5,6 @@ import { User } from '../entities/user.entity';
 import { UsersModule } from '../users/users.module';
 import { PresenceModule } from '../presence/presence.module';
 import { DoctorPatientAccessModule } from '../doctor-patient-access/doctor-patient-access.module';
-import { PointsModule } from '../points/points.module';
 import { MessageEmotionsModule } from '../message-emotions/message-emotions.module';
 import { PushNotificationsModule } from '../push-notifications/push-notifications.module';
 import { MessageEmotionsService } from '../message-emotions/message-emotions.service';
@@ -18,7 +17,6 @@ import { MessagesService } from './messages.service';
     UsersModule,
     PresenceModule,
     DoctorPatientAccessModule,
-    PointsModule,
     MessageEmotionsModule,
     PushNotificationsModule,
   ],

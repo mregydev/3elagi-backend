@@ -1,1 +1,1 @@
-export const DEFAULT_MESSAGE_POINTS = 20;
+export const DEFAULT_MESSAGE_POINTS = 10;

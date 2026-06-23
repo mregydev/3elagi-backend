@@ -15,7 +15,6 @@ import { User, UserRole } from '../entities/user.entity';
 import {
   DoctorPatientAccessService,
 } from '../doctor-patient-access/doctor-patient-access.service';
-import { PointsService } from '../points/points.service';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 import { UsersService } from '../users/users.service';
@@ -43,7 +42,6 @@ export class MessagesService {
     private presenceGateway: PresenceGateway,
     private pushNotifications: PushNotificationsService,
     private doctorPatientAccessService: DoctorPatientAccessService,
-    private pointsService: PointsService,
     private messageEmotionsService: MessageEmotionsService,
   ) {}
 
@@ -309,11 +307,6 @@ export class MessagesService {
 
     await this.assertCanChat(userId, dto.recipient_id);
 
-    const messageCost = await this.pointsService.resolveMessageCostForRecipient(
-      dto.recipient_id,
-    );
-    const pointsSummary = await this.pointsService.deductForMessage(userId, messageCost);
-
     const created = this.messageRepo.create({
       type,
       content,
@@ -323,11 +316,7 @@ export class MessagesService {
       attachment_meta: attachmentMeta,
     });
     const saved = await this.messageRepo.save(created);
-    const mapped = this.mapMessage(
-      saved,
-      pointsSummary.message_points,
-      messageCost,
-    );
+    const mapped = this.mapMessage(saved);
 
     const [senderName, recipientName] = await Promise.all([
       this.usersService.getDisplayName(userId),
