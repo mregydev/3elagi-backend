@@ -1,10 +1,11 @@
 /**
  * OneSignal push settings — must match mobile `constants/onesignal.ts`.
- * Add your REST API Key from OneSignal Dashboard → Settings → Keys & IDs.
+ * Set ONESIGNAL_REST_API_KEY in Cloud Run / .env for production.
  */
 export const ONESIGNAL_CONFIG = {
-  appId: 'cdb484c9-84b2-4239-bbf8-cefe299e554c',
+  appId:
+    process.env.ONESIGNAL_APP_ID?.trim() ||
+    'cdb484c9-84b2-4239-bbf8-cefe299e554c',
   apiUrl: 'https://api.onesignal.com/notifications',
-  /** OneSignal REST API Key (required for server-side push). */
-  restApiKey: 'os_v2_app_zw2ijsmewjbdto7yz37cthsvjrwoprqehkfeybn4jm4omgljdeipxxxzw2ahfmu6fwdrohokha3cjpkubufw32i4g374lddk6epb3ny',
+  restApiKey: process.env.ONESIGNAL_REST_API_KEY?.trim() || 'os_v2_app_zw2ijsmewjbdto7yz37cthsvjrsynckdhdjeg246ushtjbxadtnmkroxgd6nxw2tg4bumc2y7o3ocvyc45te3j745opuwqzb3afotji',
 } as const;

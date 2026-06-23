@@ -48,14 +48,28 @@ export class OneSignalPushClient {
         return;
       }
 
-      const json = (await response.json()) as { id?: string; errors?: string[] };
+      const json = (await response.json()) as {
+        id?: string;
+        errors?: string[];
+        recipients?: number;
+      };
       if (json.errors?.length) {
-        this.logger.error(`OneSignal push errors: ${json.errors.join(', ')}`);
+        this.logger.error(
+          `OneSignal push errors for ${payload.externalUserIds.join(', ')}: ${json.errors.join(', ')}`,
+        );
+        return;
+      }
+
+      if (!json.id?.trim()) {
+        this.logger.warn(
+          `OneSignal push accepted but no notification id — likely 0 recipients for external_id=[${payload.externalUserIds.join(', ')}]. ` +
+            'Ensure the user logged in on a native build, tapped "Got it", and OneSignal.login(userId) matches recipientId.',
+        );
         return;
       }
 
       this.logger.log(
-        `OneSignal push sent to ${payload.externalUserIds.join(', ')} (id=${json.id ?? 'n/a'})`,
+        `OneSignal push sent to ${payload.externalUserIds.join(', ')} (id=${json.id}, recipients=${json.recipients ?? 'n/a'})`,
       );
     } catch (error) {
       this.logger.error(
