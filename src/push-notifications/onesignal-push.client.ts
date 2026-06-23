@@ -16,7 +16,7 @@ export class OneSignalPushClient {
     const { restApiKey, appId, apiUrl } = ONESIGNAL_CONFIG;
     if (!restApiKey.trim()) {
       this.logger.error(
-        'OneSignal REST API key missing — set restApiKey in onesignal.config.ts',
+        'OneSignal REST API key missing — set ONESIGNAL_REST_API_KEY on Cloud Run (OneSignal Dashboard → Settings → Keys & IDs → REST API Key).',
       );
       return;
     }
@@ -44,6 +44,13 @@ export class OneSignalPushClient {
 
       if (!response.ok) {
         const text = await response.text();
+        if (response.status === 403) {
+          this.logger.error(
+            `OneSignal push HTTP 403 — invalid ONESIGNAL_REST_API_KEY. ` +
+              `Use the App REST API Key from OneSignal Dashboard → Settings → Keys & IDs (not the Organization key). Response: ${text}`,
+          );
+          return;
+        }
         this.logger.error(`OneSignal push HTTP ${response.status}: ${text}`);
         return;
       }
