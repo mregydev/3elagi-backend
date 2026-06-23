@@ -26,6 +26,7 @@ export interface ChatPushInput {
   chatId: string;
   messageId: string;
   senderId: string;
+  senderName: string;
   body: string;
 }
 

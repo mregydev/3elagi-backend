@@ -132,11 +132,14 @@ export class MessagesService {
     if (recipientId === senderId) return;
     if (message.type === 'access_action') return;
 
+    const senderName = await this.usersService.getDisplayName(senderId);
+
     await this.pushNotifications.sendChatMessage({
       recipientId,
       chatId: senderId,
       messageId: message.id,
       senderId,
+      senderName,
       body: this.messagePreview(message.content, message.type),
     });
   }

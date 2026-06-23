@@ -10,6 +10,12 @@ import { isValidExpoPushToken } from './expo-push.tokens';
 
 const CHAT_CHANNEL_ID = 'chat-messages';
 
+function truncateTitle(text: string, max = 64): string {
+  const trimmed = text?.trim() ?? '';
+  if (!trimmed) return 'New message';
+  return trimmed.length > max ? `${trimmed.slice(0, max - 3)}...` : trimmed;
+}
+
 function truncateBody(text: string, max = 200): string {
   const trimmed = text?.trim() ?? '';
   if (!trimmed) return 'New message';
@@ -27,9 +33,10 @@ export class PushNotificationsService {
 
   async sendChatMessage(input: ChatPushInput): Promise<void> {
     const body = truncateBody(input.body);
+    const title = truncateTitle(input.senderName);
     await this.sendToUser(input.recipientId, (to) => ({
       to,
-      title: 'New message',
+      title,
       body,
       data: {
         chatId: input.chatId,
