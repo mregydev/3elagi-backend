@@ -1,9 +1,8 @@
-import { IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsNotEmpty, IsString, Matches } from 'class-validator';
 
 export class RegisterPushTokenDto {
   @IsString()
   @IsNotEmpty()
-  @MinLength(20)
-  @MaxLength(4096)
+  @Matches(/^(ExponentPushToken|ExpoPushToken)\[/)
   token: string;
 }

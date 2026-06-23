@@ -3,7 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { DeviceToken } from '../entities/device-token.entity';
 import { DeviceTokensService } from './device-tokens.service';
 import { ExpoPushClient } from './expo-push.client';
-import { FcmPushClient } from './fcm-push.client';
+import { FirebasePushConfigService } from './firebase-push-config.service';
 import { PushNotificationsService } from './push-notifications.service';
 
 @Module({
@@ -11,7 +11,7 @@ import { PushNotificationsService } from './push-notifications.service';
   providers: [
     DeviceTokensService,
     ExpoPushClient,
-    FcmPushClient,
+    FirebasePushConfigService,
     PushNotificationsService,
   ],
   exports: [DeviceTokensService, PushNotificationsService],
