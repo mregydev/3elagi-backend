@@ -5,7 +5,7 @@ import {
   DeviceToken,
   type DeviceTokenPlatform,
 } from '../entities/device-token.entity';
-import { isValidExpoPushToken } from './expo-push.tokens';
+import { isRecognizedPushToken } from './push-token.utils';
 
 @Injectable()
 export class DeviceTokensService {
@@ -21,8 +21,8 @@ export class DeviceTokensService {
   ): Promise<void> {
     const trimmed = token.trim();
     if (!trimmed) return;
-    if (!isValidExpoPushToken(trimmed)) {
-      throw new BadRequestException('Invalid Expo push token');
+    if (!isRecognizedPushToken(trimmed)) {
+      throw new BadRequestException('Invalid push token');
     }
 
     const existing = await this.tokenRepo.findOne({
