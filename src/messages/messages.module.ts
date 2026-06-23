@@ -7,6 +7,7 @@ import { PresenceModule } from '../presence/presence.module';
 import { DoctorPatientAccessModule } from '../doctor-patient-access/doctor-patient-access.module';
 import { PointsModule } from '../points/points.module';
 import { MessageEmotionsModule } from '../message-emotions/message-emotions.module';
+import { PushNotificationsModule } from '../push-notifications/push-notifications.module';
 import { MessageEmotionsService } from '../message-emotions/message-emotions.service';
 import { MessagesController } from './messages.controller';
 import { MessagesService } from './messages.service';
@@ -19,6 +20,7 @@ import { MessagesService } from './messages.service';
     DoctorPatientAccessModule,
     PointsModule,
     MessageEmotionsModule,
+    PushNotificationsModule,
   ],
   controllers: [MessagesController],
   providers: [MessagesService],

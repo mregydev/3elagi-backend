@@ -17,6 +17,7 @@ import {
 } from '../doctor-patient-access/doctor-patient-access.service';
 import { PointsService } from '../points/points.service';
 import { PresenceGateway } from '../presence/presence.gateway';
+import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 import { UsersService } from '../users/users.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
@@ -40,6 +41,7 @@ export class MessagesService {
     @InjectRepository(User) private userRepo: Repository<User>,
     private usersService: UsersService,
     private presenceGateway: PresenceGateway,
+    private pushNotifications: PushNotificationsService,
     private doctorPatientAccessService: DoctorPatientAccessService,
     private pointsService: PointsService,
     private messageEmotionsService: MessageEmotionsService,
@@ -111,6 +113,32 @@ export class MessagesService {
       return;
     }
     await this.doctorPatientAccessService.assertCanChat(senderId, recipientId);
+  }
+
+  private messagePreview(content: string, type: MessageType): string {
+    const text = content?.trim();
+    if (text) return text.length > 120 ? `${text.slice(0, 117)}...` : text;
+    if (type === 'image') return 'Photo';
+    if (type === 'video') return 'Video';
+    if (type === 'voice') return 'Voice message';
+    return 'New message';
+  }
+
+  private async notifyRecipientPush(
+    recipientId: string,
+    senderId: string,
+    message: { id: string; type: MessageType; content: string },
+  ): Promise<void> {
+    if (recipientId === senderId) return;
+    if (message.type === 'access_action') return;
+
+    await this.pushNotifications.sendChatMessage({
+      recipientId,
+      chatId: senderId,
+      messageId: message.id,
+      senderId,
+      body: this.messagePreview(message.content, message.type),
+    });
   }
 
   private resolveContent(dto: CreateMessageDto, type: MessageType): string {
@@ -301,6 +329,11 @@ export class MessagesService {
     this.presenceGateway.emitToUser(dto.recipient_id, 'message:new', {
       message: mapped,
       peer_id: userId,
+    });
+    void this.notifyRecipientPush(dto.recipient_id, userId, {
+      id: mapped.id,
+      type: mapped.type as MessageType,
+      content: mapped.content,
     });
 
     return mapped;

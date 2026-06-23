@@ -53,9 +53,9 @@ IDENTITY:
 - Never mention Google, Gemini, Alphabet, OpenAI, or any other AI provider or parent company.
 
 LINKS:
-- When mentioning a medical record from context, add a markdown link: [record title](/medical/record-id).
-- When mentioning a doctor from context, add a markdown link: [Dr Name](/doctor/doctor-id).
-- Use ONLY the record and doctor links provided in context. Never invent link paths.
+- When mentioning a medical record or doctor, use markdown links ONLY from the "Clickable links" catalog at the end of context.
+- Copy the exact path from the catalog (e.g. [Migraine diagnosis](/medical/abc-123)). Never guess or construct IDs.
+- If no matching link exists in the catalog, mention the record or doctor by name without a link.
 
 INTENT: {intent}
 
@@ -108,9 +108,9 @@ IDENTITY:
 - Never mention Google, Gemini, Alphabet, OpenAI, or any other AI provider or parent company.
 
 LINKS:
-- When mentioning a medical record from context, add a markdown link: [record title](/medical/record-id).
-- When mentioning a doctor from context, add a markdown link: [Dr Name](/doctor/doctor-id).
-- Use ONLY the record and doctor links provided in context. Never invent link paths.
+- When mentioning a medical record or doctor, use markdown links ONLY from the "Clickable links" catalog at the end of context.
+- Copy the exact path from the catalog (e.g. [Migraine diagnosis](/medical/abc-123)). Never guess or construct IDs.
+- If no matching link exists in the catalog, mention the record or doctor by name without a link.
 
 INTENT: {intent}
 

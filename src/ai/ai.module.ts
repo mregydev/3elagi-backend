@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
+import { PushNotificationsModule } from '../push-notifications/push-notifications.module';
 import { AiConversation } from '../entities/ai-conversation.entity';
 import { AiMessage } from '../entities/ai-message.entity';
 import { AiUsageLog } from '../entities/ai-usage-log.entity';
@@ -22,6 +23,7 @@ import { AiController } from './ai.controller';
 import { AiGateway } from './ai.gateway';
 import { AiIntentClassifierService } from './ai-intent-classifier.service';
 import { AiPromptService } from './ai-prompt.service';
+import { AiLinkValidatorService } from './ai-link-validator.service';
 import { AiResponseService } from './ai-response.service';
 import { AiService } from './ai.service';
 import { AiStreamService } from './ai-stream.service';
@@ -44,6 +46,7 @@ import { MessageEmotionsService } from '../message-emotions/message-emotions.ser
 @Module({
   imports: [
     AuthModule,
+    PushNotificationsModule,
     MessageEmotionsModule,
     TypeOrmModule.forFeature([
       AiConversation,
@@ -71,6 +74,7 @@ import { MessageEmotionsService } from '../message-emotions/message-emotions.ser
     AiContextRegistryService,
     AiContextBuilderService,
     AiResponseService,
+    AiLinkValidatorService,
     DoctorProfileContextSource,
     DoctorPatientsContextSource,
     DoctorPracticeInsightsContextSource,

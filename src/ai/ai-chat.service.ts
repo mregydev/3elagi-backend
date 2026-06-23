@@ -15,8 +15,10 @@ import { UserRole } from '../entities/user.entity';
 import { AiCacheService } from './ai-cache.service';
 import { AiContextBuilderService } from './ai-context-builder.service';
 import { AiPromptService } from './ai-prompt.service';
+import { AiLinkValidatorService } from './ai-link-validator.service';
 import { AiResponseService } from './ai-response.service';
 import { MessageEmotionsService } from '../message-emotions/message-emotions.service';
+import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 import { AiStreamService } from './ai-stream.service';
 import {
   AI_RATE_LIMIT_CODE,
@@ -55,7 +57,9 @@ export class AiChatService {
     private readonly prompt: AiPromptService,
     private readonly stream: AiStreamService,
     private readonly response: AiResponseService,
+    private readonly linkValidator: AiLinkValidatorService,
     private readonly messageEmotions: MessageEmotionsService,
+    private readonly pushNotifications: PushNotificationsService,
     private readonly cache: AiCacheService,
     @InjectRepository(AiConversation)
     private readonly conversationRepo: Repository<AiConversation>,
@@ -188,7 +192,11 @@ export class AiChatService {
       const built = await this.contextBuilder.build(contextUser, message);
 
       if (built.urgent && built.urgentMessage) {
-        const urgentText = this.finalizeAnswer(built.urgentMessage, built.links);
+        const urgentText = await this.finalizeAnswer(
+          built.urgentMessage,
+          built.links,
+          contextUser,
+        );
         const assistantMessage = await this.messageRepo.save(
           this.messageRepo.create({
             conversation_id: conversation.id,
@@ -198,6 +206,12 @@ export class AiChatService {
         );
         conversation.updated_at = new Date();
         await this.conversationRepo.save(conversation);
+        this.notifyAssistantPush(
+          user.id,
+          conversation.id,
+          assistantMessage.id,
+          urgentText,
+        );
         yield { type: 'token', content: urgentText };
         yield {
           type: 'done',
@@ -223,7 +237,7 @@ export class AiChatService {
       let cacheHit = false;
 
       if (cached) {
-        fullContent = this.finalizeAnswer(cached, built.links);
+        fullContent = await this.finalizeAnswer(cached, built.links, contextUser);
         cacheHit = true;
         yield { type: 'token', content: fullContent };
       } else {
@@ -241,7 +255,7 @@ export class AiChatService {
         await this.cache.set(answerKey, fullContent);
       }
 
-      fullContent = this.finalizeAnswer(fullContent, built.links);
+      fullContent = await this.finalizeAnswer(fullContent, built.links, contextUser);
 
       const assistantMessage = await this.messageRepo.save(
         this.messageRepo.create({
@@ -253,6 +267,13 @@ export class AiChatService {
 
       conversation.updated_at = new Date();
       await this.conversationRepo.save(conversation);
+
+      this.notifyAssistantPush(
+        user.id,
+        conversation.id,
+        assistantMessage.id,
+        fullContent,
+      );
 
       await this.logUsage({
         userId: user.id,
@@ -293,9 +314,34 @@ export class AiChatService {
     }
   }
 
-  private finalizeAnswer(content: string, links: import('./ai-response.service').AiLinkEntry[]): string {
+  private notifyAssistantPush(
+    recipientId: string,
+    conversationId: string,
+    messageId: string,
+    content: string,
+  ): void {
+    void this.pushNotifications
+      .sendAiMessage({
+        recipientId,
+        chatId: conversationId,
+        messageId,
+        body: content,
+      })
+      .catch((err) =>
+        this.logger.warn(
+          `AI push failed for ${recipientId}: ${(err as Error).message}`,
+        ),
+      );
+  }
+
+  private async finalizeAnswer(
+    content: string,
+    links: import('./ai-response.service').AiLinkEntry[],
+    user: AiContextUser,
+  ): Promise<string> {
     const branded = this.response.sanitizeBranding(content);
-    return this.response.enrichWithLinks(branded, links);
+    const enriched = this.response.enrichWithLinks(branded, links);
+    return this.linkValidator.sanitizeResponse(enriched, links, user);
   }
 
   private async loadConversation(

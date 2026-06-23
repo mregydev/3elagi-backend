@@ -35,7 +35,7 @@ export const ALLOWED_UPLOAD_MIMES = [
   'video/quicktime',
 ] as const;
 
-const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 function createReplitStorage(): Storage {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -152,7 +152,7 @@ export class UploadsService {
       throw new BadRequestException('Empty file data');
     }
     if (buffer.length > MAX_UPLOAD_BYTES) {
-      throw new BadRequestException('File exceeds 10 MB limit');
+      throw new BadRequestException('File exceeds 50 MB limit');
     }
 
     return {

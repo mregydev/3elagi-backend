@@ -1,14 +1,28 @@
-import { Body, Controller, Get, Patch, Request, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Patch,
+  Post,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { RegisterPushTokenDto } from './dto/register-push-token.dto';
+import { DeviceTokensService } from '../push-notifications/device-tokens.service';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly deviceTokens: DeviceTokensService,
+  ) {}
 
   @Get('me')
   getMe(@Request() req: { user: { id: string } }) {
@@ -28,5 +42,23 @@ export class UsersController {
     @Body() dto: UpdateUserDto,
   ) {
     return this.usersService.updateMe(req.user.id, dto);
+  }
+
+  @Post('me/push-token')
+  async registerPushToken(
+    @Request() req: { user: { id: string } },
+    @Body() dto: RegisterPushTokenDto,
+  ) {
+    await this.deviceTokens.register(req.user.id, dto.token);
+    return { ok: true };
+  }
+
+  @Delete('me/push-token')
+  async removePushToken(
+    @Request() req: { user: { id: string } },
+    @Body() dto: RegisterPushTokenDto,
+  ) {
+    await this.deviceTokens.remove(req.user.id, dto.token);
+    return { ok: true };
   }
 }

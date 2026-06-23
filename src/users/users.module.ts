@@ -7,9 +7,13 @@ import { Doctor } from '../entities/doctor.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
 import { Patient } from '../entities/patient.entity';
 import { DoctorReview } from '../entities/review.entity';
+import { PushNotificationsModule } from '../push-notifications/push-notifications.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Doctor, PatientProfile, Patient, DoctorReview])],
+  imports: [
+    TypeOrmModule.forFeature([User, Doctor, PatientProfile, Patient, DoctorReview]),
+    PushNotificationsModule,
+  ],
   controllers: [UsersController],
   providers: [UsersService],
   exports: [UsersService],

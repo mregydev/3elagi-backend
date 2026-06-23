@@ -13,15 +13,15 @@ import type {
 
 export const AI_PROMPT_VERSION = 'v6';
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 const MEDICAL_ENTITY_TYPES = new Set([
   'diagnosis',
   'lab_result',
   'imaging',
   'prescription',
   'medical_record',
-  'allergy',
-  'doctor_note',
-  'consultation_summary',
 ]);
 
 @Injectable()
@@ -158,6 +158,7 @@ export class AiContextBuilderService {
 
   private linkPathForChunk(chunk: RetrievedChunk): string | null {
     if (!chunk.entityId) return null;
+    if (!UUID_RE.test(chunk.entityId)) return null;
     if (chunk.entityType === 'doctor_profile') {
       return `/doctor/${chunk.entityId}`;
     }
@@ -182,7 +183,16 @@ export class AiContextBuilderService {
   }
 
   private pushLink(links: AiLinkEntry[], entry: AiLinkEntry) {
+    if (!this.isValidLinkPath(entry.path)) return;
     if (links.some((link) => link.path === entry.path)) return;
     links.push(entry);
+  }
+
+  private isValidLinkPath(path: string): boolean {
+    const medical = path.match(/^\/medical\/(.+)$/i);
+    if (medical) return UUID_RE.test(medical[1]);
+    const doctor = path.match(/^\/doctor\/(.+)$/i);
+    if (doctor) return UUID_RE.test(doctor[1]);
+    return false;
   }
 }

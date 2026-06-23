@@ -27,7 +27,7 @@ export class UploadsController {
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
-      limits: { fileSize: 10 * 1024 * 1024 },
+      limits: { fileSize: 50 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
         if (ALLOWED_UPLOAD_MIMES.includes(file.mimetype as (typeof ALLOWED_UPLOAD_MIMES)[number])) {
           cb(null, true);

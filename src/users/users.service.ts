@@ -179,4 +179,28 @@ export class UsersService {
       ];
     });
   }
+
+  async getDisplayName(userId: string): Promise<string> {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) return 'Someone';
+
+    if (user.role === UserRole.DOCTOR) {
+      const doctor =
+        user.doctor_info_id
+          ? await this.doctorRepo.findOne({ where: { id: user.doctor_info_id } })
+          : await this.doctorRepo.findOne({ where: { user_id: userId } });
+      if (doctor?.name) {
+        return doctor.name.startsWith('Dr.') ? doctor.name : `Dr. ${doctor.name}`;
+      }
+    }
+
+    if (user.role === UserRole.PATIENT) {
+      const profile = await this.patientProfileRepo.findOne({
+        where: { user_id: userId },
+      });
+      if (profile?.name) return profile.name;
+    }
+
+    return user.email.split('@')[0];
+  }
 }

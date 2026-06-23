@@ -93,6 +93,9 @@ import { MessageEmotion } from './entities/message-emotion.entity';
 import { MessageEmotionsModule } from './message-emotions/message-emotions.module';
 import { PrescriptionMedications1778160000000 } from './migrations/1778160000000-PrescriptionMedications';
 import { PrescriptionImageUrl1778170000000 } from './migrations/1778170000000-PrescriptionImageUrl';
+import { DeviceTokens1778180000000 } from './migrations/1778180000000-DeviceTokens';
+import { DeviceToken } from './entities/device-token.entity';
+import { PushNotificationsModule } from './push-notifications/push-notifications.module';
 
 @Module({
   imports: [
@@ -128,6 +131,7 @@ import { PrescriptionImageUrl1778170000000 } from './migrations/1778170000000-Pr
           AiMessage,
           AiUsageLog,
           MessageEmotion,
+          DeviceToken,
         ],
         synchronize: false,
         migrations: [
@@ -171,6 +175,7 @@ import { PrescriptionImageUrl1778170000000 } from './migrations/1778170000000-Pr
           MessageEmotionDislike1778140000000,
           PrescriptionMedications1778160000000,
           PrescriptionImageUrl1778170000000,
+          DeviceTokens1778180000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
@@ -208,6 +213,7 @@ import { PrescriptionImageUrl1778170000000 } from './migrations/1778170000000-Pr
     PointsModule,
     AiModule,
     MessageEmotionsModule,
+    PushNotificationsModule,
   ],
 })
 export class AppModule {}
