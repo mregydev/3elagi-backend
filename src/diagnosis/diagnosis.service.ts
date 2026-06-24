@@ -222,7 +222,7 @@ export class DiagnosisService {
     if (targetDoctor.id !== doctor.id) {
       throw new ForbiddenException('You can only create diagnoses for yourself as doctor');
     }
-    await this.doctorPatientAccessService.assertDoctorCanEditRecords(
+    await this.doctorPatientAccessService.assertDoctorCanPrescribeForPatient(
       userId,
       dto.patient_id,
     );

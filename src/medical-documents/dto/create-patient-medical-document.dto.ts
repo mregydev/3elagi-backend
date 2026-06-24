@@ -1,4 +1,4 @@
-import { IsEnum, IsString } from 'class-validator';
+import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { DocumentType } from '../../entities/medical-document.entity';
 
 const PATIENT_UPLOAD_TYPES = [DocumentType.LAB, DocumentType.XRAY] as const;
@@ -20,4 +20,9 @@ export class CreatePatientMedicalDocumentDto {
 
   @IsString()
   title: string;
+
+  /** When set by a doctor, the record is stored on this patient's user id. */
+  @IsOptional()
+  @IsString()
+  patient_user_id?: string;
 }

@@ -358,7 +358,13 @@ export class PrescriptionsService {
     const profile = await this.patientProfileRepo.findOne({
       where: { user_id: patientUserId },
     });
-    if (!profile) throw new NotFoundException('Patient profile not found');
+    const patientUser =
+      profile != null
+        ? null
+        : await this.doctorPatientAccessService.assertPatientUser(patientUserId);
+    const patientDisplayName =
+      profile?.name ?? patientUser?.email?.split('@')[0] ?? 'Patient';
+    const patientPhone = profile?.phone ?? '';
 
     const imageUrl = dto.image_url?.trim() || null;
 
@@ -394,8 +400,8 @@ export class PrescriptionsService {
           ? await this.uploads.getBufferFromUrl(clinic.logo_url).catch(() => null)
           : null;
         const pseudoPatient = {
-          name: profile.name,
-          phone: profile.phone ?? '',
+          name: patientDisplayName,
+          phone: patientPhone,
           age: null as number | null,
         } as Patient;
         const pdfBuffer = await this.renderPdf(

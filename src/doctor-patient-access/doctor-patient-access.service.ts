@@ -140,6 +140,14 @@ export class DoctorPatientAccessService {
     return doctor;
   }
 
+  async assertPatientUser(patientUserId: string): Promise<User> {
+    const user = await this.userRepo.findOne({ where: { id: patientUserId } });
+    if (!user || user.role !== UserRole.PATIENT) {
+      throw new NotFoundException('Patient user not found');
+    }
+    return user;
+  }
+
   async assertDoctorCanEditRecords(
     doctorUserId: string,
     patientUserId: string,

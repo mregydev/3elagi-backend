@@ -32,7 +32,7 @@ export class PatientMedicalDocumentsController {
 
   @Post()
   create(@Body() dto: CreatePatientMedicalDocumentDto, @Request() req) {
-    return this.service.createForPatientUser(req.user.id, dto);
+    return this.service.createForPatientUser(req.user.id, req.user.role, dto);
   }
 
   @Delete(':id')

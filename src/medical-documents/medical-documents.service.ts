@@ -76,17 +76,34 @@ export class MedicalDocumentsService {
 
   async createForPatientUser(
     userId: string,
+    role: string,
     dto: CreatePatientMedicalDocumentDto,
   ) {
-    const user = await this.userRepo.findOne({ where: { id: userId } });
-    if (
-      !user ||
-      (user.role !== UserRole.PATIENT && user.role !== UserRole.DOCTOR)
-    ) {
-      throw new ForbiddenException(
-        'Only patients and doctors can use this endpoint for personal records',
+    let subjectUserId = userId;
+    const targetPatientId = dto.patient_user_id?.trim();
+
+    if (targetPatientId) {
+      if (role !== UserRole.DOCTOR) {
+        throw new ForbiddenException('Only doctors can add records for another patient');
+      }
+      await this.doctorPatientAccessService.assertDoctorCanPrescribeForPatient(
+        userId,
+        targetPatientId,
       );
+      subjectUserId = targetPatientId;
+    } else if (role === UserRole.DOCTOR) {
+      throw new BadRequestException('patient_user_id is required when adding records as a doctor');
+    } else {
+      const user = await this.userRepo.findOne({ where: { id: userId } });
+      if (!user || user.role !== UserRole.PATIENT) {
+        throw new ForbiddenException(
+          'Only patients and doctors can use this endpoint for personal records',
+        );
+      }
     }
+
+    await this.doctorPatientAccessService.assertPatientUser(subjectUserId);
+
     if (!dto.file_url?.trim()) {
       throw new BadRequestException('Image file is required');
     }
@@ -100,7 +117,7 @@ export class MedicalDocumentsService {
     }
 
     const doc = this.docRepo.create({
-      patient_id: userId,
+      patient_id: subjectUserId,
       type: dto.type,
       file_url: dto.file_url.trim(),
       file_name: dto.file_name?.trim() || 'upload.jpg',
@@ -186,7 +203,7 @@ export class MedicalDocumentsService {
       throw new ForbiddenException('Medical documents must be linked to a patient user');
     }
     if (userRole === 'doctor' && dto.patient_id !== userId) {
-      await this.doctorPatientAccessService.assertDoctorCanEditRecords(
+      await this.doctorPatientAccessService.assertDoctorCanPrescribeForPatient(
         userId,
         dto.patient_id,
       );

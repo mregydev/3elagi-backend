@@ -84,6 +84,7 @@ function buildService(overrides: {
   accessServiceStub?: Partial<{
     assertDoctorCanEditRecords: sinon.SinonStub;
     assertDoctorCanPrescribeForPatient: sinon.SinonStub;
+    assertPatientUser: sinon.SinonStub;
     findOrCreate: sinon.SinonStub;
   }>;
   imageAnalyzerStub?: Partial<{ extractMedications: sinon.SinonStub }>;
@@ -158,6 +159,7 @@ function buildService(overrides: {
     assertDoctorCanPrescribeForPatient: sinon
       .stub()
       .callsFake(async () => makeDoctor()),
+    assertPatientUser: sinon.stub().resolves({ id: 'patient-user-1', role: 'patient' }),
     findOrCreate: sinon.stub().resolves({
       records_allowed: true,
       blocked_by_patient: false,
@@ -396,6 +398,43 @@ describe('PrescriptionsService', () => {
       expect(assertEditRecords.called).to.equal(false);
       expect(rxRepo.create.getCall(0).args[0].doctor_id).to.equal('doctor-1');
       expect(result.doctor_id).to.equal('doctor-1');
+    });
+
+    it('saves prescription when patient has user account but no profile row', async () => {
+      const doctor = makeDoctor({ id: 'doctor-1', user_id: 'doctor-user-1' });
+      const savedRx = makePrescription({
+        doctor_id: doctor.id,
+        patient_user_id: 'patient-user-1',
+        id: 'rx-no-profile',
+      });
+      savedRx.medications = [] as any;
+
+      const { service, rxRepo } = buildService({
+        profileRepoStub: { findOne: sinon.stub().resolves(null) },
+        doctorRepoStub: { findOne: sinon.stub().resolves(doctor) },
+        accessServiceStub: {
+          assertDoctorCanPrescribeForPatient: sinon.stub().resolves(doctor),
+          assertPatientUser: sinon.stub().resolves({ id: 'patient-user-1', role: 'patient' }),
+        },
+        rxRepoStub: {
+          create: sinon.stub().callsFake((data) => ({ ...makePrescription(), ...data })),
+          save: sinon.stub().resolves(savedRx),
+          update: sinon.stub().resolves(),
+        },
+      });
+
+      const result = await service.createForPatientUser(
+        {
+          patient_user_id: 'patient-user-1',
+          title: 'Hypertension',
+          medications: [{ medication_name: 'Amlodipine' }],
+        },
+        'doctor-user-1',
+        'doctor',
+      );
+
+      expect(result.patient_user_id).to.equal('patient-user-1');
+      expect(rxRepo.save.calledOnce).to.equal(true);
     });
   });
 });
