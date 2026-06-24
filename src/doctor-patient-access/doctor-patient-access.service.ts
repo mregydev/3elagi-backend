@@ -127,6 +127,19 @@ export class DoctorPatientAccessService {
     }
   }
 
+  async assertDoctorCanPrescribeForPatient(
+    doctorUserId: string,
+    patientUserId: string,
+  ): Promise<Doctor> {
+    const doctor = await this.resolveDoctorFromUserId(doctorUserId);
+    const row = await this.findOrCreate(patientUserId, doctor.id);
+
+    if (row.blocked_by_patient || row.blocked_by_doctor) {
+      throw new ForbiddenException('Chat is blocked between these users');
+    }
+    return doctor;
+  }
+
   async assertDoctorCanEditRecords(
     doctorUserId: string,
     patientUserId: string,
@@ -141,19 +154,6 @@ export class DoctorPatientAccessService {
       throw new ForbiddenException(
         'Patient has not granted permission to access medical records',
       );
-    }
-  }
-
-  /** Doctors may prescribe without full records access; the prescription is added to the patient's record. */
-  async assertDoctorCanPrescribeForPatient(
-    doctorUserId: string,
-    patientUserId: string,
-  ): Promise<void> {
-    const doctor = await this.resolveDoctorFromUserId(doctorUserId);
-    const row = await this.findOrCreate(patientUserId, doctor.id);
-
-    if (row.blocked_by_patient || row.blocked_by_doctor) {
-      throw new ForbiddenException('Chat is blocked between these users');
     }
   }
 

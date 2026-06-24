@@ -84,6 +84,7 @@ function buildService(overrides: {
   accessServiceStub?: Partial<{
     assertDoctorCanEditRecords: sinon.SinonStub;
     assertDoctorCanPrescribeForPatient: sinon.SinonStub;
+    findOrCreate: sinon.SinonStub;
   }>;
   imageAnalyzerStub?: Partial<{ extractMedications: sinon.SinonStub }>;
 }) {
@@ -154,7 +155,14 @@ function buildService(overrides: {
 
   const accessService = {
     assertDoctorCanEditRecords: sinon.stub().resolves(),
-    assertDoctorCanPrescribeForPatient: sinon.stub().resolves(),
+    assertDoctorCanPrescribeForPatient: sinon
+      .stub()
+      .callsFake(async () => makeDoctor()),
+    findOrCreate: sinon.stub().resolves({
+      records_allowed: true,
+      blocked_by_patient: false,
+      blocked_by_doctor: false,
+    }),
     ...overrides.accessServiceStub,
   } as any;
 
@@ -177,7 +185,7 @@ function buildService(overrides: {
     imageAnalyzer,
   );
 
-  return { service, rxRepo, medRepo, doctorRepo, patientRepo, clinicRepo, profileRepo, uploads, accessService };
+  return { service, rxRepo, medRepo, doctorRepo, patientRepo, clinicRepo, profileRepo, uploads };
 }
 
 // ---------------------------------------------------------------------------
@@ -345,15 +353,28 @@ describe('PrescriptionsService', () => {
       expect(err).to.be.instanceOf(ForbiddenException);
     });
 
-    it('uses prescribe access check (not full records) when doctor creates for patient', async () => {
+    it('allows doctor to prescribe without full medical records access', async () => {
       const profile = makePatientProfile({ user_id: 'patient-user-1' });
-      const doctor = { id: 'doctor-1', user_id: 'doctor-user-1' };
-      const savedRx = makePrescription({ id: 'rx-doctor-1' });
+      const doctor = makeDoctor({ id: 'doctor-1', user_id: 'doctor-user-1' });
+      const savedRx = makePrescription({
+        doctor_id: doctor.id,
+        patient_user_id: 'patient-user-1',
+        id: 'rx-saved-doctor',
+      });
       savedRx.medications = [] as any;
 
-      const { service, accessService } = buildService({
+      const assertPrescribe = sinon.stub().resolves(doctor);
+      const assertEditRecords = sinon
+        .stub()
+        .rejects(new ForbiddenException('Patient has not granted permission to access medical records'));
+
+      const { service, rxRepo } = buildService({
         profileRepoStub: { findOne: sinon.stub().resolves(profile) },
         doctorRepoStub: { findOne: sinon.stub().resolves(doctor) },
+        accessServiceStub: {
+          assertDoctorCanPrescribeForPatient: assertPrescribe,
+          assertDoctorCanEditRecords: assertEditRecords,
+        },
         rxRepoStub: {
           create: sinon.stub().callsFake((data) => ({ ...makePrescription(), ...data })),
           save: sinon.stub().resolves(savedRx),
@@ -361,7 +382,7 @@ describe('PrescriptionsService', () => {
         },
       });
 
-      await service.createForPatientUser(
+      const result = await service.createForPatientUser(
         {
           patient_user_id: 'patient-user-1',
           title: 'Hypertension',
@@ -371,12 +392,10 @@ describe('PrescriptionsService', () => {
         'doctor',
       );
 
-      expect(accessService.assertDoctorCanPrescribeForPatient.calledOnce).to.equal(true);
-      expect(accessService.assertDoctorCanPrescribeForPatient.firstCall.args).to.deep.equal([
-        'doctor-user-1',
-        'patient-user-1',
-      ]);
-      expect(accessService.assertDoctorCanEditRecords.called).to.equal(false);
+      expect(assertPrescribe.calledOnceWith('doctor-user-1', 'patient-user-1')).to.equal(true);
+      expect(assertEditRecords.called).to.equal(false);
+      expect(rxRepo.create.getCall(0).args[0].doctor_id).to.equal('doctor-1');
+      expect(result.doctor_id).to.equal('doctor-1');
     });
   });
 });

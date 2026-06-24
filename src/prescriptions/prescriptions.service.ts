@@ -228,12 +228,34 @@ export class PrescriptionsService {
     return { items, symptoms: last.symptoms ?? null };
   }
 
+  private async getDoctorPrescriptionReadAccess(
+    doctorUserId: string,
+    patientUserId: string,
+  ): Promise<{ doctor: Doctor; recordsAllowed: boolean }> {
+    const doctor = await this.getDoctor(doctorUserId);
+    const row = await this.doctorPatientAccessService.findOrCreate(
+      patientUserId,
+      doctor.id,
+    );
+    if (row.blocked_by_patient || row.blocked_by_doctor) {
+      throw new ForbiddenException('Chat is blocked between these users');
+    }
+    return { doctor, recordsAllowed: row.records_allowed };
+  }
+
   async listForPatientUser(patientUserId: string, userId: string, role: string) {
+    let where: { patient_user_id: string; doctor_id?: string } = {
+      patient_user_id: patientUserId,
+    };
+
     if (role === UserRole.DOCTOR) {
-      await this.doctorPatientAccessService.assertDoctorCanEditRecords(
+      const { doctor, recordsAllowed } = await this.getDoctorPrescriptionReadAccess(
         userId,
         patientUserId,
       );
+      if (!recordsAllowed) {
+        where = { patient_user_id: patientUserId, doctor_id: doctor.id };
+      }
     } else if (role === UserRole.PATIENT) {
       if (patientUserId !== userId) {
         throw new ForbiddenException('You can only view your own prescriptions');
@@ -243,7 +265,7 @@ export class PrescriptionsService {
     }
 
     const rows = await this.repo.find({
-      where: { patient_user_id: patientUserId },
+      where,
       relations: ['medications'],
       order: { created_at: 'DESC' },
     });
@@ -260,10 +282,15 @@ export class PrescriptionsService {
     }
 
     if (role === UserRole.DOCTOR) {
-      await this.doctorPatientAccessService.assertDoctorCanEditRecords(
+      const { doctor, recordsAllowed } = await this.getDoctorPrescriptionReadAccess(
         userId,
         row.patient_user_id,
       );
+      if (!recordsAllowed && row.doctor_id !== doctor.id) {
+        throw new ForbiddenException(
+          'Patient has not granted permission to access medical records',
+        );
+      }
     } else if (role === UserRole.PATIENT) {
       if (row.patient_user_id !== userId) {
         throw new ForbiddenException('You can only view your own prescriptions');
@@ -316,11 +343,10 @@ export class PrescriptionsService {
 
     let doctor: Doctor | null = null;
     if (role === UserRole.DOCTOR) {
-      await this.doctorPatientAccessService.assertDoctorCanPrescribeForPatient(
+      doctor = await this.doctorPatientAccessService.assertDoctorCanPrescribeForPatient(
         userId,
         patientUserId,
       );
-      doctor = await this.getDoctor(userId);
     } else if (role === UserRole.PATIENT) {
       if (patientUserId !== userId) {
         throw new ForbiddenException('You can only add prescriptions to your own record');
