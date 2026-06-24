@@ -316,7 +316,7 @@ export class PrescriptionsService {
 
     let doctor: Doctor | null = null;
     if (role === UserRole.DOCTOR) {
-      await this.doctorPatientAccessService.assertDoctorCanEditRecords(
+      await this.doctorPatientAccessService.assertDoctorCanPrescribeForPatient(
         userId,
         patientUserId,
       );

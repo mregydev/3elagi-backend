@@ -81,7 +81,10 @@ function buildService(overrides: {
   userRepoStub?: Partial<{ findOne: sinon.SinonStub }>;
   uploadsStub?: Partial<{ getBufferFromUrl: sinon.SinonStub; uploadFile: sinon.SinonStub }>;
   knowledgeIndexerStub?: Partial<{ indexPrescription: sinon.SinonStub }>;
-  accessServiceStub?: Partial<{ assertDoctorCanEditRecords: sinon.SinonStub }>;
+  accessServiceStub?: Partial<{
+    assertDoctorCanEditRecords: sinon.SinonStub;
+    assertDoctorCanPrescribeForPatient: sinon.SinonStub;
+  }>;
   imageAnalyzerStub?: Partial<{ extractMedications: sinon.SinonStub }>;
 }) {
   const rxRepo = {
@@ -151,6 +154,7 @@ function buildService(overrides: {
 
   const accessService = {
     assertDoctorCanEditRecords: sinon.stub().resolves(),
+    assertDoctorCanPrescribeForPatient: sinon.stub().resolves(),
     ...overrides.accessServiceStub,
   } as any;
 
@@ -173,7 +177,7 @@ function buildService(overrides: {
     imageAnalyzer,
   );
 
-  return { service, rxRepo, medRepo, doctorRepo, patientRepo, clinicRepo, profileRepo, uploads };
+  return { service, rxRepo, medRepo, doctorRepo, patientRepo, clinicRepo, profileRepo, uploads, accessService };
 }
 
 // ---------------------------------------------------------------------------
@@ -339,6 +343,40 @@ describe('PrescriptionsService', () => {
       }
 
       expect(err).to.be.instanceOf(ForbiddenException);
+    });
+
+    it('uses prescribe access check (not full records) when doctor creates for patient', async () => {
+      const profile = makePatientProfile({ user_id: 'patient-user-1' });
+      const doctor = { id: 'doctor-1', user_id: 'doctor-user-1' };
+      const savedRx = makePrescription({ id: 'rx-doctor-1' });
+      savedRx.medications = [] as any;
+
+      const { service, accessService } = buildService({
+        profileRepoStub: { findOne: sinon.stub().resolves(profile) },
+        doctorRepoStub: { findOne: sinon.stub().resolves(doctor) },
+        rxRepoStub: {
+          create: sinon.stub().callsFake((data) => ({ ...makePrescription(), ...data })),
+          save: sinon.stub().resolves(savedRx),
+          update: sinon.stub().resolves(),
+        },
+      });
+
+      await service.createForPatientUser(
+        {
+          patient_user_id: 'patient-user-1',
+          title: 'Hypertension',
+          medications: [{ medication_name: 'Amlodipine' }],
+        },
+        'doctor-user-1',
+        'doctor',
+      );
+
+      expect(accessService.assertDoctorCanPrescribeForPatient.calledOnce).to.equal(true);
+      expect(accessService.assertDoctorCanPrescribeForPatient.firstCall.args).to.deep.equal([
+        'doctor-user-1',
+        'patient-user-1',
+      ]);
+      expect(accessService.assertDoctorCanEditRecords.called).to.equal(false);
     });
   });
 });
