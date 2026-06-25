@@ -13,6 +13,7 @@ import { PrescriptionImageAnalyzerService } from './prescription-image-analyzer.
 import { UploadsModule } from '../uploads/uploads.module';
 import { AiModule } from '../ai/ai.module';
 import { DoctorPatientAccessModule } from '../doctor-patient-access/doctor-patient-access.module';
+import { PointsModule } from '../points/points.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { DoctorPatientAccessModule } from '../doctor-patient-access/doctor-patie
     UploadsModule,
     AiModule,
     DoctorPatientAccessModule,
+    PointsModule,
   ],
   providers: [PrescriptionsService, PrescriptionImageAnalyzerService],
   controllers: [PrescriptionsController],

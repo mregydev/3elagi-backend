@@ -87,13 +87,15 @@ export class PrescriptionsController {
   )
   analyzeImage(
     @UploadedFile() file: Express.Multer.File,
-    @Body('lang') lang?: string,
+    @Body('lang') lang: string | undefined,
+    @Request() req,
   ) {
     if (!file?.buffer?.length) {
       throw new BadRequestException('Image file is required');
     }
     const outputLang: 'ar' | 'en' = lang?.trim().toLowerCase() === 'ar' ? 'ar' : 'en';
     return this.service.analyzeImageBuffer(
+      req.user.id,
       file.buffer,
       file.mimetype || 'image/jpeg',
       outputLang,

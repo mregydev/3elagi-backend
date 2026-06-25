@@ -88,6 +88,7 @@ function buildService(overrides: {
     findOrCreate: sinon.SinonStub;
   }>;
   imageAnalyzerStub?: Partial<{ extractMedications: sinon.SinonStub }>;
+  pointsServiceStub?: Partial<{ deductForMessage: sinon.SinonStub }>;
 }) {
   const rxRepo = {
     create: sinon.stub().callsFake((data) => ({ ...makePrescription(), ...data })),
@@ -173,6 +174,15 @@ function buildService(overrides: {
     ...overrides.imageAnalyzerStub,
   } as any;
 
+  const pointsService = {
+    deductForMessage: sinon.stub().resolves({
+      message_points: 9,
+      points_spent_total: 1,
+      points_purchased_total: 0,
+    }),
+    ...overrides.pointsServiceStub,
+  } as any;
+
   const service = new PrescriptionsService(
     rxRepo,
     medRepo,
@@ -185,9 +195,10 @@ function buildService(overrides: {
     knowledgeIndexer,
     accessService,
     imageAnalyzer,
+    pointsService,
   );
 
-  return { service, rxRepo, medRepo, doctorRepo, patientRepo, clinicRepo, profileRepo, uploads };
+  return { service, rxRepo, medRepo, doctorRepo, patientRepo, clinicRepo, profileRepo, uploads, pointsService };
 }
 
 // ---------------------------------------------------------------------------
@@ -435,6 +446,25 @@ describe('PrescriptionsService', () => {
 
       expect(result.patient_user_id).to.equal('patient-user-1');
       expect(rxRepo.save.calledOnce).to.equal(true);
+    });
+  });
+
+  describe('analyzeImageBuffer — points', () => {
+    it('deducts one point before analyzing the image', async () => {
+      const { service, pointsService, imageAnalyzer } = buildService({
+        imageAnalyzerStub: {
+          extractMedications: sinon.stub().resolves([
+            { medication_name: 'Amlodipine', dose: '5mg', interval: 'daily' },
+          ]),
+        },
+      });
+
+      const buffer = Buffer.from('fake-image');
+      const result = await service.analyzeImageBuffer('user-1', buffer, 'image/jpeg', 'en');
+
+      expect(pointsService.deductForMessage.calledOnceWith('user-1', 1)).to.equal(true);
+      expect(imageAnalyzer.extractMedications.calledOnce).to.equal(true);
+      expect(result).to.have.length(1);
     });
   });
 });

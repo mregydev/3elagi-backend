@@ -20,6 +20,7 @@ import { User, UserRole } from '../entities/user.entity';
 import { UploadsService } from '../uploads/uploads.service';
 import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
 import { DoctorPatientAccessService } from '../doctor-patient-access/doctor-patient-access.service';
+import { PointsService } from '../points/points.service';
 import {
   ExtractedPrescriptionMedication,
   PrescriptionImageAnalyzerService,
@@ -82,6 +83,8 @@ const PDF_LABELS = {
   },
 } as const;
 
+const PRESCRIPTION_IMAGE_POINT_COST = 1;
+
 function buildRefNumber(rx: { id: string; created_at?: Date | string | null }): string {
   const d = new Date(rx.created_at ?? Date.now());
   const y = d.getFullYear().toString().slice(-2);
@@ -107,6 +110,7 @@ export class PrescriptionsService {
     private knowledgeIndexer: KnowledgeIndexerService,
     private doctorPatientAccessService: DoctorPatientAccessService,
     private imageAnalyzer: PrescriptionImageAnalyzerService,
+    private pointsService: PointsService,
   ) {}
 
   private normalizeMedicationInputs(
@@ -304,10 +308,12 @@ export class PrescriptionsService {
   }
 
   async analyzeImageBuffer(
+    userId: string,
     buffer: Buffer,
     mimeType: string,
     outputLang: 'ar' | 'en' = 'en',
   ) {
+    await this.pointsService.deductForMessage(userId, PRESCRIPTION_IMAGE_POINT_COST);
     return this.imageAnalyzer.extractMedications(
       buffer.toString('base64'),
       mimeType,
@@ -316,10 +322,12 @@ export class PrescriptionsService {
   }
 
   async analyzeImage(
+    userId: string,
     imageBase64: string,
     mimeType: string,
     outputLang: 'ar' | 'en' = 'en',
   ): Promise<ExtractedPrescriptionMedication[]> {
+    await this.pointsService.deductForMessage(userId, PRESCRIPTION_IMAGE_POINT_COST);
     return this.imageAnalyzer.extractMedications(
       imageBase64,
       mimeType,

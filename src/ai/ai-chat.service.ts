@@ -18,7 +18,6 @@ import { AiPromptService } from './ai-prompt.service';
 import { AiLinkValidatorService } from './ai-link-validator.service';
 import { AiResponseService } from './ai-response.service';
 import { MessageEmotionsService } from '../message-emotions/message-emotions.service';
-import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 import { PointsService } from '../points/points.service';
 import { AiStreamService } from './ai-stream.service';
 import {
@@ -61,7 +60,6 @@ export class AiChatService {
     private readonly response: AiResponseService,
     private readonly linkValidator: AiLinkValidatorService,
     private readonly messageEmotions: MessageEmotionsService,
-    private readonly pushNotifications: PushNotificationsService,
     private readonly pointsService: PointsService,
     private readonly cache: AiCacheService,
     @InjectRepository(AiConversation)
@@ -328,23 +326,12 @@ export class AiChatService {
   }
 
   private notifyAssistantPush(
-    recipientId: string,
-    conversationId: string,
-    messageId: string,
-    content: string,
+    _recipientId: string,
+    _conversationId: string,
+    _messageId: string,
+    _content: string,
   ): void {
-    void this.pushNotifications
-      .sendAiMessage({
-        recipientId,
-        chatId: conversationId,
-        messageId,
-        body: content,
-      })
-      .catch((err) =>
-        this.logger.warn(
-          `AI push failed for ${recipientId}: ${(err as Error).message}`,
-        ),
-      );
+    // AI assistant push is disabled on mobile; web uses live socket updates instead.
   }
 
   private async finalizeAnswer(

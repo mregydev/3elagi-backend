@@ -98,6 +98,7 @@ import { DiagnosisDocumentsManyToMany1778190000000 } from './migrations/17781900
 import { DeviceToken } from './entities/device-token.entity';
 import { DiagnosisDocument } from './entities/diagnosis-document.entity';
 import { PushNotificationsModule } from './push-notifications/push-notifications.module';
+import { SentryModule } from './sentry/sentry.module';
 
 @Module({
   imports: [
@@ -218,6 +219,7 @@ import { PushNotificationsModule } from './push-notifications/push-notifications
     AiModule,
     MessageEmotionsModule,
     PushNotificationsModule,
+    SentryModule,
   ],
 })
 export class AppModule {}
