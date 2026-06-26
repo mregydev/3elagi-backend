@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { UploadsService, ALLOWED_UPLOAD_MIMES } from './uploads.service';
+import { UploadsService, isAllowedUploadMime } from './uploads.service';
 import { UploadFileBase64Dto } from './dto/upload-file-base64.dto';
 import { Response } from 'express';
 import * as path from 'path';
@@ -29,7 +29,7 @@ export class UploadsController {
     FileInterceptor('file', {
       limits: { fileSize: 50 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
-        if (ALLOWED_UPLOAD_MIMES.includes(file.mimetype as (typeof ALLOWED_UPLOAD_MIMES)[number])) {
+        if (isAllowedUploadMime(file.mimetype)) {
           cb(null, true);
         } else {
           cb(new HttpException(

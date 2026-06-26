@@ -31,11 +31,27 @@ export const ALLOWED_UPLOAD_MIMES = [
   'audio/aac',
   'audio/x-m4a',
   'audio/x-caf',
+  'audio/webm',
+  'audio/ogg',
+  'audio/wav',
+  'audio/3gpp',
+  'video/webm',
   'video/mp4',
   'video/quicktime',
 ] as const;
 
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+
+/** Browsers often send codec suffixes or uncommon audio/* types from MediaRecorder. */
+export function isAllowedUploadMime(mimetype: string): boolean {
+  const mime = mimetype.split(';')[0].trim().toLowerCase();
+  if (!mime) return false;
+  if (ALLOWED_UPLOAD_MIMES.includes(mime as (typeof ALLOWED_UPLOAD_MIMES)[number])) {
+    return true;
+  }
+  if (mime.startsWith('audio/')) return true;
+  return false;
+}
 
 function createReplitStorage(): Storage {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
