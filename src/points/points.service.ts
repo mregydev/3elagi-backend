@@ -47,7 +47,11 @@ export class PointsService {
     return this.mapSummary(user);
   }
 
-  async deductForMessage(userId: string, cost = 1): Promise<UserPointsSummary> {
+  async deductForMessage(
+    userId: string,
+    cost = 1,
+    costSubject: 'message' | 'operation' = 'message',
+  ): Promise<UserPointsSummary> {
     const messageCost = Math.max(1, Math.min(5, Math.floor(Number(cost) || 1)));
     return this.dataSource.transaction(async (manager) => {
       const user = await manager
@@ -59,9 +63,11 @@ export class PointsService {
 
       if (!user) throw new NotFoundException('User not found');
       if ((user.message_points ?? 0) < messageCost) {
-        throw new ForbiddenException(
-          `Insufficient message points. This message costs ${messageCost} point${messageCost === 1 ? '' : 's'}`,
-        );
+        const detail =
+          costSubject === 'operation'
+            ? `This operation requires ${messageCost} point${messageCost === 1 ? '' : 's'}`
+            : `This message costs ${messageCost} point${messageCost === 1 ? '' : 's'}`;
+        throw new ForbiddenException(`Insufficient message points. ${detail}`);
       }
 
       user.message_points -= messageCost;

@@ -462,7 +462,7 @@ describe('PrescriptionsService', () => {
       const buffer = Buffer.from('fake-image');
       const result = await service.analyzeImageBuffer('user-1', buffer, 'image/jpeg', 'en');
 
-      expect(pointsService.deductForMessage.calledOnceWith('user-1', 1)).to.equal(true);
+      expect(pointsService.deductForMessage.calledOnceWith('user-1', 1, 'operation')).to.equal(true);
       expect(imageAnalyzer.extractMedications.calledOnce).to.equal(true);
       expect(result).to.have.length(1);
     });

@@ -313,7 +313,11 @@ export class PrescriptionsService {
     mimeType: string,
     outputLang: 'ar' | 'en' = 'en',
   ) {
-    await this.pointsService.deductForMessage(userId, PRESCRIPTION_IMAGE_POINT_COST);
+    await this.pointsService.deductForMessage(
+      userId,
+      PRESCRIPTION_IMAGE_POINT_COST,
+      'operation',
+    );
     return this.imageAnalyzer.extractMedications(
       buffer.toString('base64'),
       mimeType,
@@ -327,7 +331,11 @@ export class PrescriptionsService {
     mimeType: string,
     outputLang: 'ar' | 'en' = 'en',
   ): Promise<ExtractedPrescriptionMedication[]> {
-    await this.pointsService.deductForMessage(userId, PRESCRIPTION_IMAGE_POINT_COST);
+    await this.pointsService.deductForMessage(
+      userId,
+      PRESCRIPTION_IMAGE_POINT_COST,
+      'operation',
+    );
     return this.imageAnalyzer.extractMedications(
       imageBase64,
       mimeType,
