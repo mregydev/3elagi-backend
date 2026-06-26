@@ -6,7 +6,7 @@ export class SentryController {
   constructor(private readonly sentryService: SentryService) {}
 
   @Get('logs')
-  x§() {
+  getLogs() {
     return this.sentryService.fetchOrthMessageCompletedLogs();
   }
 }
