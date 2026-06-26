@@ -164,7 +164,7 @@ export class AuthService {
       location: '',
       owner_id: user.id,
       is_personal: true,
-      approval_status: 'pending',
+      approval_status: 'approved',
     });
     await this.clinicRepo.save(personalClinic);
 
@@ -187,12 +187,14 @@ export class AuthService {
       email: dto.email,
       speciality_id: speciality.id,
       message_price: clampDoctorMessagePrice(dto.message_price),
-      approval_status: 'pending',
+      approval_status: 'approved',
     });
     await this.doctorRepo.save(doctor);
 
     user.doctor_info_id = doctor.id;
     await this.userRepo.save(user);
+
+    void this.broadcastDoctorListed(doctor.id);
 
     const profile = await this.doctorRepo.findOne({
       where: { id: doctor.id },
