@@ -12,6 +12,7 @@
     "@aws-sdk/client-s3": "^3.1044.0",
     "@fontsource/noto-sans-arabic": "^5.2.10",
     "@google-cloud/storage": "^7.16.0",
+    "@google-cloud/text-to-speech": "^6.4.1",
     "@langchain/core": "^1.1.48",
     "@langchain/google-genai": "^2.1.31",
     "@nestjs/common": "^10.4.17",

@@ -99,6 +99,7 @@ import { DeviceToken } from './entities/device-token.entity';
 import { DiagnosisDocument } from './entities/diagnosis-document.entity';
 import { PushNotificationsModule } from './push-notifications/push-notifications.module';
 import { SentryModule } from './sentry/sentry.module';
+import { TtsModule } from './tts/tts.module';
 
 @Module({
   imports: [
@@ -220,6 +221,7 @@ import { SentryModule } from './sentry/sentry.module';
     MessageEmotionsModule,
     PushNotificationsModule,
     SentryModule,
+    TtsModule,
   ],
 })
 export class AppModule {}
