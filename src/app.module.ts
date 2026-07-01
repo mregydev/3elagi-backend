@@ -100,6 +100,7 @@ import { DiagnosisDocument } from './entities/diagnosis-document.entity';
 import { PushNotificationsModule } from './push-notifications/push-notifications.module';
 import { SentryModule } from './sentry/sentry.module';
 import { TtsModule } from './tts/tts.module';
+import { SttModule } from './stt/stt.module';
 
 @Module({
   imports: [
@@ -222,6 +223,7 @@ import { TtsModule } from './tts/tts.module';
     PushNotificationsModule,
     SentryModule,
     TtsModule,
+    SttModule,
   ],
 })
 export class AppModule {}
