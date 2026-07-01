@@ -46,6 +46,8 @@ export interface StreamEvent {
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 20;
+/** Set false to allow AI messages without deducting message points. */
+const AI_POINTS_DEDUCTION_ENABLED = false;
 const AI_MESSAGE_POINT_COST = 1;
 
 @Injectable()
@@ -158,7 +160,9 @@ export class AiChatService {
   ): AsyncGenerator<StreamEvent> {
     try {
       this.assertRateLimit(user.id);
-      await this.pointsService.deductForMessage(user.id, AI_MESSAGE_POINT_COST);
+      if (AI_POINTS_DEDUCTION_ENABLED) {
+        await this.pointsService.deductForMessage(user.id, AI_MESSAGE_POINT_COST);
+      }
       const started = Date.now();
       const patientScope = this.resolvePatientScope(user, patientUserId);
       const contextUser: AiContextUser = {
