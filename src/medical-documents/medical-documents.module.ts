@@ -13,7 +13,7 @@ import { DoctorPatientAccessModule } from '../doctor-patient-access/doctor-patie
 import { AiModule } from '../ai/ai.module';
 import { DiagnosisModule } from '../diagnosis/diagnosis.module';
 import { UploadsModule } from '../uploads/uploads.module';
-import { MedicalRecordImageAnalyzerService } from './medical-record-image-analyzer.service';
+import { MedicalRecordAiModule } from './medical-record-ai.module';
 
 @Module({
   imports: [
@@ -21,10 +21,11 @@ import { MedicalRecordImageAnalyzerService } from './medical-record-image-analyz
     AiModule,
     DiagnosisModule,
     UploadsModule,
+    MedicalRecordAiModule,
     TypeOrmModule.forFeature([MedicalDocument, Patient, User, Doctor, Diagnosis, Symptom]),
   ],
   controllers: [MedicalDocumentsController, PatientMedicalDocumentsController],
-  providers: [MedicalDocumentsService, MedicalRecordImageAnalyzerService],
-  exports: [MedicalDocumentsService, MedicalRecordImageAnalyzerService],
+  providers: [MedicalDocumentsService],
+  exports: [MedicalDocumentsService, MedicalRecordAiModule],
 })
 export class MedicalDocumentsModule {}
