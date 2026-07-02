@@ -6,11 +6,28 @@ import { PatientProfile } from '../entities/patient-profile.entity';
 import { Prescription } from '../entities/prescription.entity';
 import { Symptom } from '../entities/symptom.entity';
 
+import type { MedicalAiInsight } from '../common/medical-ai-insight.types';
+
 function formatDate(value: Date | string | null | undefined): string {
   if (!value) return 'Unknown';
   const d = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(d.getTime())) return String(value);
   return d.toISOString().slice(0, 10);
+}
+
+function appendAiInsight(
+  lines: string[],
+  insight?: MedicalAiInsight | null,
+): void {
+  if (!insight?.description?.trim()) return;
+  lines.push('', 'AI insight — Summary:', insight.description.trim());
+  if (insight.possible_diseases?.trim()) {
+    lines.push(
+      '',
+      'AI insight — Possible conditions:',
+      insight.possible_diseases.trim(),
+    );
+  }
 }
 
 export function buildPatientProfileText(
@@ -166,6 +183,7 @@ export function buildDiagnosisText(
       symptoms.map((s) => s.desc).join(', '),
     );
   }
+  appendAiInsight(lines, diagnosis.ai_insight);
   return lines.join('\n');
 }
 
@@ -189,6 +207,7 @@ export function buildMedicalDocumentText(
   if (doc.file_name) {
     lines.push('', 'File:', doc.file_name);
   }
+  appendAiInsight(lines, doc.ai_insight);
   return lines.join('\n');
 }
 
@@ -265,6 +284,7 @@ export function buildPrescriptionText(
         .join('\n'),
     );
   }
+  appendAiInsight(lines, prescription.ai_insight);
   return lines.join('\n');
 }
 

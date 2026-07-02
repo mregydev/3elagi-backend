@@ -25,6 +25,8 @@ import {
   ExtractedPrescriptionMedication,
   PrescriptionImageAnalyzerService,
 } from './prescription-image-analyzer.service';
+import { MedicalRecordImageAnalyzerService } from '../medical-documents/medical-record-image-analyzer.service';
+import type { MedicalAiInsight } from '../common/medical-ai-insight.types';
 
 interface CreatePrescriptionDto {
   patient_id: string;
@@ -109,7 +111,8 @@ export class PrescriptionsService {
     private uploads: UploadsService,
     private knowledgeIndexer: KnowledgeIndexerService,
     private doctorPatientAccessService: DoctorPatientAccessService,
-    private imageAnalyzer: PrescriptionImageAnalyzerService,
+    private prescriptionImageAnalyzer: PrescriptionImageAnalyzerService,
+    private medicalImageAnalyzer: MedicalRecordImageAnalyzerService,
     private pointsService: PointsService,
   ) {}
 
@@ -307,6 +310,45 @@ export class PrescriptionsService {
     return enriched;
   }
 
+  async generateInsightForPatientUser(
+    id: string,
+    userId: string,
+    role: string,
+    outputLang: 'ar' | 'en' = 'en',
+  ) {
+    const row = await this.findOneForPatientUser(id, userId, role);
+    let insight: MedicalAiInsight | null = null;
+
+    if (row.image_url?.trim()) {
+      const buffer = await this.uploads.getBufferFromUrl(row.image_url);
+      if (buffer?.length) {
+        const analyzed = await this.medicalImageAnalyzer.analyzeImage(
+          buffer.toString('base64'),
+          'image/jpeg',
+          outputLang,
+        );
+        insight = analyzed.ai_insight;
+      }
+    }
+
+    if (!insight) {
+      const medLines = (row.medications ?? [])
+        .map((m) => m.medication_name)
+        .join(', ');
+      insight = await this.medicalImageAnalyzer.analyzeFromTextContext({
+        title: row.title,
+        notes: [row.symptoms, medLines].filter(Boolean).join(' — ') || null,
+        recordType: 'Prescription',
+        outputLang,
+      });
+    }
+
+    row.ai_insight = insight;
+    await this.repo.save(row);
+    void this.knowledgeIndexer.indexPrescription(row.id).catch(() => undefined);
+    return this.findOneForPatientUser(id, userId, role);
+  }
+
   async analyzeImageBuffer(
     userId: string,
     buffer: Buffer,
@@ -318,7 +360,7 @@ export class PrescriptionsService {
       PRESCRIPTION_IMAGE_POINT_COST,
       'operation',
     );
-    return this.imageAnalyzer.extractMedications(
+    return this.prescriptionImageAnalyzer.extractMedications(
       buffer.toString('base64'),
       mimeType,
       outputLang,
@@ -336,7 +378,7 @@ export class PrescriptionsService {
       PRESCRIPTION_IMAGE_POINT_COST,
       'operation',
     );
-    return this.imageAnalyzer.extractMedications(
+    return this.prescriptionImageAnalyzer.extractMedications(
       imageBase64,
       mimeType,
       outputLang,

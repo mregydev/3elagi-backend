@@ -19,6 +19,9 @@ import { MedicalDocument } from '../entities/medical-document.entity';
 import { DoctorPatientAccessService } from '../doctor-patient-access/doctor-patient-access.service';
 import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
 import { DiagnosisDocumentService } from './diagnosis-document.service';
+import { MedicalRecordImageAnalyzerService } from '../medical-documents/medical-record-image-analyzer.service';
+import { UploadsService } from '../uploads/uploads.service';
+import type { MedicalAiInsight } from '../common/medical-ai-insight.types';
 
 type DiagnosisWithDocuments = Diagnosis & { documents?: MedicalDocument[] };
 
@@ -37,6 +40,8 @@ export class DiagnosisService {
     private doctorPatientAccessService: DoctorPatientAccessService,
     private knowledgeIndexer: KnowledgeIndexerService,
     private diagnosisDocuments: DiagnosisDocumentService,
+    private imageAnalyzer: MedicalRecordImageAnalyzerService,
+    private uploads: UploadsService,
   ) {}
 
   private scheduleIndexDiagnosis(diagnosisId: string): void {
@@ -237,6 +242,41 @@ export class DiagnosisService {
     );
     this.scheduleIndexDiagnosis(saved.id);
     return this.findOne(saved.id, userId, userRole);
+  }
+
+  async generateInsightForPatientUser(
+    id: string,
+    userId: string,
+    outputLang: 'ar' | 'en' = 'en',
+  ) {
+    const row = await this.findOneForPatientUser(id, userId);
+    let insight: MedicalAiInsight | null = null;
+    const docs = row.documents ?? [];
+    for (const doc of docs) {
+      if (!doc.file_url?.trim()) continue;
+      const buffer = await this.uploads.getBufferFromUrl(doc.file_url);
+      if (!buffer?.length) continue;
+      const analyzed = await this.imageAnalyzer.analyzeImage(
+        buffer.toString('base64'),
+        'image/jpeg',
+        outputLang,
+      );
+      insight = analyzed.ai_insight;
+      break;
+    }
+    if (!insight) {
+      const symptomText = (row.symptoms ?? []).map((s) => s.desc).join(', ');
+      insight = await this.imageAnalyzer.analyzeFromTextContext({
+        title: row.desc,
+        notes: symptomText || null,
+        recordType: 'Diagnosis',
+        outputLang,
+      });
+    }
+    row.ai_insight = insight;
+    await this.diagnosisRepo.save(row);
+    this.scheduleIndexDiagnosis(row.id);
+    return this.findOneForPatientUser(id, userId);
   }
 
   async update(id: string, dto: UpdateDiagnosisDto, userId: string, userRole: string) {

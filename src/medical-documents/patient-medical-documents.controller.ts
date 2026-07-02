@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -7,20 +8,37 @@ import {
   Post,
   Query,
   Request,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { MedicalDocumentsService } from './medical-documents.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { CreatePatientMedicalDocumentDto } from './dto/create-patient-medical-document.dto';
 import { DocumentType } from '../entities/medical-document.entity';
+import { UploadsService } from '../uploads/uploads.service';
+
+const MEDICAL_IMAGE_MIMES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'image/heic',
+  'image/heif',
+  'application/pdf',
+]);
 
 @Controller('patient/medical-documents')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('patient', 'doctor')
 export class PatientMedicalDocumentsController {
-  constructor(private readonly service: MedicalDocumentsService) {}
+  constructor(
+    private readonly service: MedicalDocumentsService,
+    private readonly uploads: UploadsService,
+  ) {}
 
   @Get()
   findMine(
@@ -30,9 +48,93 @@ export class PatientMedicalDocumentsController {
     return this.service.findForPatientUser(req.user.id, type);
   }
 
+  @Get(':id')
+  findOne(@Param('id') id: string, @Request() req) {
+    return this.service.findOneForPatientUser(id, req.user.id);
+  }
+
   @Post()
   create(@Body() dto: CreatePatientMedicalDocumentDto, @Request() req) {
     return this.service.createForPatientUser(req.user.id, req.user.role, dto);
+  }
+
+  @Post('analyze-image')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        const mime = (file.mimetype || '').toLowerCase();
+        if (MEDICAL_IMAGE_MIMES.has(mime) || mime.startsWith('image/')) {
+          cb(null, true);
+          return;
+        }
+        cb(new BadRequestException('Unsupported file type'), false);
+      },
+    }),
+  )
+  analyzeImage(
+    @UploadedFile() file: Express.Multer.File,
+    @Query('lang') lang: 'ar' | 'en' | undefined,
+    @Request() req,
+  ) {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('Image file is required');
+    }
+    const outputLang = lang === 'ar' ? 'ar' : 'en';
+    return this.service.analyzeImageBuffer(
+      file.buffer,
+      file.mimetype || 'image/jpeg',
+      outputLang,
+    );
+  }
+
+  @Post('from-image')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        const mime = (file.mimetype || '').toLowerCase();
+        if (MEDICAL_IMAGE_MIMES.has(mime) || mime.startsWith('image/')) {
+          cb(null, true);
+          return;
+        }
+        cb(new BadRequestException('Unsupported file type'), false);
+      },
+    }),
+  )
+  async createFromImage(
+    @UploadedFile() file: Express.Multer.File,
+    @Query('lang') lang: 'ar' | 'en' | undefined,
+    @Request() req,
+  ) {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('Image file is required');
+    }
+    const outputLang = lang === 'ar' ? 'ar' : 'en';
+    const analyzed = await this.service.analyzeImageBuffer(
+      file.buffer,
+      file.mimetype || 'image/jpeg',
+      outputLang,
+    );
+    const uploaded = await this.uploads.uploadFile(file);
+    const fileUrl = uploaded.url || uploaded.objectPath;
+    return this.service.createFromAnalyzedImage({
+      userId: req.user.id,
+      role: req.user.role,
+      fileUrl,
+      fileName: file.originalname || 'medical-record.jpg',
+      analyzed,
+    });
+  }
+
+  @Post(':id/generate-insight')
+  generateInsight(
+    @Param('id') id: string,
+    @Query('lang') lang: 'ar' | 'en' | undefined,
+    @Request() req,
+  ) {
+    const outputLang = lang === 'ar' ? 'ar' : 'en';
+    return this.service.generateInsightForDocument(id, req.user.id, outputLang);
   }
 
   @Delete(':id')

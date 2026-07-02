@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Request, UseGuards } from '@nestjs/common';
 import { DiagnosisService } from './diagnosis.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -37,5 +37,16 @@ export class PatientDiagnosisController {
     @Request() req,
   ) {
     return this.service.addSymptomForPatientUser(id, req.user.id, dto.desc);
+  }
+
+  @Post(':id/generate-insight')
+  @Roles('patient', 'doctor')
+  generateInsight(
+    @Param('id') id: string,
+    @Query('lang') lang: 'ar' | 'en' | undefined,
+    @Request() req,
+  ) {
+    const outputLang = lang === 'ar' ? 'ar' : 'en';
+    return this.service.generateInsightForPatientUser(id, req.user.id, outputLang);
   }
 }

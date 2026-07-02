@@ -12,16 +12,19 @@ import { Symptom } from '../entities/symptom.entity';
 import { DoctorPatientAccessModule } from '../doctor-patient-access/doctor-patient-access.module';
 import { AiModule } from '../ai/ai.module';
 import { DiagnosisModule } from '../diagnosis/diagnosis.module';
+import { UploadsModule } from '../uploads/uploads.module';
+import { MedicalRecordImageAnalyzerService } from './medical-record-image-analyzer.service';
 
 @Module({
   imports: [
     DoctorPatientAccessModule,
     AiModule,
     DiagnosisModule,
+    UploadsModule,
     TypeOrmModule.forFeature([MedicalDocument, Patient, User, Doctor, Diagnosis, Symptom]),
   ],
   controllers: [MedicalDocumentsController, PatientMedicalDocumentsController],
-  providers: [MedicalDocumentsService],
-  exports: [MedicalDocumentsService],
+  providers: [MedicalDocumentsService, MedicalRecordImageAnalyzerService],
+  exports: [MedicalDocumentsService, MedicalRecordImageAnalyzerService],
 })
 export class MedicalDocumentsModule {}

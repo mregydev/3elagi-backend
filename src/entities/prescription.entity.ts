@@ -11,6 +11,7 @@ import { Doctor } from './doctor.entity';
 import { Patient } from './patient.entity';
 import { Clinic } from './clinic.entity';
 import { PrescriptionMedication } from './prescription-medication.entity';
+import type { MedicalAiInsight } from '../common/medical-ai-insight.types';
 
 export interface PrescriptionItem {
   name: string;
@@ -70,6 +71,9 @@ export class Prescription {
   /** Scanned/uploaded prescription photo saved with the record. */
   @Column({ nullable: true })
   image_url: string;
+
+  @Column({ type: 'jsonb', nullable: true })
+  ai_insight: MedicalAiInsight | null;
 
   @CreateDateColumn()
   created_at: Date;

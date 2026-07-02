@@ -58,6 +58,22 @@ export class PrescriptionsController {
     return this.service.findOneForPatientUser(id, req.user.id, req.user.role);
   }
 
+  @Post('patient-user/:patientUserId/:id/generate-insight')
+  @Roles('doctor', 'patient')
+  generateInsight(
+    @Param('id') id: string,
+    @Query('lang') lang: 'ar' | 'en' | undefined,
+    @Request() req,
+  ) {
+    const outputLang = lang === 'ar' ? 'ar' : 'en';
+    return this.service.generateInsightForPatientUser(
+      id,
+      req.user.id,
+      req.user.role,
+      outputLang,
+    );
+  }
+
   @Get('template')
   @Roles('doctor')
   template(@Query('title') title: string, @Request() req) {

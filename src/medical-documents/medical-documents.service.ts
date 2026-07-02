@@ -18,6 +18,10 @@ import { CreatePatientMedicalDocumentDto } from './dto/create-patient-medical-do
 import { DoctorPatientAccessService } from '../doctor-patient-access/doctor-patient-access.service';
 import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
 import { DiagnosisDocumentService } from '../diagnosis/diagnosis-document.service';
+import { MedicalRecordImageAnalyzerService } from './medical-record-image-analyzer.service';
+import { UploadsService } from '../uploads/uploads.service';
+import type { MedicalAiInsight } from '../common/medical-ai-insight.types';
+import type { AnalyzedMedicalRecordImage } from './medical-record-image-analyzer.service';
 
 @Injectable()
 export class MedicalDocumentsService {
@@ -39,6 +43,8 @@ export class MedicalDocumentsService {
     private doctorPatientAccessService: DoctorPatientAccessService,
     private knowledgeIndexer: KnowledgeIndexerService,
     private diagnosisDocuments: DiagnosisDocumentService,
+    private imageAnalyzer: MedicalRecordImageAnalyzerService,
+    private uploads: UploadsService,
   ) {}
 
   private async enrichPatientDocuments(docs: MedicalDocument[]) {
@@ -123,10 +129,98 @@ export class MedicalDocumentsService {
       file_name: dto.file_name?.trim() || 'upload.jpg',
       notes,
       title,
+      ai_insight: dto.ai_insight ?? null,
     });
     const saved = await this.docRepo.save(doc);
     this.scheduleIndexDocument(saved.id);
     return saved;
+  }
+
+  async findOneForPatientUser(id: string, userId: string) {
+    const doc = await this.docRepo.findOne({ where: { id } });
+    if (!doc) throw new NotFoundException('Document not found');
+    if (doc.patient_id !== userId) {
+      throw new ForbiddenException('You can only access your own documents');
+    }
+    const [enriched] = await this.enrichPatientDocuments([doc]);
+    return enriched;
+  }
+
+  analyzeImageBuffer(
+    buffer: Buffer,
+    mimeType: string,
+    outputLang: 'ar' | 'en' = 'en',
+  ): Promise<AnalyzedMedicalRecordImage> {
+    return this.imageAnalyzer.analyzeImage(
+      buffer.toString('base64'),
+      mimeType,
+      outputLang,
+    );
+  }
+
+  async generateInsightForDocument(
+    id: string,
+    userId: string,
+    outputLang: 'ar' | 'en' = 'en',
+  ) {
+    const doc = await this.docRepo.findOne({ where: { id } });
+    if (!doc) throw new NotFoundException('Document not found');
+    if (doc.patient_id !== userId) {
+      throw new ForbiddenException('You can only access your own documents');
+    }
+
+    let insight: MedicalAiInsight | null = null;
+    if (doc.file_url?.trim()) {
+      const buffer = await this.uploads.getBufferFromUrl(doc.file_url);
+      if (buffer?.length) {
+        const mime = doc.file_name?.match(/\.png$/i)
+          ? 'image/png'
+          : doc.file_name?.match(/\.webp$/i)
+            ? 'image/webp'
+            : 'image/jpeg';
+        const analyzed = await this.imageAnalyzer.analyzeImage(
+          buffer.toString('base64'),
+          mime,
+          outputLang,
+        );
+        insight = analyzed.ai_insight;
+      }
+    }
+
+    if (!insight) {
+      insight = await this.imageAnalyzer.analyzeFromTextContext({
+        title: doc.title ?? doc.type,
+        notes: doc.notes,
+        recordType: doc.type,
+        outputLang,
+      });
+    }
+
+    doc.ai_insight = insight;
+    const saved = await this.docRepo.save(doc);
+    this.scheduleIndexDocument(saved.id);
+    const [enriched] = await this.enrichPatientDocuments([saved]);
+    return enriched;
+  }
+
+  async createFromAnalyzedImage(input: {
+    userId: string;
+    role: string;
+    fileUrl: string;
+    fileName: string;
+    analyzed: AnalyzedMedicalRecordImage;
+    patientUserId?: string;
+  }) {
+    const dto: CreatePatientMedicalDocumentDto = {
+      type: input.analyzed.type,
+      file_url: input.fileUrl,
+      file_name: input.fileName,
+      title: input.analyzed.title,
+      notes: input.analyzed.notes,
+      ai_insight: input.analyzed.ai_insight,
+      patient_user_id: input.patientUserId,
+    };
+    return this.createForPatientUser(input.userId, input.role, dto);
   }
 
   async findByPatient(

@@ -1,5 +1,15 @@
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import { DocumentType } from '../../entities/medical-document.entity';
+import type { MedicalAiInsight } from '../../common/medical-ai-insight.types';
+
+class MedicalAiInsightDto {
+  @IsString()
+  description!: string;
+
+  @IsString()
+  possible_diseases!: string;
+}
 
 const PATIENT_UPLOAD_TYPES = [DocumentType.LAB, DocumentType.XRAY] as const;
 export type PatientUploadDocumentType = (typeof PATIENT_UPLOAD_TYPES)[number];
@@ -25,4 +35,9 @@ export class CreatePatientMedicalDocumentDto {
   @IsOptional()
   @IsString()
   patient_user_id?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => MedicalAiInsightDto)
+  ai_insight?: MedicalAiInsight;
 }

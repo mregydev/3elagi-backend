@@ -15,11 +15,15 @@ import { PatientProfile } from '../entities/patient-profile.entity';
 import { MedicalDocument } from '../entities/medical-document.entity';
 import { DoctorPatientAccessModule } from '../doctor-patient-access/doctor-patient-access.module';
 import { AiModule } from '../ai/ai.module';
+import { MedicalDocumentsModule } from '../medical-documents/medical-documents.module';
+import { UploadsModule } from '../uploads/uploads.module';
 
 @Module({
   imports: [
     DoctorPatientAccessModule,
     AiModule,
+    MedicalDocumentsModule,
+    UploadsModule,
     TypeOrmModule.forFeature([
       Diagnosis,
       DiagnosisDocument,

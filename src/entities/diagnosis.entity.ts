@@ -11,6 +11,7 @@ import {
 import { Patient } from './patient.entity';
 import { Doctor } from './doctor.entity';
 import { Symptom } from './symptom.entity';
+import type { MedicalAiInsight } from '../common/medical-ai-insight.types';
 
 @Entity('diagnoses')
 export class Diagnosis {
@@ -36,6 +37,9 @@ export class Diagnosis {
 
   @OneToMany(() => Symptom, (s) => s.diagnosis)
   symptoms: Symptom[];
+
+  @Column({ type: 'jsonb', nullable: true })
+  ai_insight: MedicalAiInsight | null;
 
   @CreateDateColumn()
   created_at: Date;
