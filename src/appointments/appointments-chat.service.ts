@@ -491,7 +491,7 @@ export class AppointmentsChatService implements OnModuleInit, OnModuleDestroy {
 
   async processDueReminders(): Promise<void> {
     const now = new Date();
-    const today = now.toISOString().slice(0, 10);
+    const today = localDateYmd(now);
 
     const appointments = await this.appointmentRepo.find({
       where: {
