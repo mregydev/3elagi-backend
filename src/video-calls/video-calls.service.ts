@@ -13,6 +13,7 @@ import {
   type VideoCallStatus,
 } from '../entities/video-call-session.entity';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
+import { PresenceGateway } from '../presence/presence.gateway';
 import { UsersService } from '../users/users.service';
 import { WherebyService } from '../whereby/whereby.service';
 import { CreateVideoCallDto } from './dto/create-video-call.dto';
@@ -37,6 +38,7 @@ export class VideoCallsService {
     @InjectRepository(User) private readonly userRepo: Repository<User>,
     private readonly whereby: WherebyService,
     private readonly push: PushNotificationsService,
+    private readonly presenceGateway: PresenceGateway,
     private readonly users: UsersService,
   ) {}
 
@@ -95,6 +97,12 @@ export class VideoCallsService {
       doctor_name: doctorName,
     });
     await this.sessionRepo.save(session);
+
+    this.presenceGateway.emitToUser(dto.doctor_user_id, 'video-call:incoming', {
+      session_id: session.id,
+      caller_id: patientUserId,
+      caller_name: patientName,
+    });
 
     void this.push
       .sendIncomingVideoCall({

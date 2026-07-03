@@ -4,6 +4,7 @@ import { AuthModule } from '../auth/auth.module';
 import { User } from '../entities/user.entity';
 import { VideoCallSession } from '../entities/video-call-session.entity';
 import { PushNotificationsModule } from '../push-notifications/push-notifications.module';
+import { PresenceModule } from '../presence/presence.module';
 import { UsersModule } from '../users/users.module';
 import { WherebyModule } from '../whereby/whereby.module';
 import { VideoCallsController } from './video-calls.controller';
@@ -15,6 +16,7 @@ import { VideoCallsService } from './video-calls.service';
     WherebyModule,
     UsersModule,
     PushNotificationsModule,
+    PresenceModule,
     TypeOrmModule.forFeature([VideoCallSession, User]),
   ],
   controllers: [VideoCallsController],

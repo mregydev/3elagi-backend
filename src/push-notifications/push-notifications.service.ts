@@ -39,8 +39,13 @@ export class PushNotificationsService {
     await this.factory.getActive().sendAiMessage(input);
   }
 
-  /** Always delivered — rings even when the doctor is online in the app. */
   async sendIncomingVideoCall(input: IncomingVideoCallPushInput): Promise<void> {
+    if (this.presence.isUserOnline(input.recipientId)) {
+      this.logger.debug(
+        `Incoming call push skipped — recipient ${input.recipientId} is online`,
+      );
+      return;
+    }
     await this.factory.getActive().sendIncomingVideoCall(input);
   }
 
