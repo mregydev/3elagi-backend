@@ -18,7 +18,15 @@ export class CreateMessageDto {
   recipient_id: string;
 
   @IsOptional()
-  @IsIn(['text', 'image', 'video', 'voice', 'medical_link', 'access_action'])
+  @IsIn([
+    'text',
+    'image',
+    'video',
+    'voice',
+    'medical_link',
+    'access_action',
+    'appointment_action',
+  ])
   type?: MessageType;
 
   @ValidateIf((dto: CreateMessageDto) => (dto.type ?? 'text') === 'text')

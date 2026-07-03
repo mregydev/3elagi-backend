@@ -84,6 +84,15 @@ export class Appointment {
   @Column({ type: 'boolean', default: false })
   hide_name: boolean;
 
+  @Column({ type: 'text', nullable: true })
+  meeting_link: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  video_call_session_id: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  reminder_sent_at: Date | null;
+
   @CreateDateColumn()
   created_at: Date;
 

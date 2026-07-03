@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Message } from '../entities/message.entity';
 import { User } from '../entities/user.entity';
@@ -7,6 +7,7 @@ import { PresenceModule } from '../presence/presence.module';
 import { DoctorPatientAccessModule } from '../doctor-patient-access/doctor-patient-access.module';
 import { MessageEmotionsModule } from '../message-emotions/message-emotions.module';
 import { PushNotificationsModule } from '../push-notifications/push-notifications.module';
+import { AppointmentsModule } from '../appointments/appointments.module';
 import { MessageEmotionsService } from '../message-emotions/message-emotions.service';
 import { MessagesController } from './messages.controller';
 import { MessagesService } from './messages.service';
@@ -19,6 +20,7 @@ import { MessagesService } from './messages.service';
     DoctorPatientAccessModule,
     MessageEmotionsModule,
     PushNotificationsModule,
+    forwardRef(() => AppointmentsModule),
   ],
   controllers: [MessagesController],
   providers: [MessagesService],

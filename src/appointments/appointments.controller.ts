@@ -7,14 +7,25 @@ import {
   Param,
   Body,
   Query,
+  Request,
+  UseGuards,
 } from '@nestjs/common';
 import { AppointmentsService } from './appointments.service';
+import { AppointmentsChatService } from './appointments-chat.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
+import { ChatBookAppointmentDto } from './dto/chat-book-appointment.dto';
+import { AppointmentActionDto } from './dto/appointment-action.dto';
 import { AppointmentStatus } from '../entities/appointment.entity';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 
 @Controller('appointments')
 export class AppointmentsController {
-  constructor(private readonly service: AppointmentsService) {}
+  constructor(
+    private readonly service: AppointmentsService,
+    private readonly chatService: AppointmentsChatService,
+  ) {}
 
   @Get('clinic/:clinicId/screen')
   getClinicQueueScreen(@Param('clinicId') clinicId: string) {
@@ -49,6 +60,36 @@ export class AppointmentsController {
   @Post()
   create(@Body() dto: CreateAppointmentDto) {
     return this.service.create(dto);
+  }
+
+  @Post('chat-book')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('patient')
+  chatBook(
+    @Request() req: { user: { id: string } },
+    @Body() dto: ChatBookAppointmentDto,
+  ) {
+    return this.chatService.bookFromChat(
+      req.user.id,
+      dto.doctor_user_id,
+      dto.date,
+      dto.time,
+    );
+  }
+
+  @Post('chat-action')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('doctor', 'patient')
+  chatAction(
+    @Request() req: { user: { id: string } },
+    @Body() dto: AppointmentActionDto,
+  ) {
+    return this.chatService.handleAction(req.user.id, dto.recipient_id, {
+      appointment_id: dto.appointment_id,
+      action: dto.action,
+      date: '',
+      time: '',
+    });
   }
 
   @Patch(':id/status')

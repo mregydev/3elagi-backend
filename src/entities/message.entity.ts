@@ -14,7 +14,8 @@ export type MessageType =
   | 'video'
   | 'voice'
   | 'medical_link'
-  | 'access_action';
+  | 'access_action'
+  | 'appointment_action';
 
 export interface MedicalLinkMeta {
   record_type: 'lab' | 'xray' | 'diagnosis';
@@ -35,7 +36,25 @@ export interface AccessActionMeta {
   action: AccessActionType;
 }
 
-export type MessageAttachmentMeta = MedicalLinkMeta | AccessActionMeta;
+export type AppointmentActionType =
+  | 'request'
+  | 'confirm'
+  | 'reject'
+  | 'cancel';
+
+export interface AppointmentActionMeta {
+  appointment_id: string;
+  action: AppointmentActionType;
+  date: string;
+  time: string;
+  status?: string;
+  meeting_link?: string | null;
+}
+
+export type MessageAttachmentMeta =
+  | MedicalLinkMeta
+  | AccessActionMeta
+  | AppointmentActionMeta;
 
 @Entity('messages')
 @Index('IDX_messages_creator_recipient', ['creator', 'recipient'])

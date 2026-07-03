@@ -5,6 +5,9 @@ import type { ExpoPushMessage } from '../expo-push.types';
 import { isValidExpoPushToken } from '../expo-push.tokens';
 import type {
   AiPushInput,
+  AppointmentReminderPushInput,
+  AppointmentRequestPushInput,
+  AppointmentStatusPushInput,
   ChatPushInput,
   IncomingVideoCallPushInput,
   PushProvider,
@@ -12,6 +15,7 @@ import type {
 
 const CHAT_CHANNEL_ID = 'chat-messages';
 const VIDEO_CALL_CHANNEL_ID = 'video-calls';
+const APPOINTMENT_CHANNEL_ID = 'appointments';
 
 function truncateTitle(text: string, max = 64): string {
   const trimmed = text?.trim() ?? '';
@@ -85,6 +89,63 @@ export class ExpoPushProvider implements PushProvider {
       },
       sound: 'default',
       channelId: VIDEO_CALL_CHANNEL_ID,
+      priority: 'high',
+    }));
+  }
+
+  async sendAppointmentRequest(input: AppointmentRequestPushInput): Promise<void> {
+    const patientName = truncateTitle(input.patientName, 48);
+    await this.sendToUser(input.recipientId, (to) => ({
+      to,
+      title: 'Appointment request',
+      body: `${patientName} requested ${input.date} ${input.time}`,
+      data: {
+        type: 'appointment_request',
+        appointmentId: input.appointmentId,
+        chatId: input.patientUserId,
+      },
+      sound: 'default',
+      channelId: APPOINTMENT_CHANNEL_ID,
+      priority: 'high',
+    }));
+  }
+
+  async sendAppointmentStatus(input: AppointmentStatusPushInput): Promise<void> {
+    const actorName = truncateTitle(input.actorName, 48);
+    const verb =
+      input.action === 'confirm'
+        ? 'confirmed'
+        : input.action === 'reject'
+          ? 'declined'
+          : 'cancelled';
+    await this.sendToUser(input.recipientId, (to) => ({
+      to,
+      title: 'Appointment update',
+      body: `${actorName} ${verb} ${input.date} ${input.time}`,
+      data: {
+        type: 'appointment_status',
+        appointmentId: input.appointmentId,
+        action: input.action,
+      },
+      sound: 'default',
+      channelId: APPOINTMENT_CHANNEL_ID,
+      priority: 'default',
+    }));
+  }
+
+  async sendAppointmentReminder(input: AppointmentReminderPushInput): Promise<void> {
+    await this.sendToUser(input.recipientId, (to) => ({
+      to,
+      title: 'Appointment starting now',
+      body: `Your meeting at ${input.when} is ready. Tap to join.`,
+      data: {
+        type: 'appointment_reminder',
+        appointmentId: input.appointmentId,
+        sessionId: input.sessionId,
+        meetingLink: input.meetingLink,
+      },
+      sound: 'default',
+      channelId: APPOINTMENT_CHANNEL_ID,
       priority: 'high',
     }));
   }

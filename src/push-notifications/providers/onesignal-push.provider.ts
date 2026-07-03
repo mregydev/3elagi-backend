@@ -2,6 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { OneSignalPushClient } from '../onesignal-push.client';
 import type {
   AiPushInput,
+  AppointmentReminderPushInput,
+  AppointmentRequestPushInput,
+  AppointmentStatusPushInput,
   ChatPushInput,
   IncomingVideoCallPushInput,
   PushProvider,
@@ -57,6 +60,54 @@ export class OneSignalPushProvider implements PushProvider {
         sessionId: input.sessionId,
         callerId: input.callerId,
         callerName: input.callerName,
+      },
+    );
+  }
+
+  async sendAppointmentRequest(input: AppointmentRequestPushInput): Promise<void> {
+    const patientName = truncateTitle(input.patientName, 48);
+    await this.sendToUser(
+      input.recipientId,
+      'Appointment request',
+      `${patientName} requested ${input.date} ${input.time}`,
+      {
+        type: 'appointment_request',
+        appointmentId: input.appointmentId,
+        chatId: input.patientUserId,
+      },
+    );
+  }
+
+  async sendAppointmentStatus(input: AppointmentStatusPushInput): Promise<void> {
+    const actorName = truncateTitle(input.actorName, 48);
+    const verb =
+      input.action === 'confirm'
+        ? 'confirmed'
+        : input.action === 'reject'
+          ? 'declined'
+          : 'cancelled';
+    await this.sendToUser(
+      input.recipientId,
+      'Appointment update',
+      `${actorName} ${verb} ${input.date} ${input.time}`,
+      {
+        type: 'appointment_status',
+        appointmentId: input.appointmentId,
+        action: input.action,
+      },
+    );
+  }
+
+  async sendAppointmentReminder(input: AppointmentReminderPushInput): Promise<void> {
+    await this.sendToUser(
+      input.recipientId,
+      'Appointment starting now',
+      `Your meeting at ${input.when} is ready. Tap to join.`,
+      {
+        type: 'appointment_reminder',
+        appointmentId: input.appointmentId,
+        sessionId: input.sessionId,
+        meetingLink: input.meetingLink,
       },
     );
   }

@@ -8,6 +8,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
   AccessActionType,
+  AppointmentActionMeta,
+  AppointmentActionType,
   Message,
   MessageType,
 } from '../entities/message.entity';
@@ -21,6 +23,7 @@ import { UsersService } from '../users/users.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { MessageEmotionsService } from '../message-emotions/message-emotions.service';
+import { AppointmentsChatService } from '../appointments/appointments-chat.service';
 
 const ACCESS_ACTIONS: AccessActionType[] = [
   'grant_records',
@@ -29,6 +32,13 @@ const ACCESS_ACTIONS: AccessActionType[] = [
   'doctor_block',
   'patient_unblock',
   'doctor_unblock',
+];
+
+const APPOINTMENT_ACTIONS: AppointmentActionType[] = [
+  'request',
+  'confirm',
+  'reject',
+  'cancel',
 ];
 
 const MESSAGE_EDIT_WINDOW_MS = 15 * 60 * 1000;
@@ -43,6 +53,7 @@ export class MessagesService {
     private pushNotifications: PushNotificationsService,
     private doctorPatientAccessService: DoctorPatientAccessService,
     private messageEmotionsService: MessageEmotionsService,
+    private appointmentsChatService: AppointmentsChatService,
   ) {}
 
   private mapMessage(row: Message, pointsBalance?: number, messageCost?: number) {
@@ -129,6 +140,7 @@ export class MessagesService {
   ): Promise<void> {
     if (recipientId === senderId) return;
     if (message.type === 'access_action') return;
+    if (message.type === 'appointment_action') return;
 
     const senderName = await this.usersService.getDisplayName(senderId);
 
@@ -165,6 +177,17 @@ export class MessagesService {
         throw new BadRequestException('invalid access action');
       }
       return DoctorPatientAccessService.accessActionLabel(action);
+    }
+    if (type === 'appointment_action') {
+      const meta = dto.attachment_meta as AppointmentActionMeta | undefined;
+      if (!meta?.action || !APPOINTMENT_ACTIONS.includes(meta.action)) {
+        throw new BadRequestException('invalid appointment action');
+      }
+      return AppointmentsChatService.appointmentActionLabel(
+        meta.action,
+        meta.date,
+        meta.time,
+      );
     }
     return dto.content?.trim() || '';
   }
@@ -303,6 +326,39 @@ export class MessagesService {
       });
 
       return mapped;
+    }
+
+    if (type === 'appointment_action') {
+      const pair = await this.assertChatParticipants(userId, dto.recipient_id);
+      const roles = new Set([pair.sender.role, pair.recipient.role]);
+      const isDoctorPatient =
+        roles.has(UserRole.DOCTOR) &&
+        roles.has(UserRole.PATIENT) &&
+        roles.size === 2;
+      if (!isDoctorPatient) {
+        throw new BadRequestException(
+          'Appointment actions are only available in doctor-patient chats',
+        );
+      }
+
+      const meta = dto.attachment_meta as AppointmentActionMeta | undefined;
+      if (!meta?.action || !APPOINTMENT_ACTIONS.includes(meta.action)) {
+        throw new BadRequestException('invalid appointment action');
+      }
+      if (meta.action === 'request') {
+        throw new BadRequestException(
+          'Use POST /appointments/chat-book to request an appointment',
+        );
+      }
+
+      await this.assertCanChat(userId, dto.recipient_id);
+
+      const saved = await this.appointmentsChatService.handleAction(
+        userId,
+        dto.recipient_id,
+        meta,
+      );
+      return this.mapMessage(saved);
     }
 
     await this.assertCanChat(userId, dto.recipient_id);

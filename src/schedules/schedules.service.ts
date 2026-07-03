@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { LessThanOrEqual, MoreThanOrEqual, Not, Repository } from 'typeorm';
+import { In, LessThanOrEqual, MoreThanOrEqual, Not, Repository } from 'typeorm';
 import { DoctorSchedule } from '../entities/doctor-schedule.entity';
 import {
   DoctorScheduleOverride,
@@ -266,7 +266,12 @@ export class SchedulesService {
       where: {
         doctor_id: doctorId,
         date: dateStr,
-        status: Not(AppointmentStatus.CANCELLED),
+        status: Not(
+          In([
+            AppointmentStatus.CANCELLED,
+            AppointmentStatus.REJECTED,
+          ]),
+        ),
       },
     });
     const taken = new Set(

@@ -107,6 +107,7 @@ import { WherebyModule } from './whereby/whereby.module';
 import { VideoCallsModule } from './video-calls/video-calls.module';
 import { VideoCallSession } from './entities/video-call-session.entity';
 import { VideoCallSessions1778230000000 } from './migrations/1778230000000-VideoCallSessions';
+import { AppointmentChatFields1778240000000 } from './migrations/1778240000000-AppointmentChatFields';
 
 @Module({
   imports: [
@@ -193,6 +194,7 @@ import { VideoCallSessions1778230000000 } from './migrations/1778230000000-Video
           MedicalRecordAiInsight1778210000000,
           UserPreferredLocale1778220000000,
           VideoCallSessions1778230000000,
+          AppointmentChatFields1778240000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
