@@ -3,6 +3,7 @@ export const KNOWLEDGE_ENTITY_TYPES = [
   'doctor_profile',
   'doctor_directory',
   'speciality_catalog',
+  'admin_knowledge',
   'diagnosis',
   'lab_result',
   'imaging',

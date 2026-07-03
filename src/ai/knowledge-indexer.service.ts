@@ -134,6 +134,51 @@ export class KnowledgeIndexerService implements OnModuleInit {
     await this.cache.bumpKnowledgeBaseVersion();
   }
 
+  async indexAdminKnowledge(
+    sourceId: string,
+    title: string,
+    text: string,
+    metadata?: Record<string, unknown>,
+  ): Promise<void> {
+    const chunks = this.chunkLongText(text);
+    await this.deleteAdminKnowledge(sourceId);
+
+    for (let idx = 0; idx < chunks.length; idx += 1) {
+      await this.upsertChunk({
+        entityType: 'admin_knowledge',
+        entityId: `${sourceId}:${idx + 1}`,
+        patientId: null,
+        doctorId: null,
+        text: chunks[idx],
+        metadata: {
+          scope: PLATFORM_KNOWLEDGE_SCOPE,
+          sourceId,
+          title,
+          chunkIndex: idx + 1,
+          chunkCount: chunks.length,
+          ...(metadata ?? {}),
+        },
+      });
+    }
+
+    this.logger.log(
+      `Indexed admin knowledge ${sourceId} into ${chunks.length} chunk(s)`,
+    );
+    await this.cache.bumpKnowledgeBaseVersion();
+  }
+
+  async deleteAdminKnowledge(sourceId: string): Promise<void> {
+    await this.dataSource.query(
+      `
+      DELETE FROM ai_knowledge_chunks
+      WHERE entity_type = $1
+        AND (entity_id = $2 OR entity_id LIKE $3)
+      `,
+      ['admin_knowledge', sourceId, `${sourceId}:%`],
+    );
+    await this.cache.bumpKnowledgeBaseVersion();
+  }
+
   async reindexPatient(patientUserId: string): Promise<void> {
     await this.indexPatientProfile(patientUserId);
     await this.indexPatientAllergies(patientUserId);
@@ -373,6 +418,35 @@ export class KnowledgeIndexerService implements OnModuleInit {
       .where("REPLACE(pp.phone, ' ', '') = :phone", { phone })
       .getOne();
     return profile?.user_id ?? null;
+  }
+
+  private chunkLongText(text: string): string[] {
+    const normalized = text.replace(/\r\n/g, '\n').trim();
+    if (!normalized) return [];
+
+    const maxChars = 1800;
+    const overlap = 250;
+    if (normalized.length <= maxChars) return [normalized];
+
+    const chunks: string[] = [];
+    let start = 0;
+    while (start < normalized.length) {
+      let end = Math.min(normalized.length, start + maxChars);
+      if (end < normalized.length) {
+        const softBreak = Math.max(
+          normalized.lastIndexOf('\n\n', end),
+          normalized.lastIndexOf('. ', end),
+          normalized.lastIndexOf('\n', end),
+        );
+        if (softBreak > start + 600) {
+          end = softBreak + 1;
+        }
+      }
+      chunks.push(normalized.slice(start, end).trim());
+      if (end >= normalized.length) break;
+      start = Math.max(end - overlap, start + 1);
+    }
+    return chunks.filter(Boolean);
   }
 
   private async upsertChunk(input: UpsertChunkInput): Promise<void> {

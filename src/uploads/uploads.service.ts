@@ -25,6 +25,7 @@ export const ALLOWED_UPLOAD_MIMES = [
   'image/webp',
   'image/gif',
   'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'audio/m4a',
   'audio/mp4',
   'audio/mpeg',
@@ -153,7 +154,7 @@ export class UploadsService {
 
     if (!ALLOWED_UPLOAD_MIMES.includes(mime as (typeof ALLOWED_UPLOAD_MIMES)[number])) {
       throw new BadRequestException(
-        'Only JPEG, PNG, WebP, GIF images and PDF files are allowed',
+        'Only JPEG, PNG, WebP, GIF images, PDF, and DOCX files are allowed',
       );
     }
 

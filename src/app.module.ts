@@ -108,6 +108,8 @@ import { VideoCallsModule } from './video-calls/video-calls.module';
 import { VideoCallSession } from './entities/video-call-session.entity';
 import { VideoCallSessions1778230000000 } from './migrations/1778230000000-VideoCallSessions';
 import { AppointmentChatFields1778240000000 } from './migrations/1778240000000-AppointmentChatFields';
+import { AdminRagSources1778250000000 } from './migrations/1778250000000-AdminRagSources';
+import { AdminRagSource } from './entities/admin-rag-source.entity';
 
 @Module({
   imports: [
@@ -146,6 +148,7 @@ import { AppointmentChatFields1778240000000 } from './migrations/1778240000000-A
           DeviceToken,
           DiagnosisDocument,
           VideoCallSession,
+          AdminRagSource,
         ],
         synchronize: false,
         migrations: [
@@ -195,6 +198,7 @@ import { AppointmentChatFields1778240000000 } from './migrations/1778240000000-A
           UserPreferredLocale1778220000000,
           VideoCallSessions1778230000000,
           AppointmentChatFields1778240000000,
+          AdminRagSources1778250000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',

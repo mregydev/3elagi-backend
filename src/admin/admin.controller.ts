@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Put,
+  Request,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -116,5 +117,37 @@ export class AdminController {
     },
   ) {
     return this.service.upsertDefaultIntake(body);
+  }
+
+  @Get('rag-sources')
+  listRagSources() {
+    return this.service.listRagSources();
+  }
+
+  @Put('rag-sources/text')
+  createRagText(
+    @Request() req: { user: { id: string } },
+    @Body() body: { title?: string; content?: string },
+  ) {
+    return this.service.createRagText(req.user.id, body);
+  }
+
+  @Put('rag-sources/document')
+  createRagDocument(
+    @Request() req: { user: { id: string } },
+    @Body()
+    body: {
+      title?: string;
+      file_url?: string;
+      file_name?: string;
+      mime_type?: string;
+    },
+  ) {
+    return this.service.createRagDocument(req.user.id, body);
+  }
+
+  @Delete('rag-sources/:id')
+  deleteRagSource(@Param('id') id: string) {
+    return this.service.deleteRagSource(id);
   }
 }

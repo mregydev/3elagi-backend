@@ -9,6 +9,7 @@ import { User, UserRole } from '../entities/user.entity';
 import { Doctor, ApprovalStatus } from '../entities/doctor.entity';
 import { Clinic } from '../entities/clinic.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
+import { AdminRagSource } from '../entities/admin-rag-source.entity';
 import {
   IntakeTest,
   IntakeQuestion,
@@ -17,6 +18,7 @@ import { IntakeTestsService } from '../intake-tests/intake-tests.service';
 import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { SpecialitiesService } from '../specialities/specialities.service';
+import { UploadsService } from '../uploads/uploads.service';
 
 const APPROVAL_VALUES: ApprovalStatus[] = ['pending', 'approved', 'rejected'];
 
@@ -58,11 +60,14 @@ export class AdminService {
     @InjectRepository(Clinic) private clinicRepo: Repository<Clinic>,
     @InjectRepository(PatientProfile)
     private patientRepo: Repository<PatientProfile>,
+    @InjectRepository(AdminRagSource)
+    private ragSourceRepo: Repository<AdminRagSource>,
     @InjectRepository(IntakeTest) private intakeRepo: Repository<IntakeTest>,
     private intakeService: IntakeTestsService,
     private knowledgeIndexer: KnowledgeIndexerService,
     private presenceGateway: PresenceGateway,
     private specialitiesService: SpecialitiesService,
+    private uploadsService: UploadsService,
   ) {}
 
   // ----- Doctors -----
@@ -210,6 +215,99 @@ export class AdminService {
     return this.intakeRepo.save(created);
   }
 
+  // ----- Admin RAG sources -----
+  async listRagSources() {
+    const rows = await this.ragSourceRepo.find({
+      order: { created_at: 'DESC' },
+    });
+    return rows.map((row) => this.mapRagSource(row));
+  }
+
+  async createRagText(
+    actorUserId: string,
+    dto: { title?: string; content?: string },
+  ) {
+    const content = dto.content?.trim();
+    if (!content) {
+      throw new BadRequestException('Text content is required');
+    }
+    const title = this.normalizeTitle(dto.title, content, 'Text knowledge');
+    const source = await this.ragSourceRepo.save(
+      this.ragSourceRepo.create({
+        kind: 'text',
+        title,
+        content,
+        created_by: actorUserId,
+      }),
+    );
+    await this.knowledgeIndexer.indexAdminKnowledge(source.id, source.title, source.content, {
+      kind: source.kind,
+      title: source.title,
+    });
+    return this.mapRagSource(source);
+  }
+
+  async createRagDocument(
+    actorUserId: string,
+    dto: {
+      title?: string;
+      file_url?: string;
+      file_name?: string;
+      mime_type?: string;
+    },
+  ) {
+    const fileUrl = dto.file_url?.trim();
+    if (!fileUrl) {
+      throw new BadRequestException('file_url is required');
+    }
+
+    const fileName = dto.file_name?.trim() || 'document';
+    const mimeType = this.detectDocumentMime(dto.mime_type, fileName);
+    if (!mimeType) {
+      throw new BadRequestException('Only PDF and DOCX documents are supported');
+    }
+
+    const buffer = await this.uploadsService.getBufferFromUrl(fileUrl);
+    if (!buffer?.length) {
+      throw new BadRequestException('Could not read uploaded file');
+    }
+
+    const extracted = await this.extractDocumentText(buffer, mimeType);
+    const content = extracted.trim();
+    if (!content) {
+      throw new BadRequestException('No readable text found in the document');
+    }
+
+    const title = this.normalizeTitle(dto.title, fileName, fileName);
+    const source = await this.ragSourceRepo.save(
+      this.ragSourceRepo.create({
+        kind: 'document',
+        title,
+        content,
+        file_url: fileUrl,
+        file_name: fileName,
+        mime_type: mimeType,
+        created_by: actorUserId,
+      }),
+    );
+
+    await this.knowledgeIndexer.indexAdminKnowledge(source.id, source.title, source.content, {
+      kind: source.kind,
+      title: source.title,
+      fileName: source.file_name,
+      mimeType: source.mime_type,
+    });
+    return this.mapRagSource(source);
+  }
+
+  async deleteRagSource(id: string) {
+    const row = await this.ragSourceRepo.findOne({ where: { id } });
+    if (!row) throw new NotFoundException('RAG source not found');
+    await this.ragSourceRepo.delete(id);
+    await this.knowledgeIndexer.deleteAdminKnowledge(id);
+    return { ok: true };
+  }
+
   // Used by the auth seed to ensure exactly one admin user exists.
   async ensureAdminUser(repoUser: User | null): Promise<void> {
     void repoUser; // (no-op marker)
@@ -239,4 +337,70 @@ export class AdminService {
     });
     await this.userRepo.save(u);
   };
+
+  private mapRagSource(row: AdminRagSource) {
+    return {
+      id: row.id,
+      kind: row.kind,
+      title: row.title,
+      file_url: row.file_url,
+      file_name: row.file_name,
+      mime_type: row.mime_type,
+      created_at: row.created_at,
+      preview:
+        row.kind === 'text'
+          ? row.content.slice(0, 220)
+          : row.file_name ?? row.title,
+    };
+  }
+
+  private normalizeTitle(
+    rawTitle: string | undefined,
+    fallbackText: string,
+    defaultTitle: string,
+  ): string {
+    const explicit = rawTitle?.trim();
+    if (explicit) return explicit.slice(0, 255);
+    const candidate = fallbackText.trim().replace(/\s+/g, ' ').slice(0, 255);
+    return candidate || defaultTitle;
+  }
+
+  private detectDocumentMime(
+    rawMime: string | undefined,
+    fileName: string,
+  ): string | null {
+    const mime = rawMime?.trim().toLowerCase() ?? '';
+    if (mime === 'application/pdf') return mime;
+    if (
+      mime ===
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ) {
+      return mime;
+    }
+
+    const lower = fileName.toLowerCase();
+    if (lower.endsWith('.pdf')) return 'application/pdf';
+    if (lower.endsWith('.docx')) {
+      return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    }
+    return null;
+  }
+
+  private async extractDocumentText(
+    buffer: Buffer,
+    mimeType: string,
+  ): Promise<string> {
+    if (mimeType === 'application/pdf') {
+      const mod = await import('pdf-parse');
+      const parsePdf = (mod.default ?? mod) as unknown as (
+        input: Buffer,
+      ) => Promise<{ text?: string }>;
+      const parsed = await parsePdf(buffer);
+      return parsed.text ?? '';
+    }
+
+    const mammoth = await import('mammoth');
+    const parsed = await mammoth.extractRawText({ buffer });
+    return parsed.value ?? '';
+  }
 }

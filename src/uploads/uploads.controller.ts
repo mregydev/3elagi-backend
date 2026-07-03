@@ -33,7 +33,7 @@ export class UploadsController {
           cb(null, true);
         } else {
           cb(new HttpException(
-            'File type not allowed. Supported: images, PDF, audio, and video.',
+            'File type not allowed. Supported: images, PDF, DOCX, audio, and video.',
             HttpStatus.UNPROCESSABLE_ENTITY,
           ), false);
         }

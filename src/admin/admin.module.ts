@@ -6,19 +6,29 @@ import { User } from '../entities/user.entity';
 import { Doctor } from '../entities/doctor.entity';
 import { Clinic } from '../entities/clinic.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
+import { AdminRagSource } from '../entities/admin-rag-source.entity';
 import { IntakeTest } from '../entities/intake-test.entity';
 import { IntakeTestsModule } from '../intake-tests/intake-tests.module';
 import { AiModule } from '../ai/ai.module';
 import { PresenceModule } from '../presence/presence.module';
 import { SpecialitiesModule } from '../specialities/specialities.module';
+import { UploadsModule } from '../uploads/uploads.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Doctor, Clinic, PatientProfile, IntakeTest]),
+    TypeOrmModule.forFeature([
+      User,
+      Doctor,
+      Clinic,
+      PatientProfile,
+      AdminRagSource,
+      IntakeTest,
+    ]),
     IntakeTestsModule,
     AiModule,
     PresenceModule,
     SpecialitiesModule,
+    UploadsModule,
   ],
   controllers: [AdminController],
   providers: [AdminService],
