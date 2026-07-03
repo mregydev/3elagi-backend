@@ -1,6 +1,9 @@
 import {
   Controller,
+  ForbiddenException,
   Get,
+  Headers,
+  InternalServerErrorException,
   Post,
   Patch,
   Delete,
@@ -19,6 +22,7 @@ import { AppointmentStatus } from '../entities/appointment.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { Public } from '../auth/public.decorator';
 
 @Controller('appointments')
 export class AppointmentsController {
@@ -81,6 +85,27 @@ export class AppointmentsController {
       dto.date,
       dto.time,
     );
+  }
+
+  @Post('reminders/check')
+  @Public()
+  async checkDueReminders(
+    @Headers('x-scheduler-token') headerToken?: string,
+    @Query('token') queryToken?: string,
+  ) {
+    const configuredToken = process.env.APPOINTMENT_REMINDER_TRIGGER_TOKEN?.trim();
+    if (!configuredToken) {
+      throw new InternalServerErrorException(
+        'APPOINTMENT_REMINDER_TRIGGER_TOKEN is not configured',
+      );
+    }
+
+    const providedToken = headerToken?.trim() || queryToken?.trim();
+    if (!providedToken || providedToken !== configuredToken) {
+      throw new ForbiddenException('Invalid scheduler token');
+    }
+
+    return this.chatService.sendDueReminders();
   }
 
   @Post('chat-action')

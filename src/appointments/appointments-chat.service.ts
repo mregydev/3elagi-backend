@@ -4,11 +4,9 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  OnModuleDestroy,
-  OnModuleInit,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, IsNull, Not, Repository } from 'typeorm';
+import { In, Not, Repository } from 'typeorm';
 import {
   Appointment,
   AppointmentStatus,
@@ -53,9 +51,8 @@ function isFutureSlot(dateStr: string, time: string, now = new Date()): boolean 
 }
 
 @Injectable()
-export class AppointmentsChatService implements OnModuleInit, OnModuleDestroy {
+export class AppointmentsChatService {
   private readonly logger = new Logger(AppointmentsChatService.name);
-  private reminderTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     @InjectRepository(Appointment)
@@ -73,18 +70,6 @@ export class AppointmentsChatService implements OnModuleInit, OnModuleDestroy {
     private readonly pushNotifications: PushNotificationsService,
     private readonly wherebyService: WherebyService,
   ) {}
-
-  onModuleInit(): void {
-    this.reminderTimer = setInterval(() => {
-      void this.processDueReminders().catch((err) => {
-        this.logger.error('Appointment reminder check failed', err);
-      });
-    }, 60_000);
-  }
-
-  onModuleDestroy(): void {
-    if (this.reminderTimer) clearInterval(this.reminderTimer);
-  }
 
   static appointmentActionLabel(
     action: AppointmentActionType,
@@ -489,7 +474,11 @@ export class AppointmentsChatService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async processDueReminders(): Promise<void> {
+  async sendDueReminders(): Promise<{
+    checkedAppointments: number;
+    remindedAppointments: number;
+    notifiedParticipants: number;
+  }> {
     const now = new Date();
     const today = localDateYmd(now);
 
@@ -497,9 +486,12 @@ export class AppointmentsChatService implements OnModuleInit, OnModuleDestroy {
       where: {
         status: AppointmentStatus.CONFIRMED,
         date: today,
-        reminder_sent_at: IsNull(),
+        reminder_sent_at: null,
       },
     });
+
+    let remindedAppointments = 0;
+    let notifiedParticipants = 0;
 
     for (const appointment of appointments) {
       if (!appointment.time || !appointment.patient_user_id) continue;
@@ -512,7 +504,7 @@ export class AppointmentsChatService implements OnModuleInit, OnModuleDestroy {
       const start = new Date(now);
       start.setHours(h, m, 0, 0);
       const diffMs = start.getTime() - now.getTime();
-      if (diffMs > 5 * 60_000 || diffMs < -10 * 60_000) continue;
+      if (diffMs > 5 * 60_000 || diffMs < 0) continue;
 
       const { roomUrl, sessionId } = await this.ensureMeetingAssets(
         appointment,
@@ -523,34 +515,11 @@ export class AppointmentsChatService implements OnModuleInit, OnModuleDestroy {
         this.usersService.getDisplayName(doctor.user_id),
         this.usersService.getDisplayName(appointment.patient_user_id),
       ]);
+
       appointment.reminder_sent_at = new Date();
       await this.appointmentRepo.save(appointment);
 
       const when = `${appointment.date} ${formatTimeLabel(appointment.time)}`;
-      const reminderMeta: AppointmentActionMeta = {
-        appointment_id: appointment.id,
-        action: 'confirm',
-        date: appointment.date,
-        time: appointment.time ?? '',
-        status: appointment.status,
-        meeting_link: roomUrl,
-      };
-      const reminderMessage = await this.messageRepo.save(
-        this.messageRepo.create({
-          type: 'appointment_action',
-          content: `Your meeting with ${doctorName} is in 5 minutes. Open Appointments to find the room link.`,
-          creator: doctor.user_id,
-          recipient: appointment.patient_user_id,
-          attachment_url: null,
-          attachment_meta: reminderMeta,
-        }),
-      );
-      await this.emitChatMessage(
-        reminderMessage,
-        doctor.user_id,
-        appointment.patient_user_id,
-      );
-
       for (const userId of [appointment.patient_user_id, doctor.user_id]) {
         const otherParticipantName =
           userId === appointment.patient_user_id ? doctorName : patientName;
@@ -574,9 +543,18 @@ export class AppointmentsChatService implements OnModuleInit, OnModuleDestroy {
           when,
           other_participant_name: otherParticipantName,
         });
+        notifiedParticipants += 1;
       }
 
+      remindedAppointments += 1;
       this.logger.log(`Sent appointment reminder for ${appointment.id}`);
     }
+
+    return {
+      checkedAppointments: appointments.length,
+      remindedAppointments,
+      notifiedParticipants,
+    };
   }
+
 }
