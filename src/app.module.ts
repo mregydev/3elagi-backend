@@ -96,6 +96,7 @@ import { PrescriptionImageUrl1778170000000 } from './migrations/1778170000000-Pr
 import { DeviceTokens1778180000000 } from './migrations/1778180000000-DeviceTokens';
 import { DiagnosisDocumentsManyToMany1778190000000 } from './migrations/1778190000000-DiagnosisDocumentsManyToMany';
 import { MedicalRecordAiInsight1778210000000 } from './migrations/1778210000000-MedicalRecordAiInsight';
+import { UserPreferredLocale1778220000000 } from './migrations/1778220000000-UserPreferredLocale';
 import { DeviceToken } from './entities/device-token.entity';
 import { DiagnosisDocument } from './entities/diagnosis-document.entity';
 import { PushNotificationsModule } from './push-notifications/push-notifications.module';
@@ -185,6 +186,7 @@ import { SttModule } from './stt/stt.module';
           DeviceTokens1778180000000,
           DiagnosisDocumentsManyToMany1778190000000,
           MedicalRecordAiInsight1778210000000,
+          UserPreferredLocale1778220000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',

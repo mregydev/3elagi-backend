@@ -64,7 +64,13 @@ export class AuthService {
       });
     }
 
-    return { access_token: token, role: user.role, user_id: user.id, profile };
+    return {
+      access_token: token,
+      role: user.role,
+      user_id: user.id,
+      profile,
+      preferred_locale: user.preferred_locale,
+    };
   }
 
   async changePassword(
@@ -111,7 +117,13 @@ export class AuthService {
     const payload = { sub: user.id, email: user.email, role: user.role };
     const token = this.jwtService.sign(payload);
 
-    return { access_token: token, role: user.role, user_id: user.id, profile };
+    return {
+      access_token: token,
+      role: user.role,
+      user_id: user.id,
+      profile,
+      preferred_locale: user.preferred_locale,
+    };
   }
 
   async registerClinic(dto: RegisterClinicDto) {
@@ -139,7 +151,13 @@ export class AuthService {
     const payload = { sub: user.id, email: user.email, role: user.role };
     const token = this.jwtService.sign(payload);
 
-    return { access_token: token, role: user.role, user_id: user.id, profile: clinic };
+    return {
+      access_token: token,
+      role: user.role,
+      user_id: user.id,
+      profile: clinic,
+      preferred_locale: user.preferred_locale,
+    };
   }
 
   async registerDoctor(dto: RegisterDoctorDto) {
@@ -204,6 +222,12 @@ export class AuthService {
     const payload = { sub: user.id, email: user.email, role: user.role };
     const token = this.jwtService.sign(payload);
 
-    return { access_token: token, role: user.role, user_id: user.id, profile: profile ?? doctor };
+    return {
+      access_token: token,
+      role: user.role,
+      user_id: user.id,
+      profile: profile ?? doctor,
+      preferred_locale: user.preferred_locale,
+    };
   }
 }

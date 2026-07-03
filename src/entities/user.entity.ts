@@ -46,6 +46,9 @@ export class User {
   @Column({ type: 'int', default: 0 })
   points_purchased_total: number;
 
+  @Column({ type: 'varchar', length: 2, nullable: true })
+  preferred_locale: 'ar' | 'en' | null;
+
   @ManyToOne(() => Doctor, { nullable: true, eager: false })
   @JoinColumn({ name: 'doctor_info_id' })
   doctor_info: Doctor | null;

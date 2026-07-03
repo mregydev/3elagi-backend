@@ -35,10 +35,19 @@ export class UsersService {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
+    if (dto.preferred_locale !== undefined) {
+      user.preferred_locale = dto.preferred_locale;
+    }
+
     if (dto.photo_url !== undefined) {
       user.photo_url = dto.photo_url;
-      await this.userRepo.save(user);
+    }
 
+    if (dto.preferred_locale !== undefined || dto.photo_url !== undefined) {
+      await this.userRepo.save(user);
+    }
+
+    if (dto.photo_url !== undefined) {
       if (user.role === UserRole.DOCTOR) {
         const doctor =
           user.doctor_info_id
