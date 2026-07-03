@@ -53,6 +53,7 @@ export class MedicalRecordImageAnalyzerService {
     imageBase64: string,
     mimeType: string,
     outputLang: 'ar' | 'en' = 'en',
+    options?: { includeInsight?: boolean },
   ): Promise<AnalyzedMedicalRecordImage> {
     const apiKey = this.config.get<string>('GEMINI_API_KEY');
     if (!apiKey) {
@@ -80,7 +81,17 @@ export class MedicalRecordImageAnalyzerService {
       const raw = result.response.text().trim();
       const jsonText = this.extractJsonObject(raw);
       const parsed = JSON.parse(jsonText) as Record<string, unknown>;
-      return this.normalizeResult(parsed);
+      const result = this.normalizeResult(parsed);
+      if (options?.includeInsight === false) {
+        return {
+          ...result,
+          ai_insight: {
+            description: '',
+            possible_diseases: '',
+          },
+        };
+      }
+      return result;
     } catch (err) {
       this.logger.warn(
         `Medical image analysis failed: ${err instanceof Error ? err.message : String(err)}`,

@@ -150,12 +150,93 @@ export class MedicalDocumentsService {
     buffer: Buffer,
     mimeType: string,
     outputLang: 'ar' | 'en' = 'en',
+    options?: { includeInsight?: boolean },
   ): Promise<AnalyzedMedicalRecordImage> {
     return this.imageAnalyzer.analyzeImage(
       buffer.toString('base64'),
       mimeType,
       outputLang,
+      options,
     );
+  }
+
+  async updateForPatientUser(
+    id: string,
+    userId: string,
+    role: string,
+    patch: { title?: string; notes?: string },
+  ) {
+    const doc = await this.docRepo.findOne({ where: { id } });
+    if (!doc) throw new NotFoundException('Document not found');
+    if (role === 'patient' && doc.patient_id !== userId) {
+      throw new ForbiddenException('You can only access your own documents');
+    }
+    if (role === 'doctor' && doc.patient_id !== userId) {
+      await this.doctorPatientAccessService.assertDoctorCanEditRecords(
+        userId,
+        doc.patient_id,
+      );
+    }
+    if (patch.title !== undefined) {
+      const title = patch.title.trim();
+      if (!title) throw new BadRequestException('Title is required');
+      doc.title = title;
+    }
+    if (patch.notes !== undefined) {
+      const notes = patch.notes.trim();
+      if (!notes) throw new BadRequestException('Description is required');
+      doc.notes = notes;
+    }
+    const saved = await this.docRepo.save(doc);
+    this.scheduleIndexDocument(saved.id);
+    const [enriched] = await this.enrichPatientDocuments([saved]);
+    return enriched;
+  }
+
+  async generateDetailsForDocument(
+    id: string,
+    userId: string,
+    role: string,
+    outputLang: 'ar' | 'en' = 'en',
+  ) {
+    const doc = await this.docRepo.findOne({ where: { id } });
+    if (!doc) throw new NotFoundException('Document not found');
+    if (role === 'patient' && doc.patient_id !== userId) {
+      throw new ForbiddenException('You can only access your own documents');
+    }
+    if (role === 'doctor' && doc.patient_id !== userId) {
+      await this.doctorPatientAccessService.assertDoctorCanEditRecords(
+        userId,
+        doc.patient_id,
+      );
+    }
+    if (!doc.file_url?.trim()) {
+      throw new BadRequestException('This record has no image to analyze');
+    }
+    const buffer = await this.uploads.getBufferFromUrl(doc.file_url);
+    if (!buffer?.length) {
+      throw new BadRequestException('Could not load the record image');
+    }
+    const mime = doc.file_name?.match(/\.png$/i)
+      ? 'image/png'
+      : doc.file_name?.match(/\.webp$/i)
+        ? 'image/webp'
+        : doc.file_name?.match(/\.avif$/i)
+          ? 'image/avif'
+          : 'image/jpeg';
+    const analyzed = await this.imageAnalyzer.analyzeImage(
+      buffer.toString('base64'),
+      mime,
+      outputLang,
+      { includeInsight: false },
+    );
+    doc.title = analyzed.title;
+    doc.notes = analyzed.notes;
+    doc.type = analyzed.type;
+    const saved = await this.docRepo.save(doc);
+    this.scheduleIndexDocument(saved.id);
+    const [enriched] = await this.enrichPatientDocuments([saved]);
+    return enriched;
   }
 
   async generateInsightForDocument(
@@ -210,6 +291,7 @@ export class MedicalDocumentsService {
     fileName: string;
     analyzed: AnalyzedMedicalRecordImage;
     patientUserId?: string;
+    includeInsight?: boolean;
   }) {
     const dto: CreatePatientMedicalDocumentDto = {
       type: input.analyzed.type,
@@ -217,7 +299,8 @@ export class MedicalDocumentsService {
       file_name: input.fileName,
       title: input.analyzed.title,
       notes: input.analyzed.notes,
-      ai_insight: input.analyzed.ai_insight,
+      ai_insight:
+        input.includeInsight === false ? undefined : input.analyzed.ai_insight,
       patient_user_id: input.patientUserId,
     };
     return this.createForPatientUser(input.userId, input.role, dto);

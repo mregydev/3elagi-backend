@@ -5,6 +5,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   Request,
@@ -18,6 +19,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { CreatePatientMedicalDocumentDto } from './dto/create-patient-medical-document.dto';
+import { UpdatePatientMedicalDocumentDto } from './dto/update-patient-medical-document.dto';
 import { DocumentType } from '../entities/medical-document.entity';
 import { UploadsService } from '../uploads/uploads.service';
 
@@ -105,16 +107,19 @@ export class PatientMedicalDocumentsController {
   async createFromImage(
     @UploadedFile() file: Express.Multer.File,
     @Query('lang') lang: 'ar' | 'en' | undefined,
+    @Query('generate_insight') generateInsight: string | undefined,
     @Request() req,
   ) {
     if (!file?.buffer?.length) {
       throw new BadRequestException('Image file is required');
     }
     const outputLang = lang === 'ar' ? 'ar' : 'en';
+    const includeInsight = generateInsight !== 'false';
     const analyzed = await this.service.analyzeImageBuffer(
       file.buffer,
       file.mimetype || 'image/jpeg',
       outputLang,
+      { includeInsight },
     );
     const uploaded = await this.uploads.uploadFile(file);
     const fileUrl = uploaded.url || uploaded.objectPath;
@@ -124,7 +129,37 @@ export class PatientMedicalDocumentsController {
       fileUrl,
       fileName: file.originalname || 'medical-record.jpg',
       analyzed,
+      includeInsight,
     });
+  }
+
+  @Patch(':id')
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdatePatientMedicalDocumentDto,
+    @Request() req,
+  ) {
+    return this.service.updateForPatientUser(
+      id,
+      req.user.id,
+      req.user.role,
+      dto,
+    );
+  }
+
+  @Post(':id/generate-details')
+  generateDetails(
+    @Param('id') id: string,
+    @Query('lang') lang: 'ar' | 'en' | undefined,
+    @Request() req,
+  ) {
+    const outputLang = lang === 'ar' ? 'ar' : 'en';
+    return this.service.generateDetailsForDocument(
+      id,
+      req.user.id,
+      req.user.role,
+      outputLang,
+    );
   }
 
   @Post(':id/generate-insight')
