@@ -98,6 +98,16 @@ export class AppointmentsController {
     });
   }
 
+  @Post(':id/cancel')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('doctor', 'patient')
+  cancelFromList(
+    @Request() req: { user: { id: string } },
+    @Param('id') id: string,
+  ) {
+    return this.chatService.cancelFromList(req.user.id, id);
+  }
+
   @Patch(':id/status')
   updateStatus(
     @Param('id') id: string,

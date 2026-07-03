@@ -113,6 +113,14 @@ export class AppointmentsChatService implements OnModuleInit, OnModuleDestroy {
     saved: Message,
     senderId: string,
     recipientId: string,
+    extra?: {
+      actor_id?: string;
+      actor_name?: string;
+      action?: AppointmentActionType;
+      date?: string;
+      time?: string;
+      status?: AppointmentStatus;
+    },
   ) {
     const mapped = this.mapMessage(saved);
     this.presenceGateway.emitToUser(recipientId, 'message:new', {
@@ -127,11 +135,13 @@ export class AppointmentsChatService implements OnModuleInit, OnModuleDestroy {
       appointment_id: (saved.attachment_meta as AppointmentActionMeta)
         ?.appointment_id,
       peer_id: senderId,
+      ...extra,
     });
     this.presenceGateway.emitToUser(senderId, 'appointment:updated', {
       appointment_id: (saved.attachment_meta as AppointmentActionMeta)
         ?.appointment_id,
       peer_id: recipientId,
+      ...extra,
     });
   }
 
@@ -345,9 +355,16 @@ export class AppointmentsChatService implements OnModuleInit, OnModuleDestroy {
       }),
     );
 
-    await this.emitChatMessage(saved, actorUserId, recipientId);
-
     const actorName = await this.usersService.getDisplayName(actorUserId);
+    await this.emitChatMessage(saved, actorUserId, recipientId, {
+      actor_id: actorUserId,
+      actor_name: actorName,
+      action,
+      date: appointment.date,
+      time: formatTimeLabel(appointment.time),
+      status: appointment.status,
+    });
+
     void this.pushNotifications
       .sendAppointmentStatus({
         recipientId,
@@ -360,6 +377,36 @@ export class AppointmentsChatService implements OnModuleInit, OnModuleDestroy {
       .catch((err) => this.logger.error('Appointment status push failed', err));
 
     return saved;
+  }
+
+  async cancelFromList(actorUserId: string, appointmentId: string): Promise<Message> {
+    const appointment = await this.appointmentRepo.findOne({
+      where: { id: appointmentId },
+      relations: ['doctor'],
+    });
+    if (!appointment) throw new NotFoundException('Appointment not found');
+
+    const doctor = appointment.doctor_id
+      ? await this.doctorRepo.findOne({ where: { id: appointment.doctor_id } })
+      : null;
+    const doctorUserId = doctor?.user_id ?? null;
+    const patientUserId = appointment.patient_user_id;
+
+    if (!doctorUserId || !patientUserId) {
+      throw new BadRequestException('Appointment participants are incomplete');
+    }
+
+    if (actorUserId !== doctorUserId && actorUserId !== patientUserId) {
+      throw new ForbiddenException('Not a participant in this appointment');
+    }
+
+    const recipientId = actorUserId === doctorUserId ? patientUserId : doctorUserId;
+    return this.handleAction(actorUserId, recipientId, {
+      appointment_id: appointmentId,
+      action: 'cancel',
+      date: appointment.date,
+      time: appointment.time ?? '',
+    });
   }
 
   async processDueReminders(): Promise<void> {
