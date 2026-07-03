@@ -4,7 +4,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, MoreThanOrEqual, Repository } from 'typeorm';
 import {
   Appointment,
   AppointmentStatus,
@@ -245,6 +245,60 @@ export class AppointmentsService {
       take: 200,
     });
     return appts;
+  }
+
+  async listUpcomingForUser(userId: string, role: string) {
+    const today = new Date().toISOString().split('T')[0];
+
+    if (role === 'doctor') {
+      const doctor = await this.doctorRepo.findOne({ where: { user_id: userId } });
+      if (!doctor) return [];
+      const appts = await this.appointmentRepo.find({
+        where: {
+          doctor_id: doctor.id,
+          date: MoreThanOrEqual(today),
+          status: In([
+            AppointmentStatus.PENDING,
+            AppointmentStatus.CONFIRMED,
+            AppointmentStatus.WAITING,
+            AppointmentStatus.ACTIVE,
+          ]),
+        },
+        order: { date: 'ASC', time: 'ASC' },
+      });
+      return appts.map((a) => ({
+        id: a.id,
+        date: a.date,
+        time: a.time,
+        status: a.status,
+        meeting_link: a.meeting_link,
+        other_name: a.patient?.name ?? a.patient_name ?? 'Patient',
+        booked_via_app: a.booked_via_app,
+      }));
+    }
+
+    const appts = await this.appointmentRepo.find({
+      where: {
+        patient_user_id: userId,
+        date: MoreThanOrEqual(today),
+        status: In([
+          AppointmentStatus.PENDING,
+          AppointmentStatus.CONFIRMED,
+          AppointmentStatus.WAITING,
+          AppointmentStatus.ACTIVE,
+        ]),
+      },
+      order: { date: 'ASC', time: 'ASC' },
+    });
+    return appts.map((a) => ({
+      id: a.id,
+      date: a.date,
+      time: a.time,
+      status: a.status,
+      meeting_link: a.meeting_link,
+      other_name: a.doctor?.name ?? 'Doctor',
+      booked_via_app: a.booked_via_app,
+    }));
   }
 
   async findById(id: string) {

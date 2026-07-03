@@ -27,6 +27,12 @@ export class AppointmentsController {
     private readonly chatService: AppointmentsChatService,
   ) {}
 
+  @Get('my')
+  @UseGuards(JwtAuthGuard)
+  listMy(@Request() req: { user: { id: string; role: string } }) {
+    return this.service.listUpcomingForUser(req.user.id, req.user.role);
+  }
+
   @Get('clinic/:clinicId/screen')
   getClinicQueueScreen(@Param('clinicId') clinicId: string) {
     return this.service.getClinicQueueScreen(clinicId);
