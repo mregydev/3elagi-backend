@@ -99,15 +99,17 @@ export class OneSignalPushProvider implements PushProvider {
   }
 
   async sendAppointmentReminder(input: AppointmentReminderPushInput): Promise<void> {
+    const otherParticipantName = truncateTitle(input.otherParticipantName, 48);
     await this.sendToUser(
       input.recipientId,
-      'Appointment starting now',
-      `Your meeting at ${input.when} is ready. Tap to join.`,
+      'Meeting in 5 minutes',
+      `Your meeting with ${otherParticipantName} is in 5 minutes. Open Appointments to find the room link.`,
       {
         type: 'appointment_reminder',
         appointmentId: input.appointmentId,
         sessionId: input.sessionId,
         meetingLink: input.meetingLink,
+        otherParticipantName: input.otherParticipantName,
       },
     );
   }

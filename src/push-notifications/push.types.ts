@@ -53,6 +53,7 @@ export interface AppointmentReminderPushInput {
   sessionId: string;
   meetingLink: string;
   when: string;
+  otherParticipantName: string;
 }
 
 export interface PushProvider {

@@ -56,6 +56,18 @@ function normalizeTime(t: string): string {
   return t.length === 5 ? `${t}:00` : t;
 }
 
+function localDateYmd(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function isFutureSlot(dateStr: string, time: string, now = new Date()): boolean {
+  const slotAt = new Date(`${dateStr}T${time}:00`);
+  return slotAt.getTime() > now.getTime();
+}
+
 @Injectable()
 export class SchedulesService {
   constructor(
@@ -261,7 +273,11 @@ export class SchedulesService {
     if (!doctor || doctor.approval_status !== 'approved') {
       throw new NotFoundException('Doctor not found');
     }
-    const slots = await this.slotTimesForDate(doctorId, dateStr);
+    let slots = await this.slotTimesForDate(doctorId, dateStr);
+    if (dateStr === localDateYmd()) {
+      const now = new Date();
+      slots = slots.filter((time) => isFutureSlot(dateStr, time, now));
+    }
     const existing = await this.appointmentRepo.find({
       where: {
         doctor_id: doctorId,

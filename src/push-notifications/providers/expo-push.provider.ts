@@ -134,15 +134,17 @@ export class ExpoPushProvider implements PushProvider {
   }
 
   async sendAppointmentReminder(input: AppointmentReminderPushInput): Promise<void> {
+    const otherParticipantName = truncateTitle(input.otherParticipantName, 48);
     await this.sendToUser(input.recipientId, (to) => ({
       to,
-      title: 'Appointment starting now',
-      body: `Your meeting at ${input.when} is ready. Tap to join.`,
+      title: 'Meeting in 5 minutes',
+      body: `Your meeting with ${otherParticipantName} is in 5 minutes. Open Appointments to find the room link.`,
       data: {
         type: 'appointment_reminder',
         appointmentId: input.appointmentId,
         sessionId: input.sessionId,
         meetingLink: input.meetingLink,
+        otherParticipantName: input.otherParticipantName,
       },
       sound: 'default',
       channelId: APPOINTMENT_CHANNEL_ID,

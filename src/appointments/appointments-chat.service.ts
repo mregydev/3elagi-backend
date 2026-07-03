@@ -40,6 +40,18 @@ function formatTimeLabel(time: string | null): string {
   return time.slice(0, 5);
 }
 
+function localDateYmd(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function isFutureSlot(dateStr: string, time: string, now = new Date()): boolean {
+  const slotAt = new Date(`${dateStr}T${time}:00`);
+  return slotAt.getTime() > now.getTime();
+}
+
 @Injectable()
 export class AppointmentsChatService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(AppointmentsChatService.name);
@@ -202,6 +214,9 @@ export class AppointmentsChatService implements OnModuleInit, OnModuleDestroy {
     );
     if (!validSlots.includes(time)) {
       throw new BadRequestException('Selected time slot is not available');
+    }
+    if (date === localDateYmd() && !isFutureSlot(date, time)) {
+      throw new BadRequestException('Selected time slot has already passed');
     }
 
     const timeDb = `${time}:00`;
@@ -504,6 +519,10 @@ export class AppointmentsChatService implements OnModuleInit, OnModuleDestroy {
         doctor.user_id,
         appointment.patient_user_id,
       );
+      const [doctorName, patientName] = await Promise.all([
+        this.usersService.getDisplayName(doctor.user_id),
+        this.usersService.getDisplayName(appointment.patient_user_id),
+      ]);
       appointment.reminder_sent_at = new Date();
       await this.appointmentRepo.save(appointment);
 
@@ -519,7 +538,7 @@ export class AppointmentsChatService implements OnModuleInit, OnModuleDestroy {
       const reminderMessage = await this.messageRepo.save(
         this.messageRepo.create({
           type: 'appointment_action',
-          content: `Meeting ready for ${when} — tap Join to enter`,
+          content: `Your meeting with ${doctorName} is in 5 minutes. Open Appointments to find the room link.`,
           creator: doctor.user_id,
           recipient: appointment.patient_user_id,
           attachment_url: null,
@@ -533,6 +552,8 @@ export class AppointmentsChatService implements OnModuleInit, OnModuleDestroy {
       );
 
       for (const userId of [appointment.patient_user_id, doctor.user_id]) {
+        const otherParticipantName =
+          userId === appointment.patient_user_id ? doctorName : patientName;
         void this.pushNotifications
           .sendAppointmentReminder({
             recipientId: userId,
@@ -540,6 +561,7 @@ export class AppointmentsChatService implements OnModuleInit, OnModuleDestroy {
             sessionId,
             meetingLink: roomUrl,
             when,
+            otherParticipantName,
           })
           .catch((err) =>
             this.logger.error(`Reminder push failed for ${userId}`, err),
@@ -550,6 +572,7 @@ export class AppointmentsChatService implements OnModuleInit, OnModuleDestroy {
           session_id: sessionId,
           meeting_link: roomUrl,
           when,
+          other_participant_name: otherParticipantName,
         });
       }
 
