@@ -1,4 +1,4 @@
-export type PushNotificationType = 'chat' | 'ai';
+export type PushNotificationType = 'chat' | 'ai' | 'incoming_video_call';
 
 export interface ChatPushInput {
   recipientId: string;
@@ -16,10 +16,18 @@ export interface AiPushInput {
   body: string;
 }
 
+export interface IncomingVideoCallPushInput {
+  recipientId: string;
+  sessionId: string;
+  callerId: string;
+  callerName: string;
+}
+
 export interface PushProvider {
   readonly id: PushProviderId;
   sendChatMessage(input: ChatPushInput): Promise<void>;
   sendAiMessage(input: AiPushInput): Promise<void>;
+  sendIncomingVideoCall(input: IncomingVideoCallPushInput): Promise<void>;
 }
 
 export type PushProviderId = 'expo' | 'onesignal';

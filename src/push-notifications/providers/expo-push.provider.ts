@@ -6,10 +6,12 @@ import { isValidExpoPushToken } from '../expo-push.tokens';
 import type {
   AiPushInput,
   ChatPushInput,
+  IncomingVideoCallPushInput,
   PushProvider,
 } from '../push.types';
 
 const CHAT_CHANNEL_ID = 'chat-messages';
+const VIDEO_CALL_CHANNEL_ID = 'video-calls';
 
 function truncateTitle(text: string, max = 64): string {
   const trimmed = text?.trim() ?? '';
@@ -65,6 +67,24 @@ export class ExpoPushProvider implements PushProvider {
       },
       sound: 'default',
       channelId: CHAT_CHANNEL_ID,
+      priority: 'high',
+    }));
+  }
+
+  async sendIncomingVideoCall(input: IncomingVideoCallPushInput): Promise<void> {
+    const callerName = truncateTitle(input.callerName, 48);
+    await this.sendToUser(input.recipientId, (to) => ({
+      to,
+      title: 'Incoming video call',
+      body: `${callerName} is calling`,
+      data: {
+        type: 'incoming_video_call',
+        sessionId: input.sessionId,
+        callerId: input.callerId,
+        callerName: input.callerName,
+      },
+      sound: 'default',
+      channelId: VIDEO_CALL_CHANNEL_ID,
       priority: 'high',
     }));
   }

@@ -1,15 +1,10 @@
-export type PushNotificationType = 'chat' | 'ai';
+export type PushNotificationType = 'chat' | 'ai' | 'incoming_video_call';
 
 export interface ExpoPushMessage {
   to: string;
   title: string;
   body: string;
-  data: {
-    chatId: string;
-    messageId: string;
-    type: PushNotificationType;
-    senderId?: string;
-  };
+  data: Record<string, string>;
   sound: 'default';
   channelId: string;
   priority: 'high' | 'default';

@@ -9,5 +9,6 @@ import { WherebyService } from './whereby.service';
   imports: [AuthModule, TypeOrmModule.forFeature([User])],
   controllers: [WherebyController],
   providers: [WherebyService],
+  exports: [WherebyService],
 })
 export class WherebyModule {}

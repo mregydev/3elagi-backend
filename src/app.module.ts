@@ -104,6 +104,9 @@ import { SentryModule } from './sentry/sentry.module';
 import { TtsModule } from './tts/tts.module';
 import { SttModule } from './stt/stt.module';
 import { WherebyModule } from './whereby/whereby.module';
+import { VideoCallsModule } from './video-calls/video-calls.module';
+import { VideoCallSession } from './entities/video-call-session.entity';
+import { VideoCallSessions1778230000000 } from './migrations/1778230000000-VideoCallSessions';
 
 @Module({
   imports: [
@@ -141,6 +144,7 @@ import { WherebyModule } from './whereby/whereby.module';
           MessageEmotion,
           DeviceToken,
           DiagnosisDocument,
+          VideoCallSession,
         ],
         synchronize: false,
         migrations: [
@@ -188,6 +192,7 @@ import { WherebyModule } from './whereby/whereby.module';
           DiagnosisDocumentsManyToMany1778190000000,
           MedicalRecordAiInsight1778210000000,
           UserPreferredLocale1778220000000,
+          VideoCallSessions1778230000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
@@ -230,6 +235,7 @@ import { WherebyModule } from './whereby/whereby.module';
     TtsModule,
     SttModule,
     WherebyModule,
+    VideoCallsModule,
   ],
 })
 export class AppModule {}

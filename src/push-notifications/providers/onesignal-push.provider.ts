@@ -3,6 +3,7 @@ import { OneSignalPushClient } from '../onesignal-push.client';
 import type {
   AiPushInput,
   ChatPushInput,
+  IncomingVideoCallPushInput,
   PushProvider,
 } from '../push.types';
 
@@ -43,6 +44,21 @@ export class OneSignalPushProvider implements PushProvider {
       messageId: input.messageId,
       type: 'ai',
     });
+  }
+
+  async sendIncomingVideoCall(input: IncomingVideoCallPushInput): Promise<void> {
+    const callerName = truncateTitle(input.callerName, 48);
+    await this.sendToUser(
+      input.recipientId,
+      'Incoming video call',
+      `${callerName} is calling`,
+      {
+        type: 'incoming_video_call',
+        sessionId: input.sessionId,
+        callerId: input.callerId,
+        callerName: input.callerName,
+      },
+    );
   }
 
   private async sendToUser(

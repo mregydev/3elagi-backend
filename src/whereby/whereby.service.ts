@@ -25,24 +25,7 @@ export class WherebyService {
     @InjectRepository(User) private readonly userRepo: Repository<User>,
   ) {}
 
-  async createMeeting(
-    requesterId: string,
-    requesterRole: string,
-    dto: CreateWherebyMeetingDto,
-  ): Promise<{ roomUrl: string }> {
-    if (requesterRole.toLowerCase() !== UserRole.PATIENT) {
-      throw new BadRequestException('Only patients can start a video call');
-    }
-
-    if (dto.doctor_user_id) {
-      const doctorUser = await this.userRepo.findOne({
-        where: { id: dto.doctor_user_id },
-      });
-      if (!doctorUser || doctorUser.role !== UserRole.DOCTOR) {
-        throw new NotFoundException('Doctor not found');
-      }
-    }
-
+  async createRoom(): Promise<{ roomUrl: string; meetingId?: string }> {
     const apiKey = WHEREBY_CONFIG.apiKey;
     if (!apiKey) {
       this.logger.error('WHEREBY_API_KEY is not configured');
@@ -80,10 +63,29 @@ export class WherebyService {
       throw new InternalServerErrorException('Could not create video call');
     }
 
-    this.logger.log(
-      `Whereby meeting ${data.meetingId ?? 'unknown'} created for patient ${requesterId}`,
-    );
+    return { roomUrl: data.roomUrl, meetingId: data.meetingId };
+  }
 
-    return { roomUrl: data.roomUrl };
+  async createMeeting(
+    requesterId: string,
+    requesterRole: string,
+    dto: CreateWherebyMeetingDto,
+  ): Promise<{ roomUrl: string }> {
+    if (requesterRole.toLowerCase() !== UserRole.PATIENT) {
+      throw new BadRequestException('Only patients can start a video call');
+    }
+
+    if (dto.doctor_user_id) {
+      const doctorUser = await this.userRepo.findOne({
+        where: { id: dto.doctor_user_id },
+      });
+      if (!doctorUser || doctorUser.role !== UserRole.DOCTOR) {
+        throw new NotFoundException('Doctor not found');
+      }
+    }
+
+    const { roomUrl } = await this.createRoom();
+    this.logger.log(`Whereby meeting created for patient ${requesterId}`);
+    return { roomUrl };
   }
 }
