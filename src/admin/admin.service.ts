@@ -392,11 +392,13 @@ export class AdminService {
   ): Promise<string> {
     if (mimeType === 'application/pdf') {
       const mod = await import('pdf-parse');
-      const parsePdf = (mod.default ?? mod) as unknown as (
-        input: Buffer,
-      ) => Promise<{ text?: string }>;
-      const parsed = await parsePdf(buffer);
-      return parsed.text ?? '';
+      const parser = new mod.PDFParse({ data: buffer });
+      try {
+        const parsed = await parser.getText();
+        return parsed.text ?? '';
+      } finally {
+        await parser.destroy().catch(() => undefined);
+      }
     }
 
     const mammoth = await import('mammoth');
