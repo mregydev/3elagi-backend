@@ -103,6 +103,7 @@ import { PushNotificationsModule } from './push-notifications/push-notifications
 import { SentryModule } from './sentry/sentry.module';
 import { TtsModule } from './tts/tts.module';
 import { SttModule } from './stt/stt.module';
+import { WherebyModule } from './whereby/whereby.module';
 
 @Module({
   imports: [
@@ -228,6 +229,7 @@ import { SttModule } from './stt/stt.module';
     SentryModule,
     TtsModule,
     SttModule,
+    WherebyModule,
   ],
 })
 export class AppModule {}
