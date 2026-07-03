@@ -68,7 +68,7 @@ export class MedicalRecordImageAnalyzerService {
     const model = genAI.getGenerativeModel({ model: this.modelName });
 
     try {
-      const result = await model.generateContent([
+      const genResult = await model.generateContent([
         { text: buildAnalysisPrompt(outputLang) },
         {
           inlineData: {
@@ -78,20 +78,20 @@ export class MedicalRecordImageAnalyzerService {
         },
       ]);
 
-      const raw = result.response.text().trim();
+      const raw = genResult.response.text().trim();
       const jsonText = this.extractJsonObject(raw);
       const parsed = JSON.parse(jsonText) as Record<string, unknown>;
-      const result = this.normalizeResult(parsed);
+      const analyzed = this.normalizeResult(parsed);
       if (options?.includeInsight === false) {
         return {
-          ...result,
+          ...analyzed,
           ai_insight: {
             description: '',
             possible_diseases: '',
           },
         };
       }
-      return result;
+      return analyzed;
     } catch (err) {
       this.logger.warn(
         `Medical image analysis failed: ${err instanceof Error ? err.message : String(err)}`,

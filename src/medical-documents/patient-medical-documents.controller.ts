@@ -50,11 +50,6 @@ export class PatientMedicalDocumentsController {
     return this.service.findForPatientUser(req.user.id, type);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string, @Request() req) {
-    return this.service.findOneForPatientUser(id, req.user.id);
-  }
-
   @Post()
   create(@Body() dto: CreatePatientMedicalDocumentDto, @Request() req) {
     return this.service.createForPatientUser(req.user.id, req.user.role, dto);
@@ -133,7 +128,13 @@ export class PatientMedicalDocumentsController {
     });
   }
 
+  @Get(':id')
+  findOne(@Param('id') id: string, @Request() req) {
+    return this.service.findOneForPatientUser(id, req.user.id);
+  }
+
   @Patch(':id')
+  @Post(':id/update')
   update(
     @Param('id') id: string,
     @Body() dto: UpdatePatientMedicalDocumentDto,
