@@ -274,6 +274,49 @@ export class AppointmentsChatService implements OnModuleInit, OnModuleDestroy {
     return { appointment, message: this.mapMessage(savedMessage) };
   }
 
+  private async ensureMeetingAssets(
+    appointment: Appointment,
+    doctorUserId: string,
+    patientUserId: string,
+  ): Promise<{ roomUrl: string; sessionId: string }> {
+    let roomUrl = appointment.meeting_link ?? null;
+    let sessionId = appointment.video_call_session_id ?? null;
+
+    if (!roomUrl) {
+      const created = await this.wherebyService.createRoom();
+      roomUrl = created.roomUrl;
+      appointment.meeting_link = roomUrl;
+    }
+
+    if (!sessionId) {
+      const patientName = await this.usersService.getDisplayName(patientUserId);
+      const doctorName = await this.usersService.getDisplayName(doctorUserId);
+      const session = await this.videoCallRepo.save(
+        this.videoCallRepo.create({
+          patient_user_id: patientUserId,
+          doctor_user_id: doctorUserId,
+          room_url: roomUrl,
+          status: 'accepted',
+          patient_name: patientName,
+          doctor_name: doctorName,
+        }),
+      );
+      sessionId = session.id;
+      appointment.video_call_session_id = session.id;
+    }
+
+    if (
+      appointment.meeting_link !== roomUrl ||
+      appointment.video_call_session_id !== sessionId
+    ) {
+      appointment.meeting_link = roomUrl;
+      appointment.video_call_session_id = sessionId;
+    }
+
+    await this.appointmentRepo.save(appointment);
+    return { roomUrl, sessionId };
+  }
+
   async handleAction(
     actorUserId: string,
     recipientId: string,
@@ -317,6 +360,15 @@ export class AppointmentsChatService implements OnModuleInit, OnModuleDestroy {
           ? AppointmentStatus.CONFIRMED
           : AppointmentStatus.REJECTED;
       await this.appointmentRepo.save(appointment);
+      if (action === 'confirm') {
+        const ensured = await this.ensureMeetingAssets(
+          appointment,
+          doctorUserId,
+          patientUserId,
+        );
+        appointment.meeting_link = ensured.roomUrl;
+        appointment.video_call_session_id = ensured.sessionId;
+      }
     }
 
     if (action === 'cancel') {
@@ -434,25 +486,11 @@ export class AppointmentsChatService implements OnModuleInit, OnModuleDestroy {
       const diffMs = start.getTime() - now.getTime();
       if (diffMs > 5 * 60_000 || diffMs < -10 * 60_000) continue;
 
-      const patientName = await this.usersService.getDisplayName(
+      const { roomUrl, sessionId } = await this.ensureMeetingAssets(
+        appointment,
+        doctor.user_id,
         appointment.patient_user_id,
       );
-      const doctorName = await this.usersService.getDisplayName(doctor.user_id);
-
-      const { roomUrl } = await this.wherebyService.createRoom();
-      const session = await this.videoCallRepo.save(
-        this.videoCallRepo.create({
-          patient_user_id: appointment.patient_user_id,
-          doctor_user_id: doctor.user_id,
-          room_url: roomUrl,
-          status: 'accepted',
-          patient_name: patientName,
-          doctor_name: doctorName,
-        }),
-      );
-
-      appointment.meeting_link = roomUrl;
-      appointment.video_call_session_id = session.id;
       appointment.reminder_sent_at = new Date();
       await this.appointmentRepo.save(appointment);
 
@@ -486,7 +524,7 @@ export class AppointmentsChatService implements OnModuleInit, OnModuleDestroy {
           .sendAppointmentReminder({
             recipientId: userId,
             appointmentId: appointment.id,
-            sessionId: session.id,
+            sessionId,
             meetingLink: roomUrl,
             when,
           })
@@ -496,7 +534,7 @@ export class AppointmentsChatService implements OnModuleInit, OnModuleDestroy {
 
         this.presenceGateway.emitToUser(userId, 'appointment:reminder', {
           appointment_id: appointment.id,
-          session_id: session.id,
+          session_id: sessionId,
           meeting_link: roomUrl,
           when,
         });
