@@ -123,13 +123,19 @@ export class AppointmentsChatService implements OnModuleInit, OnModuleDestroy {
     },
   ) {
     const mapped = this.mapMessage(saved);
+    const [senderName, recipientName] = await Promise.all([
+      this.usersService.getDisplayName(senderId),
+      this.usersService.getDisplayName(recipientId),
+    ]);
     this.presenceGateway.emitToUser(recipientId, 'message:new', {
       message: mapped,
       peer_id: senderId,
+      peer_name: senderName,
     });
     this.presenceGateway.emitToUser(senderId, 'message:new', {
       message: mapped,
       peer_id: recipientId,
+      peer_name: recipientName,
     });
     this.presenceGateway.emitToUser(recipientId, 'appointment:updated', {
       appointment_id: (saved.attachment_meta as AppointmentActionMeta)
@@ -235,12 +241,19 @@ export class AppointmentsChatService implements OnModuleInit, OnModuleDestroy {
       }),
     );
 
+    const ensured = await this.ensureMeetingAssets(
+      appointment,
+      doctorUserId,
+      patientUserId,
+    );
+
     const meta: AppointmentActionMeta = {
       appointment_id: appointment.id,
       action: 'request',
       date,
       time: timeDb,
       status: appointment.status,
+      meeting_link: ensured.roomUrl,
     };
 
     const savedMessage = await this.messageRepo.save(
