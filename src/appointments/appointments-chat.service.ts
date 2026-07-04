@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Not, Repository } from 'typeorm';
+import { In, IsNull, Not, Repository } from 'typeorm';
 import {
   Appointment,
   AppointmentStatus,
@@ -32,22 +32,57 @@ const APPOINTMENT_ACTIONS: AppointmentActionType[] = [
   'reject',
   'cancel',
 ];
+const CAIRO_TIME_ZONE = 'Africa/Cairo';
 
 function formatTimeLabel(time: string | null): string {
   if (!time) return '';
   return time.slice(0, 5);
 }
 
+function cairoNowParts(date = new Date()) {
+  const formatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone: CAIRO_TIME_ZONE,
+    hour12: false,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+  const parts = formatter.formatToParts(date);
+  const lookup = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? '';
+  return {
+    year: lookup('year'),
+    month: lookup('month'),
+    day: lookup('day'),
+    hour: Number.parseInt(lookup('hour') || '0', 10),
+    minute: Number.parseInt(lookup('minute') || '0', 10),
+    second: Number.parseInt(lookup('second') || '0', 10),
+  };
+}
+
 function localDateYmd(date = new Date()): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
+  const { year, month, day } = cairoNowParts(date);
   return `${year}-${month}-${day}`;
 }
 
+function timeToMinutes(time: string): number {
+  const [hour, minute] = time.split(':').map((value) => Number.parseInt(value, 10));
+  return hour * 60 + minute;
+}
+
+function cairoMinutesSinceMidnight(date = new Date()): number {
+  const { hour, minute, second } = cairoNowParts(date);
+  return hour * 60 + minute + second / 60;
+}
+
 function isFutureSlot(dateStr: string, time: string, now = new Date()): boolean {
-  const slotAt = new Date(`${dateStr}T${time}:00`);
-  return slotAt.getTime() > now.getTime();
+  const today = localDateYmd(now);
+  if (dateStr !== today) return dateStr > today;
+  return timeToMinutes(time) > cairoMinutesSinceMidnight(now);
 }
 
 @Injectable()
@@ -481,12 +516,13 @@ export class AppointmentsChatService {
   }> {
     const now = new Date();
     const today = localDateYmd(now);
+    const nowMinutes = cairoMinutesSinceMidnight(now);
 
     const appointments = await this.appointmentRepo.find({
       where: {
         status: AppointmentStatus.CONFIRMED,
         date: today,
-        reminder_sent_at: null,
+        reminder_sent_at: IsNull(),
       },
     });
 
@@ -500,11 +536,8 @@ export class AppointmentsChatService {
         : null;
       if (!doctor?.user_id) continue;
 
-      const [h, m] = appointment.time.split(':').map((v) => parseInt(v, 10));
-      const start = new Date(now);
-      start.setHours(h, m, 0, 0);
-      const diffMs = start.getTime() - now.getTime();
-      if (diffMs > 5 * 60_000 || diffMs < 0) continue;
+      const diffMinutes = timeToMinutes(appointment.time) - nowMinutes;
+      if (diffMinutes > 5 || diffMinutes < 0) continue;
 
       const { roomUrl, sessionId } = await this.ensureMeetingAssets(
         appointment,
@@ -516,8 +549,14 @@ export class AppointmentsChatService {
         this.usersService.getDisplayName(appointment.patient_user_id),
       ]);
 
-      appointment.reminder_sent_at = new Date();
-      await this.appointmentRepo.save(appointment);
+      const claim = await this.appointmentRepo.update(
+        { id: appointment.id, reminder_sent_at: IsNull() },
+        { reminder_sent_at: new Date() },
+      );
+      if (!claim.affected) {
+        this.logger.debug(`Reminder already claimed for ${appointment.id}`);
+        continue;
+      }
 
       const when = `${appointment.date} ${formatTimeLabel(appointment.time)}`;
       for (const userId of [appointment.patient_user_id, doctor.user_id]) {
