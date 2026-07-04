@@ -1,9 +1,6 @@
 import {
   Controller,
-  ForbiddenException,
   Get,
-  Headers,
-  InternalServerErrorException,
   Post,
   Patch,
   Delete,
@@ -89,22 +86,7 @@ export class AppointmentsController {
 
   @Post('reminders/check')
   @Public()
-  async checkDueReminders(
-    @Headers('x-scheduler-token') headerToken?: string,
-    @Query('token') queryToken?: string,
-  ) {
-    const configuredToken = process.env.APPOINTMENT_REMINDER_TRIGGER_TOKEN?.trim();
-    if (!configuredToken) {
-      throw new InternalServerErrorException(
-        'APPOINTMENT_REMINDER_TRIGGER_TOKEN is not configured',
-      );
-    }
-
-    const providedToken = headerToken?.trim() || queryToken?.trim();
-    if (!providedToken || providedToken !== configuredToken) {
-      throw new ForbiddenException('Invalid scheduler token');
-    }
-
+  checkDueReminders() {
     return this.chatService.sendDueReminders();
   }
 
