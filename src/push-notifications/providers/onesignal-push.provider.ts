@@ -7,6 +7,7 @@ import type {
   AppointmentStatusPushInput,
   ChatPushInput,
   IncomingVideoCallPushInput,
+  IntakeExamReminderPushInput,
   PushProvider,
   SystemNotificationPushInput,
 } from '../push.types';
@@ -111,6 +112,23 @@ export class OneSignalPushProvider implements PushProvider {
         sessionId: input.sessionId,
         meetingLink: input.meetingLink,
         otherParticipantName: input.otherParticipantName,
+      },
+    );
+  }
+
+  async sendIntakeExamReminder(input: IntakeExamReminderPushInput): Promise<void> {
+    const doctorName = truncateTitle(input.doctorName, 48);
+    const examName = truncateTitle(input.examName, 48);
+    await this.sendToUser(
+      input.recipientId,
+      'Intake exam due soon',
+      `Your intake exam "${examName}" from Dr. ${doctorName} is due within 24 hours. Open medical records to complete it.`,
+      {
+        type: 'intake_exam_reminder',
+        instanceId: input.instanceId,
+        examName: input.examName,
+        doctorName: input.doctorName,
+        deadlineAt: input.deadlineAt,
       },
     );
   }

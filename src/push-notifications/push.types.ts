@@ -5,6 +5,7 @@ export type PushNotificationType =
   | 'appointment_request'
   | 'appointment_status'
   | 'appointment_reminder'
+  | 'intake_exam_reminder'
   | 'system_notification';
 
 export interface ChatPushInput {
@@ -63,6 +64,14 @@ export interface SystemNotificationPushInput {
   body: string;
 }
 
+export interface IntakeExamReminderPushInput {
+  recipientId: string;
+  instanceId: string;
+  examName: string;
+  doctorName: string;
+  deadlineAt: string;
+}
+
 export interface PushProvider {
   readonly id: PushProviderId;
   sendChatMessage(input: ChatPushInput): Promise<void>;
@@ -71,6 +80,7 @@ export interface PushProvider {
   sendAppointmentRequest(input: AppointmentRequestPushInput): Promise<void>;
   sendAppointmentStatus(input: AppointmentStatusPushInput): Promise<void>;
   sendAppointmentReminder(input: AppointmentReminderPushInput): Promise<void>;
+  sendIntakeExamReminder(input: IntakeExamReminderPushInput): Promise<void>;
   sendSystemNotification(input: SystemNotificationPushInput): Promise<void>;
 }
 

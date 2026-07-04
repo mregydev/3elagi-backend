@@ -14,6 +14,8 @@ import { Prescription } from './entities/prescription.entity';
 import { PrescriptionMedication } from './entities/prescription-medication.entity';
 import { PrescriptionTemplate } from './entities/prescription-template.entity';
 import { IntakeTest } from './entities/intake-test.entity';
+import { IntakeExamAssignment } from './entities/intake-exam-assignment.entity';
+import { IntakeExamInstance } from './entities/intake-exam-instance.entity';
 import { PatientProfile } from './entities/patient-profile.entity';
 import { DoctorSchedule } from './entities/doctor-schedule.entity';
 import { DoctorScheduleOverride } from './entities/doctor-schedule-override.entity';
@@ -59,6 +61,7 @@ import { MedicalDocumentsModule } from './medical-documents/medical-documents.mo
 import { PrescriptionsModule } from './prescriptions/prescriptions.module';
 import { PrescriptionTemplatesModule } from './prescription-templates/prescription-templates.module';
 import { IntakeTestsModule } from './intake-tests/intake-tests.module';
+import { IntakeExamsModule } from './intake-exams/intake-exams.module';
 import { SchedulesModule } from './schedules/schedules.module';
 import { PatientPortalModule } from './patient-portal/patient-portal.module';
 import { ReviewsModule } from './reviews/reviews.module';
@@ -109,6 +112,7 @@ import { VideoCallSession } from './entities/video-call-session.entity';
 import { VideoCallSessions1778230000000 } from './migrations/1778230000000-VideoCallSessions';
 import { AppointmentChatFields1778240000000 } from './migrations/1778240000000-AppointmentChatFields';
 import { AdminRagSources1778250000000 } from './migrations/1778250000000-AdminRagSources';
+import { IntakeExamInstances1778260000000 } from './migrations/1778260000000-IntakeExamInstances';
 import { AdminRagSource } from './entities/admin-rag-source.entity';
 
 @Module({
@@ -133,6 +137,8 @@ import { AdminRagSource } from './entities/admin-rag-source.entity';
           PrescriptionMedication,
           PrescriptionTemplate,
           IntakeTest,
+          IntakeExamAssignment,
+          IntakeExamInstance,
           PatientProfile,
           DoctorSchedule,
           DoctorScheduleOverride,
@@ -199,6 +205,7 @@ import { AdminRagSource } from './entities/admin-rag-source.entity';
           VideoCallSessions1778230000000,
           AppointmentChatFields1778240000000,
           AdminRagSources1778250000000,
+          IntakeExamInstances1778260000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
@@ -221,6 +228,7 @@ import { AdminRagSource } from './entities/admin-rag-source.entity';
     PrescriptionsModule,
     PrescriptionTemplatesModule,
     IntakeTestsModule,
+    IntakeExamsModule,
     SchedulesModule,
     PatientPortalModule,
     ReviewsModule,

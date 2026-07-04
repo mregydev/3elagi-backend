@@ -13,6 +13,8 @@ export type IntakeQuestionType =
   | 'text'
   | 'single_choice'
   | 'multi_choice'
+  | 'video'
+  | 'audio'
   | 'guidance';
 
 export interface IntakeOption {
