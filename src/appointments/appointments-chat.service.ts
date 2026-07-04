@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, IsNull, Not, Repository } from 'typeorm';
+import { In, IsNull, LessThan, Not, Repository } from 'typeorm';
 import {
   Appointment,
   AppointmentStatus,
@@ -77,6 +77,18 @@ function timeToMinutes(time: string): number {
 function cairoMinutesSinceMidnight(date = new Date()): number {
   const { hour, minute, second } = cairoNowParts(date);
   return hour * 60 + minute + second / 60;
+}
+
+function isAppointmentExpiredByMoreThanMinutes(
+  dateStr: string,
+  time: string | null,
+  graceMinutes: number,
+  now = new Date(),
+): boolean {
+  const today = localDateYmd(now);
+  if (dateStr < today) return true;
+  if (dateStr > today || !time) return false;
+  return cairoMinutesSinceMidnight(now) - timeToMinutes(time) > graceMinutes;
 }
 
 function isFutureSlot(dateStr: string, time: string, now = new Date()): boolean {
@@ -510,6 +522,7 @@ export class AppointmentsChatService {
   }
 
   async sendDueReminders(): Promise<{
+    deletedAppointments: number;
     checkedAppointments: number;
     remindedAppointments: number;
     notifiedParticipants: number;
@@ -517,6 +530,44 @@ export class AppointmentsChatService {
     const now = new Date();
     const today = localDateYmd(now);
     const nowMinutes = cairoMinutesSinceMidnight(now);
+    const cleanupCandidates = await this.appointmentRepo.find({
+      where: {
+        date: today,
+        status: Not(
+          In([AppointmentStatus.CANCELLED, AppointmentStatus.REJECTED]),
+        ),
+      },
+    });
+    const olderAppointments = await this.appointmentRepo.find({
+      where: {
+        date: LessThan(today),
+        status: Not(
+          In([AppointmentStatus.CANCELLED, AppointmentStatus.REJECTED]),
+        ),
+      },
+    });
+    const expiredAppointments = [...cleanupCandidates, ...olderAppointments].filter(
+      (appointment) =>
+        isAppointmentExpiredByMoreThanMinutes(
+          appointment.date,
+          appointment.time,
+          30,
+          now,
+        ),
+    );
+
+    if (expiredAppointments.length) {
+      const videoSessionIds = expiredAppointments
+        .map((appointment) => appointment.video_call_session_id)
+        .filter((value): value is string => !!value);
+      if (videoSessionIds.length) {
+        await this.videoCallRepo.delete(videoSessionIds);
+      }
+      await this.appointmentRepo.delete(expiredAppointments.map((item) => item.id));
+      this.logger.log(
+        `Deleted ${expiredAppointments.length} expired appointments during reminder check`,
+      );
+    }
 
     const appointments = await this.appointmentRepo.find({
       where: {
@@ -590,6 +641,7 @@ export class AppointmentsChatService {
     }
 
     return {
+      deletedAppointments: expiredAppointments.length,
       checkedAppointments: appointments.length,
       remindedAppointments,
       notifiedParticipants,
