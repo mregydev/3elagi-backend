@@ -11,6 +11,7 @@ import { IntakeTest } from '../entities/intake-test.entity';
 import { IntakeTestsModule } from '../intake-tests/intake-tests.module';
 import { AiModule } from '../ai/ai.module';
 import { PresenceModule } from '../presence/presence.module';
+import { PushNotificationsModule } from '../push-notifications/push-notifications.module';
 import { SpecialitiesModule } from '../specialities/specialities.module';
 import { UploadsModule } from '../uploads/uploads.module';
 
@@ -27,6 +28,7 @@ import { UploadsModule } from '../uploads/uploads.module';
     IntakeTestsModule,
     AiModule,
     PresenceModule,
+    PushNotificationsModule,
     SpecialitiesModule,
     UploadsModule,
   ],

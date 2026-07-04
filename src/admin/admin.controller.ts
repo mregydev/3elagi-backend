@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Patch,
+  Post,
   Put,
   Request,
   UseGuards,
@@ -149,5 +150,10 @@ export class AdminController {
   @Delete('rag-sources/:id')
   deleteRagSource(@Param('id') id: string) {
     return this.service.deleteRagSource(id);
+  }
+
+  @Post('sendNotf')
+  sendNotf() {
+    return this.service.sendNotf();
   }
 }

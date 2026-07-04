@@ -11,6 +11,7 @@ import type {
   ChatPushInput,
   IncomingVideoCallPushInput,
   PushProvider,
+  SystemNotificationPushInput,
 } from '../push.types';
 
 const CHAT_CHANNEL_ID = 'chat-messages';
@@ -148,6 +149,20 @@ export class ExpoPushProvider implements PushProvider {
       },
       sound: 'default',
       channelId: APPOINTMENT_CHANNEL_ID,
+      priority: 'high',
+    }));
+  }
+
+  async sendSystemNotification(input: SystemNotificationPushInput): Promise<void> {
+    await this.sendToUser(input.recipientId, (to) => ({
+      to,
+      title: truncateTitle(input.title),
+      body: truncateBody(input.body),
+      data: {
+        type: 'system_notification',
+      },
+      sound: 'default',
+      channelId: CHAT_CHANNEL_ID,
       priority: 'high',
     }));
   }

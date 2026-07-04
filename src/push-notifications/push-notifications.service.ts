@@ -8,6 +8,7 @@ import type {
   AppointmentStatusPushInput,
   ChatPushInput,
   IncomingVideoCallPushInput,
+  SystemNotificationPushInput,
 } from './push.types';
 
 @Injectable()
@@ -62,5 +63,10 @@ export class PushNotificationsService {
   async sendAppointmentReminder(input: AppointmentReminderPushInput): Promise<void> {
     if (this.presence.isUserOnline(input.recipientId)) return;
     await this.factory.getActive().sendAppointmentReminder(input);
+  }
+
+  async sendSystemNotification(input: SystemNotificationPushInput): Promise<void> {
+    if (this.presence.isUserOnline(input.recipientId)) return;
+    await this.factory.getActive().sendSystemNotification(input);
   }
 }

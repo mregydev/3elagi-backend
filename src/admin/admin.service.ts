@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { User, UserRole } from '../entities/user.entity';
 import { Doctor, ApprovalStatus } from '../entities/doctor.entity';
 import { Clinic } from '../entities/clinic.entity';
@@ -17,6 +17,7 @@ import {
 import { IntakeTestsService } from '../intake-tests/intake-tests.service';
 import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
 import { PresenceGateway } from '../presence/presence.gateway';
+import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 import { SpecialitiesService } from '../specialities/specialities.service';
 import { UploadsService } from '../uploads/uploads.service';
 
@@ -66,6 +67,7 @@ export class AdminService {
     private intakeService: IntakeTestsService,
     private knowledgeIndexer: KnowledgeIndexerService,
     private presenceGateway: PresenceGateway,
+    private pushNotifications: PushNotificationsService,
     private specialitiesService: SpecialitiesService,
     private uploadsService: UploadsService,
   ) {}
@@ -174,6 +176,38 @@ export class AdminService {
     await this.patientRepo.delete(userId);
     await this.userRepo.delete(userId);
     return { ok: true };
+  }
+
+  async sendNotf() {
+    const recipients = await this.userRepo.find({
+      select: { id: true, role: true },
+      where: {
+        role: In([UserRole.DOCTOR, UserRole.PATIENT]),
+      },
+    });
+
+    const title = '3elagi';
+    const body = 'This is a test notification';
+
+    await Promise.all(
+      recipients.map(async (user) => {
+        this.presenceGateway.emitToUser(user.id, 'system:notification', {
+          title,
+          body,
+        });
+        await this.pushNotifications.sendSystemNotification({
+          recipientId: user.id,
+          title,
+          body,
+        });
+      }),
+    );
+
+    return {
+      ok: true,
+      recipients: recipients.length,
+      message: body,
+    };
   }
 
   // ----- Default intake template -----

@@ -8,6 +8,7 @@ import type {
   ChatPushInput,
   IncomingVideoCallPushInput,
   PushProvider,
+  SystemNotificationPushInput,
 } from '../push.types';
 
 function truncateTitle(text: string, max = 64): string {
@@ -110,6 +111,17 @@ export class OneSignalPushProvider implements PushProvider {
         sessionId: input.sessionId,
         meetingLink: input.meetingLink,
         otherParticipantName: input.otherParticipantName,
+      },
+    );
+  }
+
+  async sendSystemNotification(input: SystemNotificationPushInput): Promise<void> {
+    await this.sendToUser(
+      input.recipientId,
+      truncateTitle(input.title),
+      truncateBody(input.body),
+      {
+        type: 'system_notification',
       },
     );
   }

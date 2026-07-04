@@ -4,7 +4,8 @@ export type PushNotificationType =
   | 'incoming_video_call'
   | 'appointment_request'
   | 'appointment_status'
-  | 'appointment_reminder';
+  | 'appointment_reminder'
+  | 'system_notification';
 
 export interface ChatPushInput {
   recipientId: string;
@@ -56,6 +57,12 @@ export interface AppointmentReminderPushInput {
   otherParticipantName: string;
 }
 
+export interface SystemNotificationPushInput {
+  recipientId: string;
+  title: string;
+  body: string;
+}
+
 export interface PushProvider {
   readonly id: PushProviderId;
   sendChatMessage(input: ChatPushInput): Promise<void>;
@@ -64,6 +71,7 @@ export interface PushProvider {
   sendAppointmentRequest(input: AppointmentRequestPushInput): Promise<void>;
   sendAppointmentStatus(input: AppointmentStatusPushInput): Promise<void>;
   sendAppointmentReminder(input: AppointmentReminderPushInput): Promise<void>;
+  sendSystemNotification(input: SystemNotificationPushInput): Promise<void>;
 }
 
 export type PushProviderId = 'expo' | 'onesignal';
