@@ -1,4 +1,11 @@
-import { IsEnum, IsOptional, IsString, ValidateNested } from 'class-validator';
+import {
+  IsBoolean,
+  IsEnum,
+  IsIn,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { DocumentType } from '../../entities/medical-document.entity';
 import type { MedicalAiInsight } from '../../common/medical-ai-insight.types';
@@ -40,4 +47,12 @@ export class CreatePatientMedicalDocumentDto {
   @ValidateNested()
   @Type(() => MedicalAiInsightDto)
   ai_insight?: MedicalAiInsight;
+
+  @IsOptional()
+  @IsBoolean()
+  generate_ai_insight?: boolean;
+
+  @IsOptional()
+  @IsIn(['ar', 'en'])
+  lang?: 'ar' | 'en';
 }

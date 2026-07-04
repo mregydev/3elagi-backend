@@ -59,6 +59,43 @@ export class MedicalDocumentsService {
     void this.knowledgeIndexer.indexMedicalDocument(documentId).catch(() => undefined);
   }
 
+  private async buildInsightForDocument(
+    doc: Pick<MedicalDocument, 'file_url' | 'file_name' | 'title' | 'notes' | 'type'>,
+    outputLang: 'ar' | 'en' = 'en',
+  ): Promise<MedicalAiInsight> {
+    if (doc.file_url?.trim()) {
+      try {
+        const buffer = await this.uploads.getBufferFromUrl(doc.file_url);
+        if (buffer?.length) {
+          const mime = doc.file_name?.match(/\.png$/i)
+            ? 'image/png'
+            : doc.file_name?.match(/\.webp$/i)
+              ? 'image/webp'
+              : 'image/jpeg';
+          const analyzed = await this.imageAnalyzer.analyzeImage(
+            buffer.toString('base64'),
+            mime,
+            outputLang,
+          );
+          return analyzed.ai_insight;
+        }
+      } catch (err) {
+        this.logger.warn(
+          `Falling back to text-only AI insight for document "${doc.title ?? doc.type}": ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+    }
+
+    return this.imageAnalyzer.analyzeFromTextContext({
+      title: doc.title ?? doc.type,
+      notes: doc.notes,
+      recordType: doc.type,
+      outputLang,
+    });
+  }
+
   private async assertDoctorUser(userId: string, userRole: string): Promise<void> {
     if (userRole !== 'doctor') {
       throw new ForbiddenException('Insufficient role');
@@ -131,7 +168,24 @@ export class MedicalDocumentsService {
       title,
       ai_insight: dto.ai_insight ?? null,
     });
-    const saved = await this.docRepo.save(doc);
+    let saved = await this.docRepo.save(doc);
+
+    if (dto.generate_ai_insight && !saved.ai_insight) {
+      try {
+        saved.ai_insight = await this.buildInsightForDocument(
+          saved,
+          dto.lang === 'ar' ? 'ar' : 'en',
+        );
+        saved = await this.docRepo.save(saved);
+      } catch (err) {
+        this.logger.warn(
+          `AI insight generation failed during create for document ${saved.id}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+    }
+
     this.scheduleIndexDocument(saved.id);
     return saved;
   }
@@ -250,34 +304,7 @@ export class MedicalDocumentsService {
       throw new ForbiddenException('You can only access your own documents');
     }
 
-    let insight: MedicalAiInsight | null = null;
-    if (doc.file_url?.trim()) {
-      const buffer = await this.uploads.getBufferFromUrl(doc.file_url);
-      if (buffer?.length) {
-        const mime = doc.file_name?.match(/\.png$/i)
-          ? 'image/png'
-          : doc.file_name?.match(/\.webp$/i)
-            ? 'image/webp'
-            : 'image/jpeg';
-        const analyzed = await this.imageAnalyzer.analyzeImage(
-          buffer.toString('base64'),
-          mime,
-          outputLang,
-        );
-        insight = analyzed.ai_insight;
-      }
-    }
-
-    if (!insight) {
-      insight = await this.imageAnalyzer.analyzeFromTextContext({
-        title: doc.title ?? doc.type,
-        notes: doc.notes,
-        recordType: doc.type,
-        outputLang,
-      });
-    }
-
-    doc.ai_insight = insight;
+    doc.ai_insight = await this.buildInsightForDocument(doc, outputLang);
     const saved = await this.docRepo.save(doc);
     this.scheduleIndexDocument(saved.id);
     const [enriched] = await this.enrichPatientDocuments([saved]);
