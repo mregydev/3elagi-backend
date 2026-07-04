@@ -13,6 +13,7 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { Public } from '../auth/public.decorator';
 import { AdminService } from './admin.service';
 import { IntakeQuestion } from '../entities/intake-test.entity';
 import type { ApprovalStatus } from '../entities/doctor.entity';
@@ -153,6 +154,8 @@ export class AdminController {
   }
 
   @Post('sendNotf')
+  @Public()
+  @Roles()
   sendNotf() {
     return this.service.sendNotf();
   }
