@@ -535,7 +535,7 @@ export class UploadsService {
 
   initChunkUpload(dto: {
     filename: string;
-    mime_type: string;
+    mime_type?: string;
     total_size: number;
     total_chunks: number;
   }): { upload_id: string } {
