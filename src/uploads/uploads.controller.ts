@@ -15,6 +15,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UploadsService, isAllowedUploadMime } from './uploads.service';
 import { UploadFileBase64Dto } from './dto/upload-file-base64.dto';
+import { CompleteChunkUploadDto, InitChunkUploadDto } from './dto/chunk-upload.dto';
 import { Response } from 'express';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -45,6 +46,40 @@ export class UploadsController {
       throw new HttpException('No file provided', HttpStatus.BAD_REQUEST);
     }
     return this.uploadsService.uploadFile(file);
+  }
+
+  @Post('chunk/init')
+  @UseGuards(JwtAuthGuard)
+  initChunkUpload(@Body() dto: InitChunkUploadDto) {
+    return this.uploadsService.initChunkUpload(dto);
+  }
+
+  @Post('chunk')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FileInterceptor('chunk', {
+      limits: { fileSize: 5 * 1024 * 1024 },
+    }),
+  )
+  uploadChunk(
+    @Body('upload_id') uploadId: string,
+    @Body('chunk_index') chunkIndexRaw: string,
+    @UploadedFile() chunk: Express.Multer.File,
+  ) {
+    if (!uploadId?.trim()) {
+      throw new HttpException('upload_id is required', HttpStatus.BAD_REQUEST);
+    }
+    if (!chunk) {
+      throw new HttpException('No chunk provided', HttpStatus.BAD_REQUEST);
+    }
+    const chunkIndex = Number.parseInt(chunkIndexRaw, 10);
+    return this.uploadsService.saveChunkUpload(uploadId.trim(), chunkIndex, chunk.buffer);
+  }
+
+  @Post('chunk/complete')
+  @UseGuards(JwtAuthGuard)
+  async completeChunkUpload(@Body() dto: CompleteChunkUploadDto) {
+    return this.uploadsService.completeChunkUpload(dto.upload_id);
   }
 
   @Post('file64')

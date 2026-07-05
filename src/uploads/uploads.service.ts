@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
 import { Storage } from '@google-cloud/storage';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
@@ -42,6 +42,22 @@ export const ALLOWED_UPLOAD_MIMES = [
 ] as const;
 
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+const MAX_CHUNKED_UPLOAD_BYTES = 200 * 1024 * 1024;
+const CHUNK_SESSION_TTL_MS = 60 * 60 * 1000;
+
+const RAG_DOCUMENT_MIMES = new Set([
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+]);
+
+interface ChunkUploadSession {
+  filename: string;
+  mimeType: string;
+  totalSize: number;
+  totalChunks: number;
+  received: Set<number>;
+  createdAt: number;
+}
 
 /** Browsers often send codec suffixes or uncommon audio/* types from MediaRecorder. */
 export function isAllowedUploadMime(mimetype: string): boolean {
@@ -95,6 +111,7 @@ export class UploadsService {
   private bucketId: string | null = null;
   private s3: S3Client | null = null;
   private s3Bucket: string | null = null;
+  private readonly chunkSessions = new Map<string, ChunkUploadSession>();
 
   constructor() {
     const supabaseUrl = (process.env.SUPABASE_URL || '').trim();
@@ -484,6 +501,160 @@ export class UploadsService {
       file.createReadStream().pipe(res);
     } catch {
       res.status(404).json({ message: 'Object not found' });
+    }
+  }
+
+  private chunkUploadRoot(): string {
+    const root = path.join(process.cwd(), 'local-uploads', 'chunks');
+    if (!fs.existsSync(root)) {
+      fs.mkdirSync(root, { recursive: true });
+    }
+    return root;
+  }
+
+  private chunkSessionDir(uploadId: string): string {
+    return path.join(this.chunkUploadRoot(), uploadId);
+  }
+
+  private purgeExpiredChunkSessions(): void {
+    const now = Date.now();
+    for (const [uploadId, session] of this.chunkSessions.entries()) {
+      if (now - session.createdAt > CHUNK_SESSION_TTL_MS) {
+        this.cleanupChunkUpload(uploadId);
+      }
+    }
+  }
+
+  private cleanupChunkUpload(uploadId: string): void {
+    this.chunkSessions.delete(uploadId);
+    const dir = this.chunkSessionDir(uploadId);
+    if (fs.existsSync(dir)) {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  initChunkUpload(dto: {
+    filename: string;
+    mime_type: string;
+    total_size: number;
+    total_chunks: number;
+  }): { upload_id: string } {
+    this.purgeExpiredChunkSessions();
+
+    const filename = dto.filename?.trim();
+    let mimeType = dto.mime_type?.trim().toLowerCase();
+    const totalSize = Number(dto.total_size);
+    const totalChunks = Number(dto.total_chunks);
+
+    if (!filename) {
+      throw new BadRequestException('filename is required');
+    }
+    if (!mimeType || mimeType === 'application/octet-stream') {
+      const lower = filename.toLowerCase();
+      if (lower.endsWith('.pdf')) mimeType = 'application/pdf';
+      if (lower.endsWith('.docx')) {
+        mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      }
+    }
+    if (!mimeType || !RAG_DOCUMENT_MIMES.has(mimeType)) {
+      throw new BadRequestException('Only PDF and DOCX documents are supported');
+    }
+    if (!Number.isFinite(totalSize) || totalSize <= 0) {
+      throw new BadRequestException('total_size must be positive');
+    }
+    if (totalSize > MAX_CHUNKED_UPLOAD_BYTES) {
+      throw new BadRequestException('File exceeds 200 MB limit');
+    }
+    if (!Number.isInteger(totalChunks) || totalChunks < 1 || totalChunks > 500) {
+      throw new BadRequestException('total_chunks must be between 1 and 500');
+    }
+
+    const uploadId = uuidv4();
+    fs.mkdirSync(this.chunkSessionDir(uploadId), { recursive: true });
+    this.chunkSessions.set(uploadId, {
+      filename,
+      mimeType,
+      totalSize,
+      totalChunks,
+      received: new Set<number>(),
+      createdAt: Date.now(),
+    });
+
+    return { upload_id: uploadId };
+  }
+
+  saveChunkUpload(
+    uploadId: string,
+    chunkIndex: number,
+    buffer: Buffer,
+  ): { received: number; total_chunks: number } {
+    this.purgeExpiredChunkSessions();
+
+    const session = this.chunkSessions.get(uploadId);
+    if (!session) {
+      throw new NotFoundException('Upload session not found or expired');
+    }
+    if (!Number.isInteger(chunkIndex) || chunkIndex < 0 || chunkIndex >= session.totalChunks) {
+      throw new BadRequestException('Invalid chunk_index');
+    }
+    if (!buffer?.length) {
+      throw new BadRequestException('Empty chunk');
+    }
+
+    const chunkPath = path.join(this.chunkSessionDir(uploadId), `${chunkIndex}.part`);
+    fs.writeFileSync(chunkPath, buffer);
+    session.received.add(chunkIndex);
+
+    return {
+      received: session.received.size,
+      total_chunks: session.totalChunks,
+    };
+  }
+
+  async completeChunkUpload(uploadId: string): Promise<UploadFileResult> {
+    const session = this.chunkSessions.get(uploadId);
+    if (!session) {
+      throw new NotFoundException('Upload session not found or expired');
+    }
+    if (session.received.size !== session.totalChunks) {
+      throw new BadRequestException(
+        `Missing chunks: received ${session.received.size} of ${session.totalChunks}`,
+      );
+    }
+
+    const parts: Buffer[] = [];
+    for (let i = 0; i < session.totalChunks; i += 1) {
+      const chunkPath = path.join(this.chunkSessionDir(uploadId), `${i}.part`);
+      if (!fs.existsSync(chunkPath)) {
+        throw new BadRequestException(`Missing chunk ${i}`);
+      }
+      parts.push(fs.readFileSync(chunkPath));
+    }
+
+    const buffer = Buffer.concat(parts);
+    if (buffer.length !== session.totalSize) {
+      throw new BadRequestException(
+        `Assembled size ${buffer.length} does not match declared size ${session.totalSize}`,
+      );
+    }
+
+    const multerFile: Express.Multer.File = {
+      fieldname: 'file',
+      originalname: session.filename,
+      encoding: '7bit',
+      mimetype: session.mimeType,
+      size: buffer.length,
+      buffer,
+      destination: '',
+      filename: '',
+      path: '',
+      stream: null as unknown as Express.Multer.File['stream'],
+    };
+
+    try {
+      return await this.uploadFile(multerFile);
+    } finally {
+      this.cleanupChunkUpload(uploadId);
     }
   }
 }
