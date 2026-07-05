@@ -1,5 +1,7 @@
 import { Module, OnApplicationBootstrap } from '@nestjs/common';
+import { MulterModule } from '@nestjs/platform-express';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import * as multer from 'multer';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { User } from '../entities/user.entity';
@@ -17,6 +19,10 @@ import { UploadsModule } from '../uploads/uploads.module';
 
 @Module({
   imports: [
+    MulterModule.register({
+      storage: multer.memoryStorage(),
+      limits: { fileSize: 200 * 1024 * 1024 },
+    }),
     TypeOrmModule.forFeature([
       User,
       Doctor,

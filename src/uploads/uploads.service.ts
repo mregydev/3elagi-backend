@@ -612,6 +612,34 @@ export class UploadsService {
   }
 
   async completeChunkUpload(uploadId: string): Promise<UploadFileResult> {
+    const assembled = await this.assembleChunkUpload(uploadId);
+
+    const multerFile: Express.Multer.File = {
+      fieldname: 'file',
+      originalname: assembled.filename,
+      encoding: '7bit',
+      mimetype: assembled.mimeType,
+      size: assembled.buffer.length,
+      buffer: assembled.buffer,
+      destination: '',
+      filename: '',
+      path: '',
+      stream: null as unknown as Express.Multer.File['stream'],
+    };
+
+    try {
+      return await this.uploadFile(multerFile);
+    } finally {
+      this.cleanupChunkUpload(uploadId);
+    }
+  }
+
+  /** Assemble chunked upload in memory; caller must cleanup or use consumeChunkUpload. */
+  assembleChunkUpload(uploadId: string): {
+    buffer: Buffer;
+    filename: string;
+    mimeType: string;
+  } {
     const session = this.chunkSessions.get(uploadId);
     if (!session) {
       throw new NotFoundException('Upload session not found or expired');
@@ -638,21 +666,21 @@ export class UploadsService {
       );
     }
 
-    const multerFile: Express.Multer.File = {
-      fieldname: 'file',
-      originalname: session.filename,
-      encoding: '7bit',
-      mimetype: session.mimeType,
-      size: buffer.length,
+    return {
       buffer,
-      destination: '',
-      filename: '',
-      path: '',
-      stream: null as unknown as Express.Multer.File['stream'],
+      filename: session.filename,
+      mimeType: session.mimeType,
     };
+  }
 
+  /** Assemble chunked upload and discard temp parts without storing the file. */
+  consumeChunkUpload(uploadId: string): {
+    buffer: Buffer;
+    filename: string;
+    mimeType: string;
+  } {
     try {
-      return await this.uploadFile(multerFile);
+      return this.assembleChunkUpload(uploadId);
     } finally {
       this.cleanupChunkUpload(uploadId);
     }

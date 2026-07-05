@@ -3,18 +3,24 @@ import {
   Controller,
   Delete,
   Get,
+  HttpException,
+  HttpStatus,
   Param,
   Patch,
   Post,
   Put,
   Request,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
 import { AdminService } from './admin.service';
+import { TrainRagDocumentChunkDto } from './dto/train-rag-document-chunk.dto';
 import { IntakeQuestion } from '../entities/intake-test.entity';
 import type { ApprovalStatus } from '../entities/doctor.entity';
 
@@ -146,6 +152,35 @@ export class AdminController {
     },
   ) {
     return this.service.createRagDocument(req.user.id, body);
+  }
+
+  @Put('rag-sources/document/train')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 200 * 1024 * 1024 },
+    }),
+  )
+  trainRagDocumentFile(
+    @Request() req: { user: { id: string } },
+    @UploadedFile() file: Express.Multer.File,
+    @Body() body: { title?: string },
+  ) {
+    if (!file) {
+      throw new HttpException('No file provided', HttpStatus.BAD_REQUEST);
+    }
+    return this.service.trainRagDocument(req.user.id, file.buffer, {
+      title: body.title,
+      file_name: file.originalname,
+      mime_type: file.mimetype,
+    });
+  }
+
+  @Put('rag-sources/document/train-chunk')
+  trainRagDocumentChunk(
+    @Request() req: { user: { id: string } },
+    @Body() body: TrainRagDocumentChunkDto,
+  ) {
+    return this.service.trainRagDocumentFromChunk(req.user.id, body);
   }
 
   @Delete('rag-sources/:id')

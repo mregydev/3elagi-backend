@@ -292,7 +292,9 @@ export class AdminService {
   ) {
     const fileUrl = dto.file_url?.trim();
     if (!fileUrl) {
-      throw new BadRequestException('file_url is required');
+      throw new BadRequestException(
+        'file_url is required. Use document/train to train without storing the file.',
+      );
     }
 
     const fileName = dto.file_name?.trim() || 'document';
@@ -304,6 +306,28 @@ export class AdminService {
     const buffer = await this.uploadsService.getBufferFromUrl(fileUrl);
     if (!buffer?.length) {
       throw new BadRequestException('Could not read uploaded file');
+    }
+
+    return this.trainRagDocument(actorUserId, buffer, {
+      title: dto.title,
+      file_name: fileName,
+      mime_type: mimeType,
+    });
+  }
+
+  async trainRagDocument(
+    actorUserId: string,
+    buffer: Buffer,
+    dto: {
+      title?: string;
+      file_name?: string;
+      mime_type?: string;
+    },
+  ) {
+    const fileName = dto.file_name?.trim() || 'document';
+    const mimeType = this.detectDocumentMime(dto.mime_type, fileName);
+    if (!mimeType) {
+      throw new BadRequestException('Only PDF and DOCX documents are supported');
     }
 
     const extracted = await this.extractDocumentText(buffer, mimeType);
@@ -318,7 +342,7 @@ export class AdminService {
         kind: 'document',
         title,
         content,
-        file_url: fileUrl,
+        file_url: null,
         file_name: fileName,
         mime_type: mimeType,
         created_by: actorUserId,
@@ -332,6 +356,23 @@ export class AdminService {
       mimeType: source.mime_type,
     });
     return this.mapRagSource(source);
+  }
+
+  async trainRagDocumentFromChunk(
+    actorUserId: string,
+    dto: {
+      upload_id: string;
+      title?: string;
+      file_name?: string;
+      mime_type?: string;
+    },
+  ) {
+    const assembled = this.uploadsService.consumeChunkUpload(dto.upload_id);
+    return this.trainRagDocument(actorUserId, assembled.buffer, {
+      title: dto.title,
+      file_name: dto.file_name ?? assembled.filename,
+      mime_type: dto.mime_type ?? assembled.mimeType,
+    });
   }
 
   async deleteRagSource(id: string) {
@@ -382,7 +423,7 @@ export class AdminService {
       mime_type: row.mime_type,
       created_at: row.created_at,
       preview:
-        row.kind === 'text'
+        row.kind === 'text' || !row.file_url
           ? row.content.slice(0, 220)
           : row.file_name ?? row.title,
     };
