@@ -331,7 +331,7 @@ export class AdminService {
     }
 
     const extracted = await this.extractDocumentText(buffer, mimeType);
-    const content = extracted.trim();
+    const content = this.sanitizeUtf8Text(extracted).trim();
     if (!content) {
       throw new BadRequestException('No readable text found in the document');
     }
@@ -438,6 +438,10 @@ export class AdminService {
     if (explicit) return explicit.slice(0, 255);
     const candidate = fallbackText.trim().replace(/\s+/g, ' ').slice(0, 255);
     return candidate || defaultTitle;
+  }
+
+  private sanitizeUtf8Text(text: string): string {
+    return text.replace(/\u0000/g, '');
   }
 
   private detectDocumentMime(
