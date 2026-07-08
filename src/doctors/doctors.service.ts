@@ -122,10 +122,16 @@ export class DoctorsService {
       const list = Array.isArray(certification_urls) ? certification_urls : [];
       const seen = new Set<string>();
       safeUpdates.certification_urls = list
-        .map((u) => (typeof u === 'string' ? u.trim() : ''))
-        .filter((u) => {
-          if (!u || seen.has(u)) return false;
-          seen.add(u);
+        .map((c) => ({
+          url: typeof c?.url === 'string' ? c.url.trim() : '',
+          description:
+            typeof c?.description === 'string'
+              ? c.description.trim().slice(0, 300)
+              : '',
+        }))
+        .filter((c) => {
+          if (!c.url || seen.has(c.url)) return false;
+          seen.add(c.url);
           return true;
         })
         .slice(0, 20);

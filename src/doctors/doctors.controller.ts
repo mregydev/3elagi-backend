@@ -73,7 +73,7 @@ export class DoctorsController {
       consultation_fee_egp: number | null;
       faqs: { id: string; q: string; a: string }[];
       tags: string[];
-      certification_urls: string[];
+      certification_urls: { url: string; description: string }[];
       speciality_id: string | null;
       message_price: number;
     }>,
