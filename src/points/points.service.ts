@@ -13,6 +13,7 @@ import { clampDoctorMessagePrice } from './message-price.constants';
 
 export interface UserPointsSummary {
   message_points: number;
+  points_reserved: number;
   points_spent_total: number;
   points_purchased_total: number;
 }
@@ -36,6 +37,7 @@ export class PointsService {
     return {
       message_points:
         user.message_points != null ? user.message_points : DEFAULT_MESSAGE_POINTS,
+      points_reserved: user.points_reserved ?? 0,
       points_spent_total: user.points_spent_total ?? 0,
       points_purchased_total: user.points_purchased_total ?? 0,
     };
@@ -72,6 +74,71 @@ export class PointsService {
 
       user.message_points -= messageCost;
       user.points_spent_total = (user.points_spent_total ?? 0) + messageCost;
+      const saved = await manager.getRepository(User).save(user);
+      return this.mapSummary(saved);
+    });
+  }
+
+  /** Hold points for an open consultation: move from balance into reserved. */
+  async reservePoints(userId: string, amount: number): Promise<UserPointsSummary> {
+    const cost = Math.max(1, Math.floor(Number(amount) || 1));
+    return this.dataSource.transaction(async (manager) => {
+      const user = await manager
+        .getRepository(User)
+        .createQueryBuilder('u')
+        .setLock('pessimistic_write')
+        .where('u.id = :userId', { userId })
+        .getOne();
+
+      if (!user) throw new NotFoundException('User not found');
+      if ((user.message_points ?? 0) < cost) {
+        throw new ForbiddenException(
+          `Insufficient points. Starting a consultation requires ${cost} point${cost === 1 ? '' : 's'}`,
+        );
+      }
+
+      user.message_points -= cost;
+      user.points_reserved = (user.points_reserved ?? 0) + cost;
+      const saved = await manager.getRepository(User).save(user);
+      return this.mapSummary(saved);
+    });
+  }
+
+  /** Settle a consultation as completed: reserved points are spent for good. */
+  async consumeReserved(userId: string, amount: number): Promise<UserPointsSummary> {
+    const cost = Math.max(0, Math.floor(Number(amount) || 0));
+    return this.dataSource.transaction(async (manager) => {
+      const user = await manager
+        .getRepository(User)
+        .createQueryBuilder('u')
+        .setLock('pessimistic_write')
+        .where('u.id = :userId', { userId })
+        .getOne();
+
+      if (!user) throw new NotFoundException('User not found');
+      const release = Math.min(cost, user.points_reserved ?? 0);
+      user.points_reserved = (user.points_reserved ?? 0) - release;
+      user.points_spent_total = (user.points_spent_total ?? 0) + release;
+      const saved = await manager.getRepository(User).save(user);
+      return this.mapSummary(saved);
+    });
+  }
+
+  /** Cancel a consultation: reserved points go back to the balance. */
+  async refundReserved(userId: string, amount: number): Promise<UserPointsSummary> {
+    const cost = Math.max(0, Math.floor(Number(amount) || 0));
+    return this.dataSource.transaction(async (manager) => {
+      const user = await manager
+        .getRepository(User)
+        .createQueryBuilder('u')
+        .setLock('pessimistic_write')
+        .where('u.id = :userId', { userId })
+        .getOne();
+
+      if (!user) throw new NotFoundException('User not found');
+      const release = Math.min(cost, user.points_reserved ?? 0);
+      user.points_reserved = (user.points_reserved ?? 0) - release;
+      user.message_points = (user.message_points ?? 0) + release;
       const saved = await manager.getRepository(User).save(user);
       return this.mapSummary(saved);
     });

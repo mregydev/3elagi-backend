@@ -64,6 +64,7 @@ import { IntakeTestsModule } from './intake-tests/intake-tests.module';
 import { IntakeExamsModule } from './intake-exams/intake-exams.module';
 import { SchedulesModule } from './schedules/schedules.module';
 import { PatientPortalModule } from './patient-portal/patient-portal.module';
+import { ConsultationsModule } from './consultations/consultations.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { HealthModule } from './health/health.module';
@@ -114,7 +115,9 @@ import { AppointmentChatFields1778240000000 } from './migrations/1778240000000-A
 import { AdminRagSources1778250000000 } from './migrations/1778250000000-AdminRagSources';
 import { IntakeExamInstances1778260000000 } from './migrations/1778260000000-IntakeExamInstances';
 import { DoctorCertifications1778270000000 } from './migrations/1778270000000-DoctorCertifications';
+import { Consultations1778280000000 } from './migrations/1778280000000-Consultations';
 import { AdminRagSource } from './entities/admin-rag-source.entity';
+import { Consultation } from './entities/consultation.entity';
 
 @Module({
   imports: [
@@ -156,6 +159,7 @@ import { AdminRagSource } from './entities/admin-rag-source.entity';
           DiagnosisDocument,
           VideoCallSession,
           AdminRagSource,
+          Consultation,
         ],
         synchronize: false,
         migrations: [
@@ -208,6 +212,7 @@ import { AdminRagSource } from './entities/admin-rag-source.entity';
           AdminRagSources1778250000000,
           IntakeExamInstances1778260000000,
           DoctorCertifications1778270000000,
+          Consultations1778280000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
@@ -233,6 +238,7 @@ import { AdminRagSource } from './entities/admin-rag-source.entity';
     IntakeExamsModule,
     SchedulesModule,
     PatientPortalModule,
+    ConsultationsModule,
     ReviewsModule,
     UploadsModule,
     HealthModule,

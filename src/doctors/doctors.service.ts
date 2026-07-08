@@ -9,7 +9,10 @@ import { Repository } from 'typeorm';
 import { Doctor } from '../entities/doctor.entity';
 import { Clinic } from '../entities/clinic.entity';
 import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
-import { clampDoctorMessagePrice } from '../points/message-price.constants';
+import {
+  clampConsultationPrice,
+  clampDoctorMessagePrice,
+} from '../points/message-price.constants';
 import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { SpecialitiesService } from '../specialities/specialities.service';
@@ -78,6 +81,7 @@ export class DoctorsService {
       digital_signature_url, personal_clinic_location,
       professional_title, description, experience_years, consultation_fee_egp,
       faqs, tags, certification_urls, speciality_id, message_price,
+      consultation_price,
     } = updates as Partial<Doctor>;
     const safeUpdates: Partial<Doctor> = {};
     if (name !== undefined) safeUpdates.name = name;
@@ -143,6 +147,9 @@ export class DoctorsService {
     }
     if (message_price !== undefined) {
       safeUpdates.message_price = clampDoctorMessagePrice(message_price);
+    }
+    if (consultation_price !== undefined) {
+      safeUpdates.consultation_price = clampConsultationPrice(consultation_price);
     }
     await this.doctorRepo.update(doctor.id, safeUpdates);
     void this.knowledgeIndexer.indexDoctor(doctor.id).catch(() => undefined);

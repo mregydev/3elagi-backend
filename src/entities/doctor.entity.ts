@@ -74,6 +74,10 @@ export class Doctor {
   @Column({ type: 'int', default: 1 })
   message_price: number;
 
+  /** Points a patient must reserve to start a consultation with this doctor. */
+  @Column({ type: 'int', default: 10 })
+  consultation_price: number;
+
   @Column({ type: 'varchar', length: 16, default: 'pending' })
   approval_status: ApprovalStatus;
 

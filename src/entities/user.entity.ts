@@ -40,6 +40,10 @@ export class User {
   @Column({ type: 'int', default: DEFAULT_MESSAGE_POINTS })
   message_points: number;
 
+  /** Points held for open consultations (deducted from message_points until settled). */
+  @Column({ type: 'int', default: 0 })
+  points_reserved: number;
+
   @Column({ type: 'int', default: 0 })
   points_spent_total: number;
 

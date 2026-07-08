@@ -15,7 +15,8 @@ export type MessageType =
   | 'voice'
   | 'medical_link'
   | 'access_action'
-  | 'appointment_action';
+  | 'appointment_action'
+  | 'consultation_action';
 
 export interface MedicalLinkMeta {
   record_type: 'lab' | 'xray' | 'diagnosis' | 'intake';
@@ -51,10 +52,23 @@ export interface AppointmentActionMeta {
   meeting_link?: string | null;
 }
 
+export type ConsultationActionType = 'start' | 'end' | 'cancel';
+
+export interface ConsultationActionMeta {
+  consultation_id: string;
+  action: ConsultationActionType;
+  status: 'open' | 'ended' | 'cancelled';
+  reserved_points?: number;
+  cancel_reason_type?: 'video_consultation' | 'onsite_visit' | 'other';
+  cancel_reason?: string;
+  diagnosis_id?: string | null;
+}
+
 export type MessageAttachmentMeta =
   | MedicalLinkMeta
   | AccessActionMeta
-  | AppointmentActionMeta;
+  | AppointmentActionMeta
+  | ConsultationActionMeta;
 
 @Entity('messages')
 @Index('IDX_messages_creator_recipient', ['creator', 'recipient'])
