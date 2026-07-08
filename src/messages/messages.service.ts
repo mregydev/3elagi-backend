@@ -24,6 +24,7 @@ import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { MessageEmotionsService } from '../message-emotions/message-emotions.service';
 import { AppointmentsChatService } from '../appointments/appointments-chat.service';
+import { ConsultationsService } from '../consultations/consultations.service';
 
 const ACCESS_ACTIONS: AccessActionType[] = [
   'grant_records',
@@ -54,6 +55,7 @@ export class MessagesService {
     private doctorPatientAccessService: DoctorPatientAccessService,
     private messageEmotionsService: MessageEmotionsService,
     private appointmentsChatService: AppointmentsChatService,
+    private consultationsService: ConsultationsService,
   ) {}
 
   private mapMessage(row: Message, pointsBalance?: number, messageCost?: number) {
@@ -362,6 +364,23 @@ export class MessagesService {
     }
 
     await this.assertCanChat(userId, dto.recipient_id);
+
+    // Doctor↔patient messaging is only open while a consultation is active.
+    const { sender, recipient } = await this.assertChatParticipants(
+      userId,
+      dto.recipient_id,
+    );
+    if (!this.isDoctorDoctorPair(sender, recipient)) {
+      const open = await this.consultationsService.hasOpenBetween(
+        userId,
+        dto.recipient_id,
+      );
+      if (!open) {
+        throw new ForbiddenException(
+          'Start a consultation before sending messages',
+        );
+      }
+    }
 
     const created = this.messageRepo.create({
       type,

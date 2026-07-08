@@ -100,6 +100,19 @@ export class ConsultationsService {
     };
   }
 
+  /** True when an open consultation exists between the two users. */
+  async hasOpenBetween(userA: string, userB: string): Promise<boolean> {
+    const count = await this.consultationRepo
+      .createQueryBuilder('c')
+      .where('c.status = :open', { open: 'open' })
+      .andWhere(
+        '((c.patient_id = :a AND c.doctor_id = :b) OR (c.patient_id = :b AND c.doctor_id = :a))',
+        { a: userA, b: userB },
+      )
+      .getCount();
+    return count > 0;
+  }
+
   /** Open consultation between the given user and peer, if any. */
   async findActiveWithPeer(userId: string, peerId: string) {
     const rows = await this.consultationRepo
