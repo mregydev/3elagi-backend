@@ -133,8 +133,9 @@ export class PatientMedicalDocumentsController {
     return this.service.findOneForPatientUser(id, req.user.id);
   }
 
+  // NestJS can't stack route-method decorators on one handler (metadata
+  // collides), so the POST alias needs its own method delegating here.
   @Patch(':id')
-  @Post(':id/update')
   update(
     @Param('id') id: string,
     @Body() dto: UpdatePatientMedicalDocumentDto,
@@ -146,6 +147,15 @@ export class PatientMedicalDocumentsController {
       req.user.role,
       dto,
     );
+  }
+
+  @Post(':id/update')
+  updateViaPost(
+    @Param('id') id: string,
+    @Body() dto: UpdatePatientMedicalDocumentDto,
+    @Request() req,
+  ) {
+    return this.update(id, dto, req);
   }
 
   @Post(':id/generate-details')

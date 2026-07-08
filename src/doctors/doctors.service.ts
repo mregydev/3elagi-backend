@@ -77,7 +77,7 @@ export class DoctorsService {
       graduation_cert_url, work_permit_url,
       digital_signature_url, personal_clinic_location,
       professional_title, description, experience_years, consultation_fee_egp,
-      faqs, tags, speciality_id, message_price,
+      faqs, tags, certification_urls, speciality_id, message_price,
     } = updates as Partial<Doctor>;
     const safeUpdates: Partial<Doctor> = {};
     if (name !== undefined) safeUpdates.name = name;
@@ -114,6 +114,18 @@ export class DoctorsService {
           const key = t.toLowerCase();
           if (seen.has(key)) return false;
           seen.add(key);
+          return true;
+        })
+        .slice(0, 20);
+    }
+    if (certification_urls !== undefined) {
+      const list = Array.isArray(certification_urls) ? certification_urls : [];
+      const seen = new Set<string>();
+      safeUpdates.certification_urls = list
+        .map((u) => (typeof u === 'string' ? u.trim() : ''))
+        .filter((u) => {
+          if (!u || seen.has(u)) return false;
+          seen.add(u);
           return true;
         })
         .slice(0, 20);

@@ -113,6 +113,7 @@ import { VideoCallSessions1778230000000 } from './migrations/1778230000000-Video
 import { AppointmentChatFields1778240000000 } from './migrations/1778240000000-AppointmentChatFields';
 import { AdminRagSources1778250000000 } from './migrations/1778250000000-AdminRagSources';
 import { IntakeExamInstances1778260000000 } from './migrations/1778260000000-IntakeExamInstances';
+import { DoctorCertifications1778270000000 } from './migrations/1778270000000-DoctorCertifications';
 import { AdminRagSource } from './entities/admin-rag-source.entity';
 
 @Module({
@@ -206,6 +207,7 @@ import { AdminRagSource } from './entities/admin-rag-source.entity';
           AppointmentChatFields1778240000000,
           AdminRagSources1778250000000,
           IntakeExamInstances1778260000000,
+          DoctorCertifications1778270000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',

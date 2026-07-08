@@ -83,6 +83,10 @@ export class Doctor {
   @Column({ type: 'jsonb', default: () => "'[]'::jsonb" })
   tags: string[];
 
+  /** Uploaded certification file URLs (PDF/image). */
+  @Column({ type: 'jsonb', default: () => "'[]'::jsonb" })
+  certification_urls: string[];
+
   @Column({ nullable: true })
   speciality_id: string | null;
 
