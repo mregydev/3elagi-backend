@@ -50,6 +50,10 @@ export class User {
   @Column({ type: 'int', default: 0 })
   points_purchased_total: number;
 
+  /** Points a doctor has cashed out via reimbursement. */
+  @Column({ type: 'int', default: 0 })
+  points_reimbursed_total: number;
+
   @Column({ type: 'varchar', length: 2, nullable: true })
   preferred_locale: 'ar' | 'en' | null;
 

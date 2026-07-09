@@ -116,6 +116,8 @@ import { AdminRagSources1778250000000 } from './migrations/1778250000000-AdminRa
 import { IntakeExamInstances1778260000000 } from './migrations/1778260000000-IntakeExamInstances';
 import { DoctorCertifications1778270000000 } from './migrations/1778270000000-DoctorCertifications';
 import { Consultations1778280000000 } from './migrations/1778280000000-Consultations';
+import { ConsultationPriceCap1778290000000 } from './migrations/1778290000000-ConsultationPriceCap';
+import { PointsReimbursed1778300000000 } from './migrations/1778300000000-PointsReimbursed';
 import { AdminRagSource } from './entities/admin-rag-source.entity';
 import { Consultation } from './entities/consultation.entity';
 
@@ -213,6 +215,8 @@ import { Consultation } from './entities/consultation.entity';
           IntakeExamInstances1778260000000,
           DoctorCertifications1778270000000,
           Consultations1778280000000,
+          ConsultationPriceCap1778290000000,
+          PointsReimbursed1778300000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',

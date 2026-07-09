@@ -7,6 +7,7 @@ import { Message } from '../entities/message.entity';
 import { PointsModule } from '../points/points.module';
 import { PresenceModule } from '../presence/presence.module';
 import { DiagnosisModule } from '../diagnosis/diagnosis.module';
+import { UsersModule } from '../users/users.module';
 import { ConsultationsController } from './consultations.controller';
 import { ConsultationsService } from './consultations.service';
 
@@ -16,6 +17,7 @@ import { ConsultationsService } from './consultations.service';
     PointsModule,
     PresenceModule,
     DiagnosisModule,
+    UsersModule,
   ],
   controllers: [ConsultationsController],
   providers: [ConsultationsService],

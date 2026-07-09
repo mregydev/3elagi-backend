@@ -28,6 +28,12 @@ export class ConsultationsController {
     return this.service.findActiveWithPeer(req.user.id, peerId);
   }
 
+  @Get('mine')
+  @Roles('doctor')
+  mine(@Request() req) {
+    return this.service.listForDoctor(req.user.id);
+  }
+
   @Post('start')
   @Roles('patient')
   start(@Body() dto: StartConsultationDto, @Request() req) {

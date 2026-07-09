@@ -9,8 +9,8 @@ export function clampDoctorMessagePrice(value: unknown): number {
 }
 
 export const MIN_CONSULTATION_PRICE = 1;
-export const MAX_CONSULTATION_PRICE = 100;
-export const DEFAULT_CONSULTATION_PRICE = 10;
+export const MAX_CONSULTATION_PRICE = 5;
+export const DEFAULT_CONSULTATION_PRICE = 1;
 
 export function clampConsultationPrice(value: unknown): number {
   const n = Number(value);

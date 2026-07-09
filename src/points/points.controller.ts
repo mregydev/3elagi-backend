@@ -23,4 +23,10 @@ export class PointsController {
   ) {
     return this.pointsService.addPoints(req.user.id, dto.amount);
   }
+
+  @Post('reimburse')
+  @Roles('doctor')
+  reimburse(@Request() req: { user: { id: string } }) {
+    return this.pointsService.reimburse(req.user.id);
+  }
 }

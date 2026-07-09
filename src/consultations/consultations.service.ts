@@ -20,6 +20,7 @@ import { User, UserRole } from '../entities/user.entity';
 import { PointsService } from '../points/points.service';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { DiagnosisService } from '../diagnosis/diagnosis.service';
+import { UsersService } from '../users/users.service';
 import { clampConsultationPrice } from '../points/message-price.constants';
 import {
   CancelConsultationDto,
@@ -38,6 +39,7 @@ export class ConsultationsService {
     private points: PointsService,
     private presence: PresenceGateway,
     private diagnosis: DiagnosisService,
+    private users: UsersService,
   ) {}
 
   private mapMessage(row: Message) {
@@ -124,6 +126,22 @@ export class ConsultationsService {
       )
       .getOne();
     return rows ? this.mapConsultation(rows) : null;
+  }
+
+  /** All consultations for a doctor, newest first, with patient display names. */
+  async listForDoctor(doctorUserId: string) {
+    await this.assertRole(doctorUserId, UserRole.DOCTOR);
+    const rows = await this.consultationRepo.find({
+      where: { doctor_id: doctorUserId },
+      order: { created_at: 'DESC' },
+    });
+    const names = await Promise.all(
+      rows.map((r) => this.users.getDisplayName(r.patient_id)),
+    );
+    return rows.map((c, i) => ({
+      ...this.mapConsultation(c),
+      patient_name: names[i],
+    }));
   }
 
   private async assertRole(userId: string, role: UserRole): Promise<User> {
@@ -231,8 +249,12 @@ export class ConsultationsService {
       }
     }
 
-    // Consumed for good — this is completed work.
-    await this.points.consumeReserved(c.patient_id, c.reserved_points);
+    // Completed work — the patient's reserved points are credited to the doctor.
+    await this.points.settleReservedToDoctor(
+      c.patient_id,
+      c.doctor_id,
+      c.reserved_points,
+    );
 
     c.status = 'ended';
     c.doctor_note = dto.note?.trim() || null;

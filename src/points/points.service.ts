@@ -16,6 +16,7 @@ export interface UserPointsSummary {
   points_reserved: number;
   points_spent_total: number;
   points_purchased_total: number;
+  points_reimbursed_total: number;
 }
 
 @Injectable()
@@ -40,6 +41,7 @@ export class PointsService {
       points_reserved: user.points_reserved ?? 0,
       points_spent_total: user.points_spent_total ?? 0,
       points_purchased_total: user.points_purchased_total ?? 0,
+      points_reimbursed_total: user.points_reimbursed_total ?? 0,
     };
   }
 
@@ -104,21 +106,56 @@ export class PointsService {
     });
   }
 
-  /** Settle a consultation as completed: reserved points are spent for good. */
-  async consumeReserved(userId: string, amount: number): Promise<UserPointsSummary> {
+  /**
+   * Settle a completed consultation: the patient's reserved points are spent
+   * and credited to the doctor's available balance. Both rows are locked in a
+   * stable id order to avoid deadlocks.
+   */
+  async settleReservedToDoctor(
+    patientId: string,
+    doctorId: string,
+    amount: number,
+  ): Promise<void> {
     const cost = Math.max(0, Math.floor(Number(amount) || 0));
+    if (cost === 0 || patientId === doctorId) return;
+    await this.dataSource.transaction(async (manager) => {
+      const repo = manager.getRepository(User);
+      // Deterministic lock order (by id) prevents deadlocks between concurrent settles.
+      const rows = await repo
+        .createQueryBuilder('u')
+        .setLock('pessimistic_write')
+        .where('u.id IN (:...ids)', { ids: [patientId, doctorId] })
+        .orderBy('u.id', 'ASC')
+        .getMany();
+      const patient = rows.find((u) => u.id === patientId);
+      const doctor = rows.find((u) => u.id === doctorId);
+      if (!patient || !doctor) throw new NotFoundException('User not found');
+
+      const release = Math.min(cost, patient.points_reserved ?? 0);
+      patient.points_reserved = (patient.points_reserved ?? 0) - release;
+      patient.points_spent_total = (patient.points_spent_total ?? 0) + release;
+      doctor.message_points = (doctor.message_points ?? 0) + release;
+      await repo.save([patient, doctor]);
+    });
+  }
+
+  /** Doctor cashes out their available points. */
+  async reimburse(doctorId: string): Promise<UserPointsSummary> {
     return this.dataSource.transaction(async (manager) => {
       const user = await manager
         .getRepository(User)
         .createQueryBuilder('u')
         .setLock('pessimistic_write')
-        .where('u.id = :userId', { userId })
+        .where('u.id = :doctorId', { doctorId })
         .getOne();
 
       if (!user) throw new NotFoundException('User not found');
-      const release = Math.min(cost, user.points_reserved ?? 0);
-      user.points_reserved = (user.points_reserved ?? 0) - release;
-      user.points_spent_total = (user.points_spent_total ?? 0) + release;
+      const amount = user.message_points ?? 0;
+      if (amount <= 0) {
+        throw new BadRequestException('No points available to reimburse');
+      }
+      user.message_points = 0;
+      user.points_reimbursed_total = (user.points_reimbursed_total ?? 0) + amount;
       const saved = await manager.getRepository(User).save(user);
       return this.mapSummary(saved);
     });
