@@ -120,6 +120,8 @@ import { Consultations1778280000000 } from './migrations/1778280000000-Consultat
 import { ConsultationPriceCap1778290000000 } from './migrations/1778290000000-ConsultationPriceCap';
 import { PointsReimbursed1778300000000 } from './migrations/1778300000000-PointsReimbursed';
 import { ConsultationComplaints1778310000000 } from './migrations/1778310000000-ConsultationComplaints';
+import { DoctorPriceEgpCredits1778320000000 } from './migrations/1778320000000-DoctorPriceEgpCredits';
+import { VideoConsultationPrice1778330000000 } from './migrations/1778330000000-VideoConsultationPrice';
 import { AdminRagSource } from './entities/admin-rag-source.entity';
 import { Consultation } from './entities/consultation.entity';
 import { ConsultationComplaint } from './entities/consultation-complaint.entity';
@@ -222,6 +224,8 @@ import { ConsultationComplaint } from './entities/consultation-complaint.entity'
           ConsultationPriceCap1778290000000,
           PointsReimbursed1778300000000,
           ConsultationComplaints1778310000000,
+          DoctorPriceEgpCredits1778320000000,
+          VideoConsultationPrice1778330000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',

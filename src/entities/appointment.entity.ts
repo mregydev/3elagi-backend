@@ -93,6 +93,14 @@ export class Appointment {
   @Column({ type: 'timestamptz', nullable: true })
   reminder_sent_at: Date | null;
 
+  /** EGP credits reserved from the patient when booking via app. */
+  @Column({ type: 'int', default: 0 })
+  reserved_points: number;
+
+  /** True after reserved credits were settled to the doctor. */
+  @Column({ type: 'boolean', default: false })
+  points_settled: boolean;
+
   @CreateDateColumn()
   created_at: Date;
 

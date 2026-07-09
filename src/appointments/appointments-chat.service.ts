@@ -25,6 +25,8 @@ import { SchedulesService } from '../schedules/schedules.service';
 import { UsersService } from '../users/users.service';
 import { WherebyService } from '../whereby/whereby.service';
 import { VideoCallSession } from '../entities/video-call-session.entity';
+import { PointsService } from '../points/points.service';
+import { clampConsultationPrice } from '../points/message-price.constants';
 
 const APPOINTMENT_ACTIONS: AppointmentActionType[] = [
   'request',
@@ -116,7 +118,29 @@ export class AppointmentsChatService {
     private readonly presenceGateway: PresenceGateway,
     private readonly pushNotifications: PushNotificationsService,
     private readonly wherebyService: WherebyService,
+    private readonly pointsService: PointsService,
   ) {}
+
+  private async releaseAppointmentCredits(
+    appointment: Appointment,
+    doctorUserId: string,
+    patientUserId: string,
+  ): Promise<void> {
+    const amount = appointment.reserved_points ?? 0;
+    if (amount <= 0) return;
+
+    if (appointment.points_settled) {
+      await this.pointsService.reverseSettlement(
+        patientUserId,
+        doctorUserId,
+        amount,
+      );
+      appointment.points_settled = false;
+    } else {
+      await this.pointsService.refundReserved(patientUserId, amount);
+    }
+    appointment.reserved_points = 0;
+  }
 
   static appointmentActionLabel(
     action: AppointmentActionType,
@@ -264,6 +288,13 @@ export class AppointmentsChatService {
     });
     if (conflict) throw new BadRequestException('Time slot already booked');
 
+    const price = clampConsultationPrice(doctor.video_consultation_price ?? 1);
+    await this.pointsService.reservePoints(
+      patientUserId,
+      price,
+      'Booking a video appointment',
+    );
+
     const patient = await this.upsertClinicPatient(
       profile,
       doctor.default_clinic_id,
@@ -272,21 +303,29 @@ export class AppointmentsChatService {
       where: { doctor_id: doctor.id, date },
     });
 
-    const appointment = await this.appointmentRepo.save(
-      this.appointmentRepo.create({
-        clinic_id: doctor.default_clinic_id,
-        doctor_id: doctor.id,
-        patient_id: patient.id,
-        patient_name: profile.name,
-        patient_phone: profile.phone,
-        date,
-        time: timeDb,
-        status: AppointmentStatus.PENDING,
-        queue_position: count + 1,
-        booked_via_app: true,
-        patient_user_id: patientUserId,
-      }),
-    );
+    let appointment: Appointment;
+    try {
+      appointment = await this.appointmentRepo.save(
+        this.appointmentRepo.create({
+          clinic_id: doctor.default_clinic_id,
+          doctor_id: doctor.id,
+          patient_id: patient.id,
+          patient_name: profile.name,
+          patient_phone: profile.phone,
+          date,
+          time: timeDb,
+          status: AppointmentStatus.PENDING,
+          queue_position: count + 1,
+          booked_via_app: true,
+          patient_user_id: patientUserId,
+          reserved_points: price,
+          points_settled: false,
+        }),
+      );
+    } catch (e) {
+      await this.pointsService.refundReserved(patientUserId, price);
+      throw e;
+    }
 
     const ensured = await this.ensureMeetingAssets(
       appointment,
@@ -419,8 +458,27 @@ export class AppointmentsChatService {
         action === 'confirm'
           ? AppointmentStatus.CONFIRMED
           : AppointmentStatus.REJECTED;
+      if (action === 'reject') {
+        await this.releaseAppointmentCredits(
+          appointment,
+          doctorUserId,
+          patientUserId,
+        );
+      }
       await this.appointmentRepo.save(appointment);
       if (action === 'confirm') {
+        if (
+          appointment.reserved_points > 0 &&
+          !appointment.points_settled
+        ) {
+          await this.pointsService.settleReservedToDoctor(
+            patientUserId,
+            doctorUserId,
+            appointment.reserved_points,
+          );
+          appointment.points_settled = true;
+          await this.appointmentRepo.save(appointment);
+        }
         const ensured = await this.ensureMeetingAssets(
           appointment,
           doctorUserId,
@@ -440,6 +498,11 @@ export class AppointmentsChatService {
         throw new BadRequestException('Appointment cannot be cancelled');
       }
       appointment.status = AppointmentStatus.CANCELLED;
+      await this.releaseAppointmentCredits(
+        appointment,
+        doctorUserId,
+        patientUserId,
+      );
       await this.appointmentRepo.save(appointment);
     }
 
@@ -557,6 +620,31 @@ export class AppointmentsChatService {
     );
 
     if (expiredAppointments.length) {
+      for (const appointment of expiredAppointments) {
+        if (
+          appointment.patient_user_id &&
+          appointment.reserved_points > 0 &&
+          !appointment.points_settled
+        ) {
+          const doctor = appointment.doctor_id
+            ? await this.doctorRepo.findOne({
+                where: { id: appointment.doctor_id },
+              })
+            : null;
+          if (doctor?.user_id) {
+            await this.releaseAppointmentCredits(
+              appointment,
+              doctor.user_id,
+              appointment.patient_user_id,
+            );
+          } else {
+            await this.pointsService.refundReserved(
+              appointment.patient_user_id,
+              appointment.reserved_points,
+            );
+          }
+        }
+      }
       const videoSessionIds = expiredAppointments
         .map((appointment) => appointment.video_call_session_id)
         .filter((value): value is string => !!value);

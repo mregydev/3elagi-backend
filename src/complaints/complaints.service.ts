@@ -167,7 +167,7 @@ export class ComplaintsService {
   private async notifyDoctorRefund(complaint: ConsultationComplaint) {
     const patientName = await this.users.getDisplayName(complaint.patient_id);
     const title = 'Consultation refunded';
-    const body = `${patientName}'s complaint was accepted. ${complaint.points} points were refunded to the patient.`;
+    const body = `${patientName}'s complaint was accepted. ${complaint.points} EGP credits were refunded to the patient.`;
 
     this.presence.emitToUser(complaint.doctor_id, 'system:notification', {
       title,

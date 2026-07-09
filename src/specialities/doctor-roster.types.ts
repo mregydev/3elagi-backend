@@ -9,7 +9,7 @@ export interface DoctorRosterPayload {
   professional_title?: string | null;
   experience_years?: number | null;
   consultation_fee_egp?: number | null;
-  message_price?: number | null;
+  consultation_price?: number | null;
   rating_average?: number;
   rating_total?: number;
   role: 'doctor';

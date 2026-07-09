@@ -17,7 +17,7 @@ import { RegisterClinicDto } from './dto/register-clinic.dto';
 import { RegisterDoctorDto } from './dto/register-doctor.dto';
 import { RegisterPatientDto } from './dto/register-patient.dto';
 import { DEFAULT_MESSAGE_POINTS } from '../points/points.constants';
-import { clampDoctorMessagePrice } from '../points/message-price.constants';
+import { clampConsultationPrice } from '../points/message-price.constants';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { SpecialitiesService } from '../specialities/specialities.service';
 
@@ -204,7 +204,7 @@ export class AuthService {
       default_clinic_id: personalClinic.id,
       email: dto.email,
       speciality_id: speciality.id,
-      message_price: clampDoctorMessagePrice(dto.message_price),
+      consultation_price: clampConsultationPrice(dto.consultation_price),
       approval_status: 'approved',
     });
     await this.doctorRepo.save(doctor);

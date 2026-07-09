@@ -9,7 +9,7 @@ import { DataSource, Repository } from 'typeorm';
 import { User, UserRole } from '../entities/user.entity';
 import { Doctor } from '../entities/doctor.entity';
 import { DEFAULT_MESSAGE_POINTS } from './points.constants';
-import { clampDoctorMessagePrice } from './message-price.constants';
+import { clampConsultationPrice } from './message-price.constants';
 
 export interface UserPointsSummary {
   message_points: number;
@@ -31,7 +31,7 @@ export class PointsService {
     const user = await this.userRepo.findOne({ where: { id: recipientUserId } });
     if (!user || user.role !== UserRole.DOCTOR) return 1;
     const doctor = await this.doctorRepo.findOne({ where: { user_id: recipientUserId } });
-    return clampDoctorMessagePrice(doctor?.message_price ?? 1);
+    return clampConsultationPrice(doctor?.consultation_price ?? 1);
   }
 
   mapSummary(user: User): UserPointsSummary {
@@ -56,7 +56,7 @@ export class PointsService {
     cost = 1,
     costSubject: 'message' | 'operation' = 'message',
   ): Promise<UserPointsSummary> {
-    const messageCost = Math.max(1, Math.min(5, Math.floor(Number(cost) || 1)));
+    const messageCost = clampConsultationPrice(cost);
     return this.dataSource.transaction(async (manager) => {
       const user = await manager
         .getRepository(User)
@@ -69,9 +69,9 @@ export class PointsService {
       if ((user.message_points ?? 0) < messageCost) {
         const detail =
           costSubject === 'operation'
-            ? `This operation requires ${messageCost} point${messageCost === 1 ? '' : 's'}`
-            : `This message costs ${messageCost} point${messageCost === 1 ? '' : 's'}`;
-        throw new ForbiddenException(`Insufficient message points. ${detail}`);
+            ? `This operation requires ${messageCost} EGP credit${messageCost === 1 ? '' : 's'}`
+            : `This message costs ${messageCost} EGP credit${messageCost === 1 ? '' : 's'}`;
+        throw new ForbiddenException(`Insufficient credits. ${detail}`);
       }
 
       user.message_points -= messageCost;
@@ -82,7 +82,11 @@ export class PointsService {
   }
 
   /** Hold points for an open consultation: move from balance into reserved. */
-  async reservePoints(userId: string, amount: number): Promise<UserPointsSummary> {
+  async reservePoints(
+    userId: string,
+    amount: number,
+    purpose = 'Starting a consultation',
+  ): Promise<UserPointsSummary> {
     const cost = Math.max(1, Math.floor(Number(amount) || 1));
     return this.dataSource.transaction(async (manager) => {
       const user = await manager
@@ -95,7 +99,7 @@ export class PointsService {
       if (!user) throw new NotFoundException('User not found');
       if ((user.message_points ?? 0) < cost) {
         throw new ForbiddenException(
-          `Insufficient points. Starting a consultation requires ${cost} point${cost === 1 ? '' : 's'}`,
+          `Insufficient credits. ${purpose} requires ${cost} EGP`,
         );
       }
 
@@ -186,7 +190,7 @@ export class PointsService {
       if (!user) throw new NotFoundException('User not found');
       const amount = user.message_points ?? 0;
       if (amount <= 0) {
-        throw new BadRequestException('No points available to reimburse');
+        throw new BadRequestException('No credits available to reimburse');
       }
       user.message_points = 0;
       user.points_reimbursed_total = (user.points_reimbursed_total ?? 0) + amount;
@@ -219,8 +223,8 @@ export class PointsService {
     if (!Number.isInteger(amount) || amount < 1) {
       throw new BadRequestException('Amount must be a positive integer');
     }
-    if (amount > 10000) {
-      throw new BadRequestException('Amount cannot exceed 10000');
+    if (amount > 100_000) {
+      throw new BadRequestException('Amount cannot exceed 100000 EGP');
     }
 
     return this.dataSource.transaction(async (manager) => {

@@ -71,12 +71,17 @@ export class Doctor {
   @Column({ type: 'int', nullable: true })
   consultation_fee_egp: number | null;
 
+  /** Per-message price in EGP credits. */
   @Column({ type: 'int', default: 1 })
   message_price: number;
 
-  /** Points a patient must reserve to start a consultation with this doctor (1–5). */
+  /** EGP credits a patient must reserve to start a consultation with this doctor. */
   @Column({ type: 'int', default: 1 })
   consultation_price: number;
+
+  /** EGP credits a patient must reserve to book a video appointment with this doctor. */
+  @Column({ type: 'int', default: 1 })
+  video_consultation_price: number;
 
   /** Video consultation duration in minutes (30, 60 or 120). */
   @Column({ type: 'int', default: 30 })

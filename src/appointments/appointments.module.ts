@@ -17,6 +17,8 @@ import { PresenceModule } from '../presence/presence.module';
 import { PushNotificationsModule } from '../push-notifications/push-notifications.module';
 import { WherebyModule } from '../whereby/whereby.module';
 
+import { PointsModule } from '../points/points.module';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -34,6 +36,7 @@ import { WherebyModule } from '../whereby/whereby.module';
     PresenceModule,
     PushNotificationsModule,
     WherebyModule,
+    PointsModule,
   ],
   controllers: [AppointmentsController],
   providers: [AppointmentsService, AppointmentsChatService],

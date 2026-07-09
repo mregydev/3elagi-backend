@@ -37,7 +37,8 @@ export class RegisterDoctorDto {
 
   @IsInt()
   @Min(1)
-  @Max(5)
+  @Max(100_000)
+  @IsOptional()
   @Type(() => Number)
-  message_price: number;
+  consultation_price?: number;
 }

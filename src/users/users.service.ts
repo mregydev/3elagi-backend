@@ -149,7 +149,8 @@ export class UsersService {
       let photo_url = user.photo_url ?? null;
       let specialty: string | null = null;
       let doctor_id: string | null = null;
-      let message_price: number | null = null;
+      let consultation_price: number | null = null;
+      let video_consultation_price: number | null = null;
       let rating_average: number | null = null;
       let rating_total: number | null = null;
 
@@ -159,7 +160,8 @@ export class UsersService {
         specialty =
           doctor.speciality?.name_en ?? doctor.professional_title ?? null;
         doctor_id = doctor.id;
-        message_price = doctor.message_price ?? 1;
+        consultation_price = doctor.consultation_price ?? 1;
+        video_consultation_price = doctor.video_consultation_price ?? 1;
         const rating = ratingByDoctorId.get(doctor.id);
         rating_average = rating?.average ?? 0;
         rating_total = rating?.total ?? 0;
@@ -181,7 +183,8 @@ export class UsersService {
           photo_url,
           specialty,
           doctor_id,
-          message_price,
+          consultation_price,
+          video_consultation_price,
           rating_average,
           rating_total,
         },
@@ -243,7 +246,8 @@ export class UsersService {
     let photo_url = user.photo_url ?? null;
     let specialty: string | null = null;
     let doctor_id: string | null = null;
-    let message_price: number | null = null;
+    let consultation_price: number | null = null;
+    let video_consultation_price: number | null = null;
     let rating_average: number | null = null;
     let rating_total: number | null = null;
 
@@ -253,7 +257,8 @@ export class UsersService {
       specialty =
         doctor.speciality?.name_en ?? doctor.professional_title ?? null;
       doctor_id = doctor.id;
-      message_price = doctor.message_price ?? 1;
+      consultation_price = doctor.consultation_price ?? 1;
+      video_consultation_price = doctor.video_consultation_price ?? 1;
       const rating = await this.reviewRepo
         .createQueryBuilder('r')
         .select('COALESCE(AVG(r.rating), 0)', 'avg')
@@ -279,7 +284,8 @@ export class UsersService {
       photo_url,
       specialty,
       doctor_id,
-      message_price,
+      consultation_price,
+      video_consultation_price,
       rating_average,
       rating_total,
     };

@@ -98,7 +98,7 @@ export class DoctorsContextSource implements AIContextSource {
       lines.push(
         `Average rating: ${row.avgRating || 'No ratings yet'} (${row.reviewCount} reviews)`,
       );
-      lines.push(`Message price: ${row.doctor.message_price ?? 1} points per message`);
+      lines.push(`Consultation price: ${row.doctor.consultation_price ?? 1} EGP credits per consultation`);
       if (row.sampleReviews.length) {
         lines.push('Recent reviews:');
         for (const r of row.sampleReviews) {

@@ -167,7 +167,7 @@ export class PatientPortalService {
       description: doctor.description,
       experience_years: doctor.experience_years,
       consultation_fee_egp: doctor.consultation_fee_egp,
-      message_price: doctor.message_price ?? 1,
+      consultation_price: doctor.consultation_price ?? 1,
       speciality_id: doctor.speciality_id,
       specialty: doctor.speciality?.name_en ?? doctor.professional_title ?? null,
       specialty_ar: doctor.speciality?.name_ar ?? null,

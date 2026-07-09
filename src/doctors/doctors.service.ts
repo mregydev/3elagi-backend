@@ -11,7 +11,6 @@ import { Clinic } from '../entities/clinic.entity';
 import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
 import {
   clampConsultationPrice,
-  clampDoctorMessagePrice,
   clampVideoConsultationMinutes,
 } from '../points/message-price.constants';
 import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
@@ -81,8 +80,8 @@ export class DoctorsService {
       graduation_cert_url, work_permit_url,
       digital_signature_url, personal_clinic_location,
       professional_title, description, experience_years, consultation_fee_egp,
-      faqs, tags, certification_urls, speciality_id, message_price,
-      consultation_price, video_consultation_minutes,
+      faqs, tags, certification_urls, speciality_id,
+      consultation_price, video_consultation_price, video_consultation_minutes,
     } = updates as Partial<Doctor>;
     const safeUpdates: Partial<Doctor> = {};
     if (name !== undefined) safeUpdates.name = name;
@@ -146,11 +145,13 @@ export class DoctorsService {
       if (!spec) throw new BadRequestException('Invalid speciality');
       safeUpdates.speciality_id = speciality_id;
     }
-    if (message_price !== undefined) {
-      safeUpdates.message_price = clampDoctorMessagePrice(message_price);
-    }
     if (consultation_price !== undefined) {
       safeUpdates.consultation_price = clampConsultationPrice(consultation_price);
+    }
+    if (video_consultation_price !== undefined) {
+      safeUpdates.video_consultation_price = clampConsultationPrice(
+        video_consultation_price,
+      );
     }
     if (video_consultation_minutes !== undefined) {
       safeUpdates.video_consultation_minutes = clampVideoConsultationMinutes(

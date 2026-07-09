@@ -75,8 +75,8 @@ export class DoctorsController {
       tags: string[];
       certification_urls: { url: string; description: string }[];
       speciality_id: string | null;
-      message_price: number;
       consultation_price: number;
+      video_consultation_price: number;
       video_consultation_minutes: number;
     }>,
     @Request() req,

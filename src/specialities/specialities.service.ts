@@ -137,7 +137,7 @@ export class SpecialitiesService {
       professional_title: d.professional_title,
       experience_years: d.experience_years,
       consultation_fee_egp: d.consultation_fee_egp,
-      message_price: d.message_price ?? 1,
+      consultation_price: d.consultation_price ?? 1,
       rating_average: rating?.average ?? 0,
       rating_total: rating?.total ?? 0,
       role: UserRole.DOCTOR,
