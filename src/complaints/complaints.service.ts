@@ -94,15 +94,22 @@ export class ComplaintsService {
     });
     if (!consultation) throw new NotFoundException('Consultation not found');
 
-    const end = consultation.closed_at ?? new Date();
+    const endBound = consultation.closed_at ?? new Date();
     const rows = await this.messageRepo
       .createQueryBuilder('m')
       .where(
         '((m.creator = :p AND m.recipient = :d) OR (m.creator = :d AND m.recipient = :p))',
         { p: complaint.patient_id, d: complaint.doctor_id },
       )
-      .andWhere('m.datetime >= :start', { start: consultation.created_at })
-      .andWhere('m.datetime <= :end', { end })
+      .andWhere(
+        `(m.datetime >= :start AND m.datetime <= :end) OR (m.type = :actionType AND m.attachment_meta->>'consultation_id' = :consultationId)`,
+        {
+          start: consultation.created_at,
+          end: endBound,
+          actionType: 'consultation_action',
+          consultationId: consultation.id,
+        },
+      )
       .orderBy('m.datetime', 'ASC')
       .getMany();
 

@@ -1,5 +1,7 @@
-import { IsIn, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, IsUUID, MaxLength, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import type { ConsultationCancelReasonType } from '../../entities/consultation.entity';
+import { EndConsultationDiagnosisDto } from './end-consultation-diagnosis.dto';
 
 export class StartConsultationDto {
   @IsUUID()
@@ -21,6 +23,12 @@ export class EndConsultationDto {
   @IsString()
   @MaxLength(4000)
   diagnosis?: string;
+
+  /** Full diagnosis payload (description, symptoms, linked lab/x-ray). */
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => EndConsultationDiagnosisDto)
+  diagnosis_details?: EndConsultationDiagnosisDto;
 }
 
 export class CancelConsultationDto {

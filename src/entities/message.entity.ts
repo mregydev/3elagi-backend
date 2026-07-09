@@ -54,6 +54,17 @@ export interface AppointmentActionMeta {
 
 export type ConsultationActionType = 'start' | 'end' | 'cancel';
 
+export interface ConsultationDiagnosisSummary {
+  id: string;
+  desc: string;
+  symptoms?: { desc: string }[];
+  linked_records?: {
+    id: string;
+    title: string;
+    record_type: 'lab' | 'xray';
+  }[];
+}
+
 export interface ConsultationActionMeta {
   consultation_id: string;
   action: ConsultationActionType;
@@ -62,6 +73,7 @@ export interface ConsultationActionMeta {
   cancel_reason_type?: 'video_consultation' | 'onsite_visit' | 'other';
   cancel_reason?: string;
   diagnosis_id?: string | null;
+  diagnosis_summary?: ConsultationDiagnosisSummary | null;
 }
 
 export type MessageAttachmentMeta =

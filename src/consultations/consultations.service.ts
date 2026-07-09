@@ -13,6 +13,7 @@ import {
 import {
   ConsultationActionMeta,
   ConsultationActionType,
+  ConsultationDiagnosisSummary,
   Message,
 } from '../entities/message.entity';
 import { Doctor } from '../entities/doctor.entity';
@@ -22,6 +23,7 @@ import { PresenceGateway } from '../presence/presence.gateway';
 import { DiagnosisService } from '../diagnosis/diagnosis.service';
 import { UsersService } from '../users/users.service';
 import { clampConsultationPrice } from '../points/message-price.constants';
+import { DocumentType } from '../entities/medical-document.entity';
 import {
   CancelConsultationDto,
   EndConsultationDto,
@@ -245,24 +247,41 @@ export class ConsultationsService {
     const c = await this.loadOpenForDoctor(consultationId, doctorUserId);
 
     let diagnosisId: string | null = null;
-    const diagnosisText = dto.diagnosis?.trim();
-    if (diagnosisText) {
-      const doctor = await this.doctorRepo.findOne({
-        where: { user_id: doctorUserId },
-      });
-      if (doctor) {
-        const created = await this.diagnosis.create(
-          {
-            desc: diagnosisText,
-            patient_id: c.patient_id,
-            doctor_id: doctor.id,
-            symptoms: [],
-          },
-          doctorUserId,
-          UserRole.DOCTOR,
-        );
-        diagnosisId = (created as { id?: string })?.id ?? null;
-      }
+    let diagnosisSummary: ConsultationDiagnosisSummary | null = null;
+    const doctor = await this.doctorRepo.findOne({
+      where: { user_id: doctorUserId },
+    });
+
+    const details = dto.diagnosis_details?.desc?.trim();
+    const legacyDiagnosisText = dto.diagnosis?.trim();
+
+    if (details && doctor) {
+      const created = await this.diagnosis.create(
+        {
+          desc: details,
+          patient_id: c.patient_id,
+          doctor_id: doctor.id,
+          symptoms: dto.diagnosis_details?.symptoms,
+          document_ids: dto.diagnosis_details?.document_ids,
+        },
+        doctorUserId,
+        UserRole.DOCTOR,
+      );
+      diagnosisId = created.id;
+      diagnosisSummary = this.mapDiagnosisSummary(created);
+    } else if (legacyDiagnosisText && doctor) {
+      const created = await this.diagnosis.create(
+        {
+          desc: legacyDiagnosisText,
+          patient_id: c.patient_id,
+          doctor_id: doctor.id,
+          symptoms: [],
+        },
+        doctorUserId,
+        UserRole.DOCTOR,
+      );
+      diagnosisId = created.id;
+      diagnosisSummary = this.mapDiagnosisSummary(created);
     }
 
     // Completed work — the patient's reserved points are credited to the doctor.
@@ -287,10 +306,29 @@ export class ConsultationsService {
         action: 'end',
         status: 'ended',
         diagnosis_id: diagnosisId,
+        diagnosis_summary: diagnosisSummary,
       },
     );
 
     return { consultation: this.mapConsultation(saved) };
+  }
+
+  private mapDiagnosisSummary(created: {
+    id: string;
+    desc: string;
+    symptoms?: { desc: string }[];
+    documents?: { id: string; title: string; type: DocumentType }[];
+  }): ConsultationDiagnosisSummary {
+    return {
+      id: created.id,
+      desc: created.desc,
+      symptoms: (created.symptoms ?? []).map((s) => ({ desc: s.desc })),
+      linked_records: (created.documents ?? []).map((doc) => ({
+        id: doc.id,
+        title: doc.title?.trim() || 'Medical record',
+        record_type: doc.type === DocumentType.LAB ? 'lab' : 'xray',
+      })),
+    };
   }
 
   async cancel(
