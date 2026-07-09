@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Param,
   Post,
@@ -29,9 +30,15 @@ export class ConsultationsController {
   }
 
   @Get('mine')
-  @Roles('doctor')
   mine(@Request() req) {
-    return this.service.listForDoctor(req.user.id);
+    const role = String(req.user.role ?? '').toLowerCase();
+    if (role === 'doctor') {
+      return this.service.listForDoctor(req.user.id);
+    }
+    if (role === 'patient') {
+      return this.service.listForPatient(req.user.id);
+    }
+    throw new ForbiddenException('Not allowed');
   }
 
   @Post('start')

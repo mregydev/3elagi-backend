@@ -144,6 +144,22 @@ export class ConsultationsService {
     }));
   }
 
+  /** All consultations for a patient, newest first, with doctor display names. */
+  async listForPatient(patientUserId: string) {
+    await this.assertRole(patientUserId, UserRole.PATIENT);
+    const rows = await this.consultationRepo.find({
+      where: { patient_id: patientUserId },
+      order: { created_at: 'DESC' },
+    });
+    const names = await Promise.all(
+      rows.map((r) => this.users.getDisplayName(r.doctor_id)),
+    );
+    return rows.map((c, i) => ({
+      ...this.mapConsultation(c),
+      doctor_name: names[i],
+    }));
+  }
+
   private async assertRole(userId: string, role: UserRole): Promise<User> {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user || user.role !== role) {
