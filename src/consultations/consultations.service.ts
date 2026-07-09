@@ -5,7 +5,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
+import { ConsultationComplaint } from '../entities/consultation-complaint.entity';
 import {
   Consultation,
   ConsultationCancelReasonType,
@@ -35,6 +36,8 @@ export class ConsultationsService {
   constructor(
     @InjectRepository(Consultation)
     private consultationRepo: Repository<Consultation>,
+    @InjectRepository(ConsultationComplaint)
+    private complaintRepo: Repository<ConsultationComplaint>,
     @InjectRepository(Doctor) private doctorRepo: Repository<Doctor>,
     @InjectRepository(User) private userRepo: Repository<User>,
     @InjectRepository(Message) private messageRepo: Repository<Message>,
@@ -140,9 +143,19 @@ export class ConsultationsService {
     const names = await Promise.all(
       rows.map((r) => this.users.getDisplayName(r.patient_id)),
     );
+    const ids = rows.map((r) => r.id);
+    const complaints = ids.length
+      ? await this.complaintRepo.find({
+          where: { consultation_id: In(ids) },
+        })
+      : [];
+    const complaintByConsultation = new Map(
+      complaints.map((c) => [c.consultation_id, c.status]),
+    );
     return rows.map((c, i) => ({
       ...this.mapConsultation(c),
       patient_name: names[i],
+      complaint_status: complaintByConsultation.get(c.id) ?? null,
     }));
   }
 

@@ -10,6 +10,8 @@ import { ConsultationComplaint } from '../entities/consultation-complaint.entity
 import { Consultation } from '../entities/consultation.entity';
 import { Message } from '../entities/message.entity';
 import { PointsService } from '../points/points.service';
+import { PresenceGateway } from '../presence/presence.gateway';
+import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 import { UsersService } from '../users/users.service';
 import { FileComplaintDto, ResolveComplaintDto } from './dto/complaint.dto';
 
@@ -22,6 +24,8 @@ export class ComplaintsService {
     private consultationRepo: Repository<Consultation>,
     @InjectRepository(Message) private messageRepo: Repository<Message>,
     private points: PointsService,
+    private presence: PresenceGateway,
+    private pushNotifications: PushNotificationsService,
     private users: UsersService,
   ) {}
 
@@ -152,6 +156,27 @@ export class ComplaintsService {
     }
     complaint.resolved_at = new Date();
     const saved = await this.complaintRepo.save(complaint);
+
+    if (dto.action === 'accept') {
+      await this.notifyDoctorRefund(saved);
+    }
+
     return { id: saved.id, status: saved.status };
+  }
+
+  private async notifyDoctorRefund(complaint: ConsultationComplaint) {
+    const patientName = await this.users.getDisplayName(complaint.patient_id);
+    const title = 'Consultation refunded';
+    const body = `${patientName}'s complaint was accepted. ${complaint.points} points were refunded to the patient.`;
+
+    this.presence.emitToUser(complaint.doctor_id, 'system:notification', {
+      title,
+      body,
+    });
+    await this.pushNotifications.sendSystemNotification({
+      recipientId: complaint.doctor_id,
+      title,
+      body,
+    });
   }
 }

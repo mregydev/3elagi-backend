@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConsultationComplaint } from '../entities/consultation-complaint.entity';
 import { Consultation } from '../entities/consultation.entity';
 import { Doctor } from '../entities/doctor.entity';
 import { User } from '../entities/user.entity';
@@ -13,7 +14,13 @@ import { ConsultationsService } from './consultations.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Consultation, Doctor, User, Message]),
+    TypeOrmModule.forFeature([
+      Consultation,
+      ConsultationComplaint,
+      Doctor,
+      User,
+      Message,
+    ]),
     PointsModule,
     PresenceModule,
     DiagnosisModule,
