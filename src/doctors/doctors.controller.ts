@@ -77,6 +77,7 @@ export class DoctorsController {
       speciality_id: string | null;
       message_price: number;
       consultation_price: number;
+      video_consultation_minutes: number;
     }>,
     @Request() req,
   ) {

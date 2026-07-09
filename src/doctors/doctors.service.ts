@@ -12,6 +12,7 @@ import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
 import {
   clampConsultationPrice,
   clampDoctorMessagePrice,
+  clampVideoConsultationMinutes,
 } from '../points/message-price.constants';
 import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
 import { PresenceGateway } from '../presence/presence.gateway';
@@ -81,7 +82,7 @@ export class DoctorsService {
       digital_signature_url, personal_clinic_location,
       professional_title, description, experience_years, consultation_fee_egp,
       faqs, tags, certification_urls, speciality_id, message_price,
-      consultation_price,
+      consultation_price, video_consultation_minutes,
     } = updates as Partial<Doctor>;
     const safeUpdates: Partial<Doctor> = {};
     if (name !== undefined) safeUpdates.name = name;
@@ -150,6 +151,11 @@ export class DoctorsService {
     }
     if (consultation_price !== undefined) {
       safeUpdates.consultation_price = clampConsultationPrice(consultation_price);
+    }
+    if (video_consultation_minutes !== undefined) {
+      safeUpdates.video_consultation_minutes = clampVideoConsultationMinutes(
+        video_consultation_minutes,
+      );
     }
     await this.doctorRepo.update(doctor.id, safeUpdates);
     void this.knowledgeIndexer.indexDoctor(doctor.id).catch(() => undefined);

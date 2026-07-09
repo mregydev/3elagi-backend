@@ -65,6 +65,7 @@ import { IntakeExamsModule } from './intake-exams/intake-exams.module';
 import { SchedulesModule } from './schedules/schedules.module';
 import { PatientPortalModule } from './patient-portal/patient-portal.module';
 import { ConsultationsModule } from './consultations/consultations.module';
+import { ComplaintsModule } from './complaints/complaints.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { HealthModule } from './health/health.module';
@@ -118,8 +119,10 @@ import { DoctorCertifications1778270000000 } from './migrations/1778270000000-Do
 import { Consultations1778280000000 } from './migrations/1778280000000-Consultations';
 import { ConsultationPriceCap1778290000000 } from './migrations/1778290000000-ConsultationPriceCap';
 import { PointsReimbursed1778300000000 } from './migrations/1778300000000-PointsReimbursed';
+import { ConsultationComplaints1778310000000 } from './migrations/1778310000000-ConsultationComplaints';
 import { AdminRagSource } from './entities/admin-rag-source.entity';
 import { Consultation } from './entities/consultation.entity';
+import { ConsultationComplaint } from './entities/consultation-complaint.entity';
 
 @Module({
   imports: [
@@ -162,6 +165,7 @@ import { Consultation } from './entities/consultation.entity';
           VideoCallSession,
           AdminRagSource,
           Consultation,
+          ConsultationComplaint,
         ],
         synchronize: false,
         migrations: [
@@ -217,6 +221,7 @@ import { Consultation } from './entities/consultation.entity';
           Consultations1778280000000,
           ConsultationPriceCap1778290000000,
           PointsReimbursed1778300000000,
+          ConsultationComplaints1778310000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
@@ -243,6 +248,7 @@ import { Consultation } from './entities/consultation.entity';
     SchedulesModule,
     PatientPortalModule,
     ConsultationsModule,
+    ComplaintsModule,
     ReviewsModule,
     UploadsModule,
     HealthModule,

@@ -78,6 +78,10 @@ export class Doctor {
   @Column({ type: 'int', default: 1 })
   consultation_price: number;
 
+  /** Video consultation duration in minutes (30, 60 or 120). */
+  @Column({ type: 'int', default: 30 })
+  video_consultation_minutes: number;
+
   @Column({ type: 'varchar', length: 16, default: 'pending' })
   approval_status: ApprovalStatus;
 

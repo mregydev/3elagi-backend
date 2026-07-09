@@ -139,6 +139,40 @@ export class PointsService {
     });
   }
 
+  /**
+   * Reverse a settled consultation (accepted complaint): pull the points back
+   * off the doctor and return them to the patient. Both rows locked in id order.
+   */
+  async reverseSettlement(
+    patientId: string,
+    doctorId: string,
+    amount: number,
+  ): Promise<void> {
+    const cost = Math.max(0, Math.floor(Number(amount) || 0));
+    if (cost === 0 || patientId === doctorId) return;
+    await this.dataSource.transaction(async (manager) => {
+      const repo = manager.getRepository(User);
+      const rows = await repo
+        .createQueryBuilder('u')
+        .setLock('pessimistic_write')
+        .where('u.id IN (:...ids)', { ids: [patientId, doctorId] })
+        .orderBy('u.id', 'ASC')
+        .getMany();
+      const patient = rows.find((u) => u.id === patientId);
+      const doctor = rows.find((u) => u.id === doctorId);
+      if (!patient || !doctor) throw new NotFoundException('User not found');
+
+      const take = Math.min(cost, doctor.message_points ?? 0);
+      doctor.message_points = (doctor.message_points ?? 0) - take;
+      patient.message_points = (patient.message_points ?? 0) + cost;
+      patient.points_spent_total = Math.max(
+        0,
+        (patient.points_spent_total ?? 0) - cost,
+      );
+      await repo.save([patient, doctor]);
+    });
+  }
+
   /** Doctor cashes out their available points. */
   async reimburse(doctorId: string): Promise<UserPointsSummary> {
     return this.dataSource.transaction(async (manager) => {

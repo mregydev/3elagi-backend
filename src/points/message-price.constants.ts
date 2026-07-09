@@ -17,3 +17,9 @@ export function clampConsultationPrice(value: unknown): number {
   if (!Number.isInteger(n)) return DEFAULT_CONSULTATION_PRICE;
   return Math.min(MAX_CONSULTATION_PRICE, Math.max(MIN_CONSULTATION_PRICE, n));
 }
+
+/** Video consultation duration must be 30, 60 or 120 minutes. */
+export function clampVideoConsultationMinutes(value: unknown): number {
+  const n = Number(value);
+  return [30, 60, 120].includes(n) ? n : 30;
+}
