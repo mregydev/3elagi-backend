@@ -9,12 +9,12 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
 
   const redisUrl = process.env.REDIS_URL?.trim();
+  const ioAdapter = new RedisIoAdapter(app);
   if (redisUrl) {
-    const redisIoAdapter = new RedisIoAdapter(app);
-    await redisIoAdapter.connectToRedis(redisUrl);
-    app.useWebSocketAdapter(redisIoAdapter);
+    await ioAdapter.connectToRedis(redisUrl);
     console.log('Socket.IO using Redis adapter');
   }
+  app.useWebSocketAdapter(ioAdapter);
 
   app.use(json({ limit: '12mb' }));
   app.use(urlencoded({ extended: true, limit: '12mb' }));

@@ -13,7 +13,11 @@ export class RedisIoAdapter extends IoAdapter {
   }
 
   createIOServer(port: number, options?: ServerOptions) {
-    const server = super.createIOServer(port, options);
+    const server = super.createIOServer(port, {
+      ...options,
+      // Default socket.io cap is 1 MB; AI attachments need more headroom.
+      maxHttpBufferSize: 15 * 1024 * 1024,
+    });
     if (this.adapterConstructor) {
       server.adapter(this.adapterConstructor);
     }

@@ -12,6 +12,7 @@ import { HttpException, HttpStatus, Logger, ForbiddenException } from '@nestjs/c
 import { Server, Socket } from 'socket.io';
 import { AiChatService, type AuthUser } from './ai-chat.service';
 import { extractDocumentText, isSupportedDocMime } from './utils/document-text';
+import { UploadsService } from '../uploads/uploads.service';
 import {
   AI_RATE_LIMIT_CODE,
   AI_RATE_LIMIT_MESSAGE_EN,
@@ -34,6 +35,7 @@ export class AiGateway implements OnGatewayConnection {
     private readonly aiChat: AiChatService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly uploads: UploadsService,
   ) {}
 
   async handleConnection(client: AuthenticatedSocket): Promise<void> {
@@ -98,6 +100,82 @@ export class AiGateway implements OnGatewayConnection {
     });
   }
 
+  private async resolveAttachmentInput(
+    rawAtt?: { data?: string; mimeType?: string },
+    attachmentUrl?: string,
+  ): Promise<
+    | { ok: true; attachment?: { data: string; mimeType: string }; documentText: string }
+    | { ok: false; error: string }
+  > {
+    let data = '';
+    let mime = '';
+
+    if (attachmentUrl?.trim()) {
+      const buffer = await this.uploads.getBufferFromUrl(attachmentUrl.trim());
+      if (!buffer?.length) {
+        return { ok: false, error: 'Could not load the uploaded attachment' };
+      }
+      const pathMime = attachmentUrl.toLowerCase().includes('.pdf')
+        ? 'application/pdf'
+        : attachmentUrl.toLowerCase().includes('.docx')
+          ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          : '';
+      mime = (rawAtt?.mimeType ?? pathMime).toLowerCase();
+      if (!mime) {
+        return { ok: false, error: 'Attachment must be an image, PDF or DOCX' };
+      }
+      data = buffer.toString('base64');
+    } else if (rawAtt?.data && rawAtt.mimeType) {
+      mime = String(rawAtt.mimeType).toLowerCase();
+      data = String(rawAtt.data).replace(/^data:[^;]+;base64,/, '');
+    } else {
+      return { ok: true, documentText: '' };
+    }
+
+    if (data.length > 14_000_000) {
+      return { ok: false, error: 'Attachment must be under ~10 MB' };
+    }
+
+    if (mime.startsWith('image/')) {
+      return {
+        ok: true,
+        attachment: { data, mimeType: mime },
+        documentText: '',
+      };
+    }
+
+    if (!isSupportedDocMime(mime)) {
+      return { ok: false, error: 'Attachment must be an image, PDF or DOCX' };
+    }
+
+    const buffer = Buffer.from(data, 'base64');
+    let documentText = '';
+    try {
+      documentText = (await extractDocumentText(buffer, mime)).trim();
+    } catch (err) {
+      this.logger.warn(
+        `Document text extraction failed (${mime}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+
+    if (documentText) {
+      return { ok: true, documentText };
+    }
+
+    // Scanned PDFs often have no extractable text — let Gemini read the file directly.
+    if (mime === 'application/pdf') {
+      return {
+        ok: true,
+        attachment: { data, mimeType: mime },
+        documentText: '',
+      };
+    }
+
+    return { ok: false, error: 'Could not read text from the attached document' };
+  }
+
   @SubscribeMessage('ai:chat:create')
   async handleCreate(
     @ConnectedSocket() client: AuthenticatedSocket,
@@ -157,46 +235,22 @@ export class AiGateway implements OnGatewayConnection {
       chatId?: string;
       patientUserId?: string;
       attachment?: { data: string; mimeType: string };
+      attachmentUrl?: string;
     },
   ) {
     const user = this.requireUser(client);
 
-    // Images go to the model as vision (inlineData); PDF/DOCX are read as text.
-    let attachment: { data: string; mimeType: string } | undefined;
-    let documentText = '';
-    const rawAtt = body?.attachment;
-    if (rawAtt?.data && rawAtt.mimeType) {
-      const mime = String(rawAtt.mimeType).toLowerCase();
-      const data = String(rawAtt.data).replace(/^data:[^;]+;base64,/, '');
-      if (data.length > 14_000_000) {
-        client.emit('ai:message:error', {
-          error: 'Attachment must be under ~10 MB',
-        });
-        return;
-      }
-      if (mime.startsWith('image/')) {
-        attachment = { data, mimeType: mime };
-      } else if (isSupportedDocMime(mime)) {
-        try {
-          documentText = (
-            await extractDocumentText(Buffer.from(data, 'base64'), mime)
-          ).trim();
-        } catch {
-          documentText = '';
-        }
-        if (!documentText) {
-          client.emit('ai:message:error', {
-            error: 'Could not read text from the attached document',
-          });
-          return;
-        }
-      } else {
-        client.emit('ai:message:error', {
-          error: 'Attachment must be an image, PDF or DOCX',
-        });
-        return;
-      }
+    const resolved = await this.resolveAttachmentInput(
+      body?.attachment,
+      body?.attachmentUrl,
+    );
+    if (resolved.ok === false) {
+      client.emit('ai:message:error', { error: resolved.error });
+      return;
     }
+
+    const attachment = resolved.attachment;
+    const documentText = resolved.documentText;
 
     if (!user || (!body?.message?.trim() && !attachment && !documentText)) {
       client.emit('ai:message:error', { error: 'Invalid message payload' });
