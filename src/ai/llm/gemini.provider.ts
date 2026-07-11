@@ -14,6 +14,20 @@ function toLangChainMessages(messages: LlmMessage[]) {
   return messages.map((m) => {
     if (m.role === 'system') return new SystemMessage(m.content);
     if (m.role === 'assistant') return new AIMessage(m.content);
+    if (m.attachment?.data) {
+      // Gemini reads images and PDFs from a data-URL image_url part (inlineData).
+      return new HumanMessage({
+        content: [
+          { type: 'text', text: m.content },
+          {
+            type: 'image_url',
+            image_url: {
+              url: `data:${m.attachment.mimeType};base64,${m.attachment.data}`,
+            },
+          },
+        ],
+      });
+    }
     return new HumanMessage(m.content);
   });
 }

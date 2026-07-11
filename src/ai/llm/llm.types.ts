@@ -1,8 +1,17 @@
 export type LlmMessageRole = 'system' | 'user' | 'assistant';
 
+export interface LlmMessageAttachment {
+  /** Base64 payload (no `data:` prefix). */
+  data: string;
+  /** e.g. image/jpeg, image/png, application/pdf */
+  mimeType: string;
+}
+
 export interface LlmMessage {
   role: LlmMessageRole;
   content: string;
+  /** Optional multimodal attachment (image or PDF) for the current turn. */
+  attachment?: LlmMessageAttachment;
 }
 
 export interface LlmProvider {

@@ -25,7 +25,7 @@ import {
   AI_RATE_LIMIT_MESSAGE_EN,
 } from './ai.constants';
 import type { AiContextUser } from './context/ai-context.types';
-import type { LlmMessage } from './llm/llm.types';
+import type { LlmMessage, LlmMessageAttachment } from './llm/llm.types';
 
 export interface AuthUser {
   id: string;
@@ -157,6 +157,7 @@ export class AiChatService {
     message: string,
     conversationId?: string,
     patientUserId?: string,
+    attachment?: LlmMessageAttachment,
   ): AsyncGenerator<StreamEvent> {
     try {
       this.assertRateLimit(user.id);
@@ -238,7 +239,10 @@ export class AiChatService {
         user.role,
       );
 
-      const cached = await this.cache.get<string>(answerKey);
+      // Answers that depend on an uploaded file must never be served from cache.
+      const cached = attachment
+        ? null
+        : await this.cache.get<string>(answerKey);
       let fullContent = '';
       let cacheHit = false;
 
@@ -254,11 +258,20 @@ export class AiChatService {
           history,
           user.role,
         );
+        if (attachment?.data) {
+          // Attach the file to the latest user turn.
+          for (let i = llmMessages.length - 1; i >= 0; i -= 1) {
+            if (llmMessages[i].role === 'user') {
+              llmMessages[i] = { ...llmMessages[i], attachment };
+              break;
+            }
+          }
+        }
         for await (const token of this.stream.streamTokens(llmMessages)) {
           fullContent += token;
           yield { type: 'token', content: token };
         }
-        await this.cache.set(answerKey, fullContent);
+        if (!attachment) await this.cache.set(answerKey, fullContent);
       }
 
       fullContent = await this.finalizeAnswer(fullContent, built.links, contextUser);

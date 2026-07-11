@@ -155,13 +155,34 @@ export class AiGateway implements OnGatewayConnection {
       message: string;
       chatId?: string;
       patientUserId?: string;
+      attachment?: { data: string; mimeType: string };
     },
   ) {
     const user = this.requireUser(client);
-    if (!user || !body?.message?.trim()) {
+
+    let attachment: { data: string; mimeType: string } | undefined;
+    const rawAtt = body?.attachment;
+    if (rawAtt?.data && rawAtt.mimeType) {
+      const mime = String(rawAtt.mimeType).toLowerCase();
+      const supported = mime.startsWith('image/') || mime === 'application/pdf';
+      const data = String(rawAtt.data).replace(/^data:[^;]+;base64,/, '');
+      if (!supported || data.length > 14_000_000) {
+        client.emit('ai:message:error', {
+          error: 'Attachment must be an image or PDF under ~10 MB',
+        });
+        return;
+      }
+      attachment = { data, mimeType: mime };
+    }
+
+    if (!user || (!body?.message?.trim() && !attachment)) {
       client.emit('ai:message:error', { error: 'Invalid message payload' });
       return;
     }
+
+    const messageText =
+      body?.message?.trim() ||
+      (attachment ? 'Please review the attached file.' : '');
 
     const chatId = body.chatId;
     if (chatId) {
@@ -173,9 +194,10 @@ export class AiGateway implements OnGatewayConnection {
     try {
       for await (const event of this.aiChat.streamMessage(
         user,
-        body.message.trim(),
+        messageText,
         chatId,
         body.patientUserId,
+        attachment,
       )) {
         if (event.type === 'ack') {
           const payload = {
