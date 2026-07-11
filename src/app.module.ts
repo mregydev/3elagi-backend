@@ -122,6 +122,7 @@ import { PointsReimbursed1778300000000 } from './migrations/1778300000000-Points
 import { ConsultationComplaints1778310000000 } from './migrations/1778310000000-ConsultationComplaints';
 import { DoctorPriceEgpCredits1778320000000 } from './migrations/1778320000000-DoctorPriceEgpCredits';
 import { VideoConsultationPrice1778330000000 } from './migrations/1778330000000-VideoConsultationPrice';
+import { AiMessageAttachments1778340000000 } from './migrations/1778340000000-AiMessageAttachments';
 import { AdminRagSource } from './entities/admin-rag-source.entity';
 import { Consultation } from './entities/consultation.entity';
 import { ConsultationComplaint } from './entities/consultation-complaint.entity';
@@ -226,6 +227,7 @@ import { ConsultationComplaint } from './entities/consultation-complaint.entity'
           ConsultationComplaints1778310000000,
           DoctorPriceEgpCredits1778320000000,
           VideoConsultationPrice1778330000000,
+          AiMessageAttachments1778340000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
