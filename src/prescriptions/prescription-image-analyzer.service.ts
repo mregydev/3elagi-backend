@@ -1,6 +1,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { ApiLocale } from '../common/resolve-api-locale';
+import { outputLanguageLabel, resolveApiLocale } from '../common/resolve-api-locale';
 
 export interface ExtractedPrescriptionMedication {
   medication_name: string;
@@ -11,14 +13,24 @@ export interface ExtractedPrescriptionMedication {
 
 const DEFAULT_CHAT_MODEL = 'gemini-3-flash-preview';
 
-function buildExtractionPrompt(outputLang: 'ar' | 'en'): string {
-  const langLabel = outputLang === 'ar' ? 'Arabic' : 'English';
+function buildExtractionPrompt(outputLang: ApiLocale): string {
+  const langLabel = outputLanguageLabel(outputLang);
   const doseExample =
-    outputLang === 'ar' ? '500 مج، قرص واحد' : '500 mg, 1 tablet';
+    outputLang === 'ar'
+      ? '500 مج، قرص واحد'
+      : outputLang === 'de'
+        ? '500 mg, 1 Tablette'
+        : outputLang === 'es'
+          ? '500 mg, 1 comprimido'
+          : '500 mg, 1 tablet';
   const intervalExample =
     outputLang === 'ar'
       ? 'مرتين يوميًا، كل 8 ساعات'
-      : 'twice daily, every 8 hours';
+      : outputLang === 'de'
+        ? 'zweimal täglich, alle 8 Stunden'
+        : outputLang === 'es'
+          ? 'dos veces al día, cada 8 horas'
+          : 'twice daily, every 8 hours';
 
   return `You analyze prescription or medication-list images for a medical app.
 
@@ -58,7 +70,7 @@ export class PrescriptionImageAnalyzerService {
   async extractMedications(
     imageBase64: string,
     mimeType: string,
-    outputLang: 'ar' | 'en' = 'en',
+    outputLang: ApiLocale = 'en',
   ): Promise<ExtractedPrescriptionMedication[]> {
     const apiKey = this.config.get<string>('GEMINI_API_KEY');
     if (!apiKey) {

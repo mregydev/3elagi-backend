@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Post, Query, Request, UseGuards } from '@nestjs/common';
 import { DiagnosisService } from './diagnosis.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { resolveApiLocale } from '../common/resolve-api-locale';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { CreatePatientDiagnosisDto } from './dto/create-patient-diagnosis.dto';
@@ -46,7 +47,7 @@ export class PatientDiagnosisController {
     @Query('lang') lang: 'ar' | 'en' | undefined,
     @Request() req,
   ) {
-    const outputLang = lang === 'ar' ? 'ar' : 'en';
+    const outputLang = resolveApiLocale(lang);
     return this.service.generateInsightForPatientUser(id, req.user.id, outputLang);
   }
 }

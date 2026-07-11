@@ -22,6 +22,7 @@ import { CreatePatientMedicalDocumentDto } from './dto/create-patient-medical-do
 import { UpdatePatientMedicalDocumentDto } from './dto/update-patient-medical-document.dto';
 import { DocumentType } from '../entities/medical-document.entity';
 import { UploadsService } from '../uploads/uploads.service';
+import { resolveApiLocale } from '../common/resolve-api-locale';
 
 const MEDICAL_IMAGE_MIMES = new Set([
   'image/jpeg',
@@ -77,7 +78,7 @@ export class PatientMedicalDocumentsController {
     if (!file?.buffer?.length) {
       throw new BadRequestException('Image file is required');
     }
-    const outputLang = lang === 'ar' ? 'ar' : 'en';
+    const outputLang = resolveApiLocale(lang);
     return this.service.analyzeImageBuffer(
       file.buffer,
       file.mimetype || 'image/jpeg',
@@ -108,7 +109,7 @@ export class PatientMedicalDocumentsController {
     if (!file?.buffer?.length) {
       throw new BadRequestException('Image file is required');
     }
-    const outputLang = lang === 'ar' ? 'ar' : 'en';
+    const outputLang = resolveApiLocale(lang);
     const includeInsight = generateInsight !== 'false';
     const analyzed = await this.service.analyzeImageBuffer(
       file.buffer,
@@ -164,7 +165,7 @@ export class PatientMedicalDocumentsController {
     @Query('lang') lang: 'ar' | 'en' | undefined,
     @Request() req,
   ) {
-    const outputLang = lang === 'ar' ? 'ar' : 'en';
+    const outputLang = resolveApiLocale(lang);
     return this.service.generateDetailsForDocument(
       id,
       req.user.id,
@@ -179,7 +180,7 @@ export class PatientMedicalDocumentsController {
     @Query('lang') lang: 'ar' | 'en' | undefined,
     @Request() req,
   ) {
-    const outputLang = lang === 'ar' ? 'ar' : 'en';
+    const outputLang = resolveApiLocale(lang);
     return this.service.generateInsightForDocument(id, req.user.id, outputLang);
   }
 

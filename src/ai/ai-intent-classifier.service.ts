@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { AiIntent } from './context/ai-context.types';
-import { detectMessageLanguage } from './utils/detect-message-language';
+import type { AppLocale } from './utils/ai-locale';
 
 const IDENTITY =
   /\b(who (created|made|built|owns)|who is your (owner|creator)|what company|which company|are you (google|gemini|chatgpt))\b/i;
@@ -30,12 +30,17 @@ export class AiIntentClassifierService {
     return URGENT.test(question);
   }
 
-  urgentResponse(question?: string): string {
-    const lang = question ? detectMessageLanguage(question) : 'en';
-    if (lang === 'ar') {
-      return 'قد تحتاج هذه الحالة إلى رعاية طبية عاجلة. يرجى التواصل مع خدمات الطوارئ أو أحد مقدمي الرعاية الصحية فوراً.';
+  urgentResponse(preferredLocale: AppLocale = 'en'): string {
+    switch (preferredLocale) {
+      case 'ar':
+        return 'قد تحتاج هذه الحالة إلى رعاية طبية عاجلة. يرجى التواصل مع خدمات الطوارئ أو أحد مقدمي الرعاية الصحية فوراً.';
+      case 'de':
+        return 'Dies kann dringende medizinische Hilfe erfordern. Bitte wenden Sie sich sofort an den Notruf oder medizinisches Fachpersonal.';
+      case 'es':
+        return 'Esto puede requerir atención médica urgente. Contacta de inmediato con los servicios de emergencia o un profesional de la salud.';
+      default:
+        return 'This may require urgent medical attention. Please contact emergency services or a healthcare professional immediately.';
     }
-    return 'This may require urgent medical attention. Please contact emergency services or a healthcare professional immediately.';
   }
 
   classify(question: string): AiIntent {

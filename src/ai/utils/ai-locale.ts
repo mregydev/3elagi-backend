@@ -1,4 +1,6 @@
-export type AppLocale = 'ar' | 'en';
+import { detectMessageLanguage } from './detect-message-language';
+
+export type AppLocale = 'ar' | 'en' | 'de' | 'es';
 
 const ATTACHED_DOC_MARKER = '[Attached document contents]';
 
@@ -9,26 +11,19 @@ export function stripAttachmentBlock(message: string): string {
   return head.trim();
 }
 
-/** Rough detection of Arabic vs English in user-typed text. */
+/** Rough detection of the language used in user-typed text. */
 export function detectMessageLocale(text: string): AppLocale | 'unknown' {
   const sample = stripAttachmentBlock(text).trim();
   if (!sample) return 'unknown';
-
-  const arabicChars = (sample.match(/[\u0600-\u06FF]/g) ?? []).length;
-  const latinChars = (sample.match(/[a-zA-Z]/g) ?? []).length;
-  const total = arabicChars + latinChars;
-  if (total < 3) return 'unknown';
-
-  const arabicRatio = arabicChars / total;
-  if (arabicRatio > 0.4) return 'ar';
-  if (arabicRatio < 0.15) return 'en';
-  return 'unknown';
+  return detectMessageLanguage(sample, true);
 }
 
 export function resolvePreferredLocale(
   value: string | null | undefined,
 ): AppLocale {
-  return value === 'ar' ? 'ar' : 'en';
+  const v = value?.trim().toLowerCase();
+  if (v === 'ar' || v === 'en' || v === 'de' || v === 'es') return v;
+  return 'en';
 }
 
 export function messageLocaleMismatch(
@@ -41,12 +36,27 @@ export function messageLocaleMismatch(
 }
 
 export function localeMismatchReply(preferred: AppLocale): string {
-  if (preferred === 'ar') {
-    return 'لغة التطبيق مضبوطة على العربية. من فضلك اكتب رسالتك بالعربية، أو غيّر لغة التطبيق من الإعدادات في ملفك الشخصي ثم أعد الإرسال.';
+  switch (preferred) {
+    case 'ar':
+      return 'لغة التطبيق مضبوطة على العربية. من فضلك اكتب رسالتك بالعربية، أو غيّر لغة التطبيق من الإعدادات في ملفك الشخصي ثم أعد الإرسال.';
+    case 'de':
+      return 'Die App-Sprache ist auf Deutsch eingestellt. Bitte schreiben Sie auf Deutsch oder ändern Sie die Sprache unter Profil → Einstellungen und versuchen Sie es erneut.';
+    case 'es':
+      return 'El idioma de la app está en español. Escribe en español o cambia el idioma en Perfil → Ajustes e inténtalo de nuevo.';
+    default:
+      return 'Your app language is set to English. Please write your message in English, or change your language in Profile → Settings and try again.';
   }
-  return 'Your app language is set to English. Please write your message in English, or change your language in Profile → Settings and try again.';
 }
 
 export function localeLabel(preferred: AppLocale): string {
-  return preferred === 'ar' ? 'Arabic (Egyptian)' : 'English';
+  switch (preferred) {
+    case 'ar':
+      return 'Arabic (Egyptian)';
+    case 'de':
+      return 'German';
+    case 'es':
+      return 'Spanish';
+    default:
+      return 'English';
+  }
 }

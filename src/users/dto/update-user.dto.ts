@@ -6,6 +6,6 @@ export class UpdateUserDto {
   photo_url?: string | null;
 
   @IsOptional()
-  @IsIn(['ar', 'en'])
-  preferred_locale?: 'ar' | 'en' | null;
+  @IsIn(['ar', 'en', 'de', 'es'])
+  preferred_locale?: 'ar' | 'en' | 'de' | 'es' | null;
 }

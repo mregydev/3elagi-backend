@@ -17,6 +17,7 @@ import { CreateDocumentDto } from './dto/create-document.dto';
 import { CreatePatientMedicalDocumentDto } from './dto/create-patient-medical-document.dto';
 import { DoctorPatientAccessService } from '../doctor-patient-access/doctor-patient-access.service';
 import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
+import { resolveApiLocale, type ApiLocale } from '../common/resolve-api-locale';
 import { DiagnosisDocumentService } from '../diagnosis/diagnosis-document.service';
 import { MedicalRecordImageAnalyzerService } from './medical-record-image-analyzer.service';
 import { UploadsService } from '../uploads/uploads.service';
@@ -61,7 +62,7 @@ export class MedicalDocumentsService {
 
   private async buildInsightForDocument(
     doc: Pick<MedicalDocument, 'file_url' | 'file_name' | 'title' | 'notes' | 'type'>,
-    outputLang: 'ar' | 'en' = 'en',
+    outputLang: ApiLocale = 'en',
   ): Promise<MedicalAiInsight> {
     if (doc.file_url?.trim()) {
       try {
@@ -174,7 +175,7 @@ export class MedicalDocumentsService {
       try {
         saved.ai_insight = await this.buildInsightForDocument(
           saved,
-          dto.lang === 'ar' ? 'ar' : 'en',
+          resolveApiLocale(dto.lang),
         );
         saved = await this.docRepo.save(saved);
       } catch (err) {
@@ -203,7 +204,7 @@ export class MedicalDocumentsService {
   analyzeImageBuffer(
     buffer: Buffer,
     mimeType: string,
-    outputLang: 'ar' | 'en' = 'en',
+    outputLang: ApiLocale = 'en',
     options?: { includeInsight?: boolean },
   ): Promise<AnalyzedMedicalRecordImage> {
     return this.imageAnalyzer.analyzeImage(
@@ -251,7 +252,7 @@ export class MedicalDocumentsService {
     id: string,
     userId: string,
     role: string,
-    outputLang: 'ar' | 'en' = 'en',
+    outputLang: ApiLocale = 'en',
   ) {
     const doc = await this.docRepo.findOne({ where: { id } });
     if (!doc) throw new NotFoundException('Document not found');
@@ -296,7 +297,7 @@ export class MedicalDocumentsService {
   async generateInsightForDocument(
     id: string,
     userId: string,
-    outputLang: 'ar' | 'en' = 'en',
+    outputLang: ApiLocale = 'en',
   ) {
     const doc = await this.docRepo.findOne({ where: { id } });
     if (!doc) throw new NotFoundException('Document not found');

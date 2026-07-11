@@ -55,7 +55,7 @@ export class User {
   points_reimbursed_total: number;
 
   @Column({ type: 'varchar', length: 2, nullable: true })
-  preferred_locale: 'ar' | 'en' | null;
+  preferred_locale: 'ar' | 'en' | 'de' | 'es' | null;
 
   @ManyToOne(() => Doctor, { nullable: true, eager: false })
   @JoinColumn({ name: 'doctor_info_id' })

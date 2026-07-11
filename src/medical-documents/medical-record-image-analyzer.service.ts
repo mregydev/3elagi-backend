@@ -2,6 +2,8 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentType } from '../entities/medical-document.entity';
+import type { ApiLocale } from '../common/resolve-api-locale';
+import { outputLanguageLabel } from '../common/resolve-api-locale';
 import type { MedicalAiInsight } from '../common/medical-ai-insight.types';
 import { normalizeMedicalAiInsight } from '../common/medical-ai-insight.types';
 
@@ -14,8 +16,8 @@ export interface AnalyzedMedicalRecordImage {
 
 const DEFAULT_CHAT_MODEL = 'gemini-3-flash-preview';
 
-function buildAnalysisPrompt(outputLang: 'ar' | 'en'): string {
-  const langLabel = outputLang === 'ar' ? 'Arabic (Egyptian)' : 'English';
+function buildAnalysisPrompt(outputLang: ApiLocale): string {
+  const langLabel = outputLanguageLabel(outputLang);
   return `You analyze medical images for a patient health app (lab reports, blood tests, X-rays, CT, MRI, ultrasound scans).
 
 Classify the image as either "lab" (laboratory / blood / urine / pathology report) or "xray" (imaging: X-ray, CT, MRI, ultrasound, scan).
@@ -52,7 +54,7 @@ export class MedicalRecordImageAnalyzerService {
   async analyzeImage(
     imageBase64: string,
     mimeType: string,
-    outputLang: 'ar' | 'en' = 'en',
+    outputLang: ApiLocale = 'en',
     options?: { includeInsight?: boolean },
   ): Promise<AnalyzedMedicalRecordImage> {
     const apiKey = this.config.get<string>('GEMINI_API_KEY');
@@ -107,14 +109,14 @@ export class MedicalRecordImageAnalyzerService {
     title: string;
     notes?: string | null;
     recordType: string;
-    outputLang?: 'ar' | 'en';
+    outputLang?: ApiLocale;
   }): Promise<MedicalAiInsight> {
     const apiKey = this.config.get<string>('GEMINI_API_KEY');
     if (!apiKey) {
       throw new BadRequestException('GEMINI_API_KEY is not configured');
     }
     const outputLang = input.outputLang ?? 'en';
-    const langLabel = outputLang === 'ar' ? 'Arabic (Egyptian)' : 'English';
+    const langLabel = outputLanguageLabel(outputLang);
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: this.modelName });

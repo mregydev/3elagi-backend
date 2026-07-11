@@ -16,7 +16,7 @@ export interface AiContextUser {
   role: string;
   /** Authenticated patient scope (always set for patients; optional for doctors). */
   patientContextId: string | null;
-  preferredLocale: 'ar' | 'en';
+  preferredLocale: 'ar' | 'en' | 'de' | 'es';
 }
 
 export interface AiContextBuildResult {

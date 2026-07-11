@@ -13,6 +13,7 @@ import * as QRCode from 'qrcode';
 import { Prescription, PrescriptionItem } from '../entities/prescription.entity';
 import { PrescriptionMedication } from '../entities/prescription-medication.entity';
 import { Doctor } from '../entities/doctor.entity';
+import { resolveApiLocale, type ApiLocale } from '../common/resolve-api-locale';
 import { Patient } from '../entities/patient.entity';
 import { Clinic } from '../entities/clinic.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
@@ -33,7 +34,7 @@ interface CreatePrescriptionDto {
   title: string;
   symptoms?: string;
   items: PrescriptionItem[];
-  lang?: 'ar' | 'en';
+  lang?: ApiLocale;
 }
 
 export interface PrescriptionMedicationInput {
@@ -49,7 +50,7 @@ export interface CreatePrescriptionForUserDto {
   symptoms?: string;
   medications: PrescriptionMedicationInput[];
   image_url?: string;
-  lang?: 'ar' | 'en';
+  lang?: ApiLocale;
 }
 
 const PDF_LABELS = {
@@ -83,7 +84,41 @@ const PDF_LABELS = {
     ref: 'رقم',
     scanToVerify: 'امسح للتحقق',
   },
+  de: {
+    digitalPrescription: 'Digitales Rezept',
+    patient: 'Patient',
+    age: 'Alter',
+    symptoms: 'Symptome',
+    medications: 'Medikamente',
+    noMeds: '(keine Medikamente)',
+    dose: 'Dosis',
+    frequency: 'Häufigkeit',
+    duration: 'Dauer',
+    signature: 'Unterschrift',
+    dr: 'Dr.',
+    ref: 'Ref',
+    scanToVerify: 'Zum Prüfen scannen',
+  },
+  es: {
+    digitalPrescription: 'Receta digital',
+    patient: 'Paciente',
+    age: 'Edad',
+    symptoms: 'Síntomas',
+    medications: 'Medicamentos',
+    noMeds: '(sin medicamentos)',
+    dose: 'Dosis',
+    frequency: 'Frecuencia',
+    duration: 'Duración',
+    signature: 'Firma',
+    dr: 'Dr.',
+    ref: 'Ref',
+    scanToVerify: 'Escanear para verificar',
+  },
 } as const;
+
+function pdfLabelsFor(lang: ApiLocale) {
+  return PDF_LABELS[lang] ?? PDF_LABELS.en;
+}
 
 const PRESCRIPTION_IMAGE_POINT_COST = 1;
 
@@ -314,7 +349,7 @@ export class PrescriptionsService {
     id: string,
     userId: string,
     role: string,
-    outputLang: 'ar' | 'en' = 'en',
+    outputLang: ApiLocale = 'en',
   ) {
     const row = await this.findOneForPatientUser(id, userId, role);
     let insight: MedicalAiInsight | null = null;
@@ -353,7 +388,7 @@ export class PrescriptionsService {
     userId: string,
     buffer: Buffer,
     mimeType: string,
-    outputLang: 'ar' | 'en' = 'en',
+    outputLang: ApiLocale = 'en',
   ) {
     await this.pointsService.deductForMessage(
       userId,
@@ -371,7 +406,7 @@ export class PrescriptionsService {
     userId: string,
     imageBase64: string,
     mimeType: string,
-    outputLang: 'ar' | 'en' = 'en',
+    outputLang: ApiLocale = 'en',
   ): Promise<ExtractedPrescriptionMedication[]> {
     await this.pointsService.deductForMessage(
       userId,
@@ -469,7 +504,7 @@ export class PrescriptionsService {
           clinic,
           signatureBuffer,
           logoBuffer,
-          dto.lang === 'ar' ? 'ar' : 'en',
+          resolveApiLocale(dto.lang),
         );
         const upload = await this.uploads.uploadFile({
           originalname: `prescription-${saved.id}.pdf`,
@@ -550,7 +585,7 @@ export class PrescriptionsService {
         clinic,
         signatureBuffer,
         logoBuffer,
-        dto.lang === 'ar' ? 'ar' : 'en',
+        resolveApiLocale(dto.lang),
       );
       const upload = await this.uploads.uploadFile({
         originalname: `prescription-${saved.id}.pdf`,
@@ -576,7 +611,7 @@ export class PrescriptionsService {
     clinic: Clinic | null,
     signatureBuffer: Buffer | null = null,
     logoBuffer: Buffer | null = null,
-    lang: 'ar' | 'en' = 'en',
+    lang: ApiLocale = 'en',
   ): Promise<Buffer> {
     const refNo = buildRefNumber(rx);
     let qrBuffer: Buffer | null = null;
@@ -602,7 +637,7 @@ export class PrescriptionsService {
         doc.on('error', reject);
 
         const PRIMARY = '#3057F2';
-        const L = PDF_LABELS[lang];
+        const L = pdfLabelsFor(lang);
         const isAr = lang === 'ar';
         const pageWidth = doc.page.width;
         const innerWidth = pageWidth - 100;

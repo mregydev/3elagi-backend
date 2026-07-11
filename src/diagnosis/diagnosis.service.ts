@@ -13,6 +13,7 @@ import { User, UserRole } from '../entities/user.entity';
 import { Appointment } from '../entities/appointment.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
 import { CreateDiagnosisDto } from './dto/create-diagnosis.dto';
+import type { ApiLocale } from '../common/resolve-api-locale';
 import { CreatePatientDiagnosisDto } from './dto/create-patient-diagnosis.dto';
 import { UpdateDiagnosisDto } from './dto/update-diagnosis.dto';
 import { MedicalDocument } from '../entities/medical-document.entity';
@@ -247,7 +248,7 @@ export class DiagnosisService {
   async generateInsightForPatientUser(
     id: string,
     userId: string,
-    outputLang: 'ar' | 'en' = 'en',
+    outputLang: ApiLocale = 'en',
   ) {
     const row = await this.findOneForPatientUser(id, userId);
     let insight: MedicalAiInsight | null = null;

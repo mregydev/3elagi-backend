@@ -34,9 +34,13 @@ export class SttService {
     const langHint =
       languageCode === 'ar'
         ? 'The speaker is likely using Arabic.'
-        : languageCode === 'en'
-          ? 'The speaker is likely using English.'
-          : 'The speaker may use Arabic or English.';
+        : languageCode === 'de'
+          ? 'The speaker is likely using German.'
+          : languageCode === 'es'
+            ? 'The speaker is likely using Spanish.'
+            : languageCode === 'en'
+              ? 'The speaker is likely using English.'
+              : 'The speaker may use Arabic, English, German, or Spanish.';
 
     try {
       const genAI = new GoogleGenerativeAI(apiKey);

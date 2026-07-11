@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { resolveApiLocale } from '../common/resolve-api-locale';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import {
@@ -65,7 +66,7 @@ export class PrescriptionsController {
     @Query('lang') lang: 'ar' | 'en' | undefined,
     @Request() req,
   ) {
-    const outputLang = lang === 'ar' ? 'ar' : 'en';
+    const outputLang = resolveApiLocale(lang);
     return this.service.generateInsightForPatientUser(
       id,
       req.user.id,
@@ -109,7 +110,7 @@ export class PrescriptionsController {
     if (!file?.buffer?.length) {
       throw new BadRequestException('Image file is required');
     }
-    const outputLang: 'ar' | 'en' = lang?.trim().toLowerCase() === 'ar' ? 'ar' : 'en';
+    const outputLang = resolveApiLocale(lang);
     return this.service.analyzeImageBuffer(
       req.user.id,
       file.buffer,

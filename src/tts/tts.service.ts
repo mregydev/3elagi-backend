@@ -37,6 +37,14 @@ export class TtsService {
       }
     }
 
+    if (lang === 'de') {
+      return this.synthesizeLegacy(trimmed, 'de-DE', 'de-DE-Neural2-B');
+    }
+
+    if (lang === 'es') {
+      return this.synthesizeLegacy(trimmed, 'es-ES', 'es-ES-Neural2-B');
+    }
+
     return this.synthesizeLegacy(trimmed, 'en-US', 'en-US-Neural2-D');
   }
 

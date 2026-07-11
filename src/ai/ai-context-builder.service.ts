@@ -46,7 +46,7 @@ export class AiContextBuilderService {
         contextVersion: 'urgent',
         promptVersion: AI_PROMPT_VERSION,
         urgent: true,
-        urgentMessage: this.intentClassifier.urgentResponse(question),
+        urgentMessage: this.intentClassifier.urgentResponse(user.preferredLocale),
       };
     }
 

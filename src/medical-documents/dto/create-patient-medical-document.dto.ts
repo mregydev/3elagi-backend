@@ -8,6 +8,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { DocumentType } from '../../entities/medical-document.entity';
+import type { ApiLocale } from '../../common/resolve-api-locale';
 import type { MedicalAiInsight } from '../../common/medical-ai-insight.types';
 
 class MedicalAiInsightDto {
@@ -53,6 +54,6 @@ export class CreatePatientMedicalDocumentDto {
   generate_ai_insight?: boolean;
 
   @IsOptional()
-  @IsIn(['ar', 'en'])
-  lang?: 'ar' | 'en';
+  @IsIn(['ar', 'en', 'de', 'es'])
+  lang?: ApiLocale;
 }
