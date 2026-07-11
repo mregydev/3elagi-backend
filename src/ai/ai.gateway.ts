@@ -11,6 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import { HttpException, HttpStatus, Logger, ForbiddenException } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { AiChatService, type AuthUser } from './ai-chat.service';
+import { extractDocumentText, isSupportedDocMime } from './utils/document-text';
 import {
   AI_RATE_LIMIT_CODE,
   AI_RATE_LIMIT_MESSAGE_EN,
@@ -160,29 +161,55 @@ export class AiGateway implements OnGatewayConnection {
   ) {
     const user = this.requireUser(client);
 
+    // Images go to the model as vision (inlineData); PDF/DOCX are read as text.
     let attachment: { data: string; mimeType: string } | undefined;
+    let documentText = '';
     const rawAtt = body?.attachment;
     if (rawAtt?.data && rawAtt.mimeType) {
       const mime = String(rawAtt.mimeType).toLowerCase();
-      const supported = mime.startsWith('image/') || mime === 'application/pdf';
       const data = String(rawAtt.data).replace(/^data:[^;]+;base64,/, '');
-      if (!supported || data.length > 14_000_000) {
+      if (data.length > 14_000_000) {
         client.emit('ai:message:error', {
-          error: 'Attachment must be an image or PDF under ~10 MB',
+          error: 'Attachment must be under ~10 MB',
         });
         return;
       }
-      attachment = { data, mimeType: mime };
+      if (mime.startsWith('image/')) {
+        attachment = { data, mimeType: mime };
+      } else if (isSupportedDocMime(mime)) {
+        try {
+          documentText = (
+            await extractDocumentText(Buffer.from(data, 'base64'), mime)
+          ).trim();
+        } catch {
+          documentText = '';
+        }
+        if (!documentText) {
+          client.emit('ai:message:error', {
+            error: 'Could not read text from the attached document',
+          });
+          return;
+        }
+      } else {
+        client.emit('ai:message:error', {
+          error: 'Attachment must be an image, PDF or DOCX',
+        });
+        return;
+      }
     }
 
-    if (!user || (!body?.message?.trim() && !attachment)) {
+    if (!user || (!body?.message?.trim() && !attachment && !documentText)) {
       client.emit('ai:message:error', { error: 'Invalid message payload' });
       return;
     }
 
-    const messageText =
+    let messageText =
       body?.message?.trim() ||
-      (attachment ? 'Please review the attached file.' : '');
+      (attachment || documentText ? 'Please review the attachment.' : '');
+    if (documentText) {
+      // Cap to keep the prompt within limits.
+      messageText = `${messageText}\n\n[Attached document contents]\n${documentText.slice(0, 60_000)}`;
+    }
 
     const chatId = body.chatId;
     if (chatId) {
