@@ -17,6 +17,7 @@ import { AiContextBuilderService } from './ai-context-builder.service';
 import { AiPromptService } from './ai-prompt.service';
 import { AiLinkValidatorService } from './ai-link-validator.service';
 import { AiResponseService } from './ai-response.service';
+import { UploadsService } from '../uploads/uploads.service';
 import { MessageEmotionsService } from '../message-emotions/message-emotions.service';
 import { PointsService } from '../points/points.service';
 import { AiStreamService } from './ai-stream.service';
@@ -31,6 +32,16 @@ import {
   messageLocaleMismatch,
   resolvePreferredLocale,
 } from './utils/ai-locale';
+import {
+  AI_HISTORY_MESSAGE_LIMIT,
+  hydrateHistoryForLlm,
+} from './utils/ai-history-hydration';
+
+export interface AiMessageAttachmentMeta {
+  url?: string;
+  mimeType?: string;
+  fileName?: string;
+}
 
 export interface AuthUser {
   id: string;
@@ -69,6 +80,7 @@ export class AiChatService {
     private readonly messageEmotions: MessageEmotionsService,
     private readonly pointsService: PointsService,
     private readonly cache: AiCacheService,
+    private readonly uploads: UploadsService,
     @InjectRepository(AiConversation)
     private readonly conversationRepo: Repository<AiConversation>,
     @InjectRepository(AiMessage)
@@ -122,6 +134,14 @@ export class AiChatService {
             content: m.content,
             createdAt: m.created_at.toISOString(),
             emotions: grouped[m.id] ?? [],
+            fileName: m.attachment_file_name ?? undefined,
+            imageUrl:
+              m.attachment_url &&
+              m.attachment_mime_type?.startsWith('image/')
+                ? m.attachment_url
+                : undefined,
+            attachmentUrl: m.attachment_url ?? undefined,
+            attachmentMimeType: m.attachment_mime_type ?? undefined,
           })),
         };
       }),
@@ -165,6 +185,7 @@ export class AiChatService {
     conversationId?: string,
     patientUserId?: string,
     attachment?: LlmMessageAttachment,
+    attachmentMeta?: AiMessageAttachmentMeta,
   ): AsyncGenerator<StreamEvent> {
     try {
       this.assertRateLimit(user.id);
@@ -200,6 +221,9 @@ export class AiChatService {
           conversation_id: conversation.id,
           role: 'user',
           content: message,
+          attachment_url: attachmentMeta?.url ?? null,
+          attachment_mime_type: attachmentMeta?.mimeType ?? null,
+          attachment_file_name: attachmentMeta?.fileName ?? null,
         }),
       );
 
@@ -274,10 +298,11 @@ export class AiChatService {
         user.role,
       );
 
-      // Answers that depend on an uploaded file must never be served from cache.
-      const cached = attachment
-        ? null
-        : await this.cache.get<string>(answerKey);
+      // Answers that depend on an uploaded file or prior thread context must not be cached.
+      const cached =
+        attachment || history.length > 0
+          ? null
+          : await this.cache.get<string>(answerKey);
       let fullContent = '';
       let cacheHit = false;
 
@@ -308,7 +333,9 @@ export class AiChatService {
           fullContent += token;
           yield { type: 'token', content: token };
         }
-        if (!attachment) await this.cache.set(answerKey, fullContent);
+        if (!attachment && history.length === 0) {
+          await this.cache.set(answerKey, fullContent);
+        }
       }
 
       fullContent = await this.finalizeAnswer(fullContent, built.links, contextUser);
@@ -420,16 +447,14 @@ export class AiChatService {
       );
     }
 
-    const prior = await this.messageRepo.find({
+    const priorDesc = await this.messageRepo.find({
       where: { conversation_id: conversation.id },
-      order: { created_at: 'ASC' },
-      take: 20,
+      order: { created_at: 'DESC' },
+      take: AI_HISTORY_MESSAGE_LIMIT,
     });
+    const prior = priorDesc.reverse();
 
-    const history: LlmMessage[] = prior.map((m) => ({
-      role: m.role === 'assistant' ? 'assistant' : 'user',
-      content: m.content,
-    }));
+    const history = await hydrateHistoryForLlm(prior, this.uploads);
 
     return { conversation, history };
   }

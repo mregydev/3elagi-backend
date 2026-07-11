@@ -236,9 +236,13 @@ export class AiGateway implements OnGatewayConnection {
       patientUserId?: string;
       attachment?: { data: string; mimeType: string };
       attachmentUrl?: string;
+      fileName?: string;
     },
   ) {
     const user = this.requireUser(client);
+
+    let persistedUrl = body?.attachmentUrl?.trim() || undefined;
+    const resolvedMime = body?.attachment?.mimeType?.toLowerCase();
 
     const resolved = await this.resolveAttachmentInput(
       body?.attachment,
@@ -251,6 +255,38 @@ export class AiGateway implements OnGatewayConnection {
 
     const attachment = resolved.attachment;
     const documentText = resolved.documentText;
+
+    if (attachment && !persistedUrl) {
+      const uploadName =
+        body?.fileName?.trim() ||
+        (attachment.mimeType.includes('pdf') ? 'chat-document.pdf' : 'chat-image.jpg');
+      try {
+        const uploaded = await this.uploads.uploadFileFromBase64(
+          attachment.data,
+          uploadName,
+          attachment.mimeType,
+        );
+        persistedUrl = uploaded.url;
+      } catch (err) {
+        this.logger.warn(
+          `Could not persist chat attachment: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+    }
+
+    const attachmentMeta =
+      persistedUrl && (attachment?.mimeType || resolvedMime || documentText)
+        ? {
+            url: persistedUrl,
+            mimeType:
+              attachment?.mimeType ??
+              resolvedMime ??
+              (documentText ? 'application/pdf' : 'application/octet-stream'),
+            fileName: body?.fileName?.trim() || undefined,
+          }
+        : undefined;
 
     if (!user || (!body?.message?.trim() && !attachment && !documentText)) {
       client.emit('ai:message:error', { error: 'Invalid message payload' });
@@ -279,6 +315,7 @@ export class AiGateway implements OnGatewayConnection {
         chatId,
         body.patientUserId,
         attachment,
+        attachmentMeta,
       )) {
         if (event.type === 'ack') {
           const payload = {

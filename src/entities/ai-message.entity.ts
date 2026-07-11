@@ -28,6 +28,15 @@ export class AiMessage {
   @Column({ type: 'text' })
   content: string;
 
+  @Column({ type: 'text', nullable: true })
+  attachment_url: string | null;
+
+  @Column({ type: 'varchar', length: 128, nullable: true })
+  attachment_mime_type: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  attachment_file_name: string | null;
+
   @CreateDateColumn()
   created_at: Date;
 }
