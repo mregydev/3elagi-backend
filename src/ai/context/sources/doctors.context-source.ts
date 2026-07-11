@@ -96,6 +96,9 @@ export class DoctorsContextSource implements AIContextSource {
       );
       lines.push(`Link: /doctor/${row.doctor.id} | Dr ${row.doctor.name}`);
       lines.push(
+        `Booking: doctorEntityId=${row.doctor.id} doctorUserId=${row.doctor.user_id} price=${row.doctor.video_consultation_price ?? 1}`,
+      );
+      lines.push(
         `Average rating: ${row.avgRating || 'No ratings yet'} (${row.reviewCount} reviews)`,
       );
       lines.push(`Consultation price: ${row.doctor.consultation_price ?? 1} EGP credits per consultation`);
