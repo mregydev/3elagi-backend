@@ -15,6 +15,7 @@ import { Patient } from '../entities/patient.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
 import { Prescription } from '../entities/prescription.entity';
 import { Symptom } from '../entities/symptom.entity';
+import { User } from '../entities/user.entity';
 import { AiCacheService } from './ai-cache.service';
 import { AiChatService } from './ai-chat.service';
 import { AiContextBuilderService } from './ai-context-builder.service';
@@ -64,6 +65,7 @@ import { UploadsModule } from '../uploads/uploads.module';
       Prescription,
       Patient,
       DoctorPatientAccess,
+      User,
     ]),
   ],
   controllers: [AiController],

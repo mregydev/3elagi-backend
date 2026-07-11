@@ -11,7 +11,7 @@ import { Repository } from 'typeorm';
 import { AiConversation } from '../entities/ai-conversation.entity';
 import { AiMessage } from '../entities/ai-message.entity';
 import { AiUsageLog } from '../entities/ai-usage-log.entity';
-import { UserRole } from '../entities/user.entity';
+import { User, UserRole } from '../entities/user.entity';
 import { AiCacheService } from './ai-cache.service';
 import { AiContextBuilderService } from './ai-context-builder.service';
 import { AiPromptService } from './ai-prompt.service';
@@ -26,6 +26,11 @@ import {
 } from './ai.constants';
 import type { AiContextUser } from './context/ai-context.types';
 import type { LlmMessage, LlmMessageAttachment } from './llm/llm.types';
+import {
+  localeMismatchReply,
+  messageLocaleMismatch,
+  resolvePreferredLocale,
+} from './utils/ai-locale';
 
 export interface AuthUser {
   id: string;
@@ -70,6 +75,8 @@ export class AiChatService {
     private readonly messageRepo: Repository<AiMessage>,
     @InjectRepository(AiUsageLog)
     private readonly usageRepo: Repository<AiUsageLog>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
   ) {}
 
   resolvePatientScope(user: AuthUser, patientUserId?: string): string | null {
@@ -166,10 +173,16 @@ export class AiChatService {
       }
       const started = Date.now();
       const patientScope = this.resolvePatientScope(user, patientUserId);
+      const dbUser = await this.userRepo.findOne({
+        where: { id: user.id },
+        select: ['id', 'preferred_locale'],
+      });
+      const preferredLocale = resolvePreferredLocale(dbUser?.preferred_locale);
       const contextUser: AiContextUser = {
         id: user.id,
         role: user.role,
         patientContextId: patientScope,
+        preferredLocale,
       };
 
       let conversation: AiConversation;
@@ -195,6 +208,28 @@ export class AiChatService {
         conversationId: conversation.id,
         userMessageId: userRow.id,
       };
+
+      if (messageLocaleMismatch(preferredLocale, message)) {
+        const mismatchText = localeMismatchReply(preferredLocale);
+        const assistantMessage = await this.messageRepo.save(
+          this.messageRepo.create({
+            conversation_id: conversation.id,
+            role: 'assistant',
+            content: mismatchText,
+          }),
+        );
+        conversation.updated_at = new Date();
+        await this.conversationRepo.save(conversation);
+        yield { type: 'token', content: mismatchText };
+        yield {
+          type: 'done',
+          conversationId: conversation.id,
+          messageId: assistantMessage.id,
+          cacheHit: false,
+          finalContent: mismatchText,
+        };
+        return;
+      }
 
       const built = await this.contextBuilder.build(contextUser, message);
 
@@ -257,6 +292,8 @@ export class AiChatService {
           built.intent,
           history,
           user.role,
+          preferredLocale,
+          Boolean(attachment),
         );
         if (attachment?.data) {
           // Attach the file to the latest user turn.
