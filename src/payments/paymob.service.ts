@@ -46,8 +46,12 @@ export class PaymobService {
 
   private checkoutMode(): 'auto' | 'intention' | 'quicklink' {
     const mode = this.readEnv('PAYMOB_CHECKOUT_MODE').toLowerCase();
-    if (mode === 'intention' || mode === 'quicklink') return mode;
-    return 'auto';
+    if (mode === 'intention' || mode === 'quicklink' || mode === 'auto') {
+      return mode;
+    }
+    // Intention API is the primary path. We do NOT auto-fall back to Quick Link,
+    // because that endpoint masks the real Intention error with a generic 500.
+    return 'intention';
   }
 
   private secretKey(): string {
@@ -271,15 +275,20 @@ export class PaymobService {
       intention_order_id?: number;
       detail?: string;
       message?: string;
+      [key: string]: unknown;
     };
 
     if (!res.ok || !data.client_secret) {
       const raw =
         data.detail ||
         data.message ||
-        `Paymob intention failed (${res.status})`;
+        (Object.keys(data).length
+          ? JSON.stringify(data)
+          : `Paymob intention failed (${res.status})`);
       this.logger.warn(
-        `Paymob intention error (methods=${JSON.stringify(this.paymentMethods())}): ${raw}`,
+        `Paymob intention error ${res.status} (methods=${JSON.stringify(
+          this.paymentMethods(),
+        )}): ${raw}`,
       );
       throw new BadRequestException(this.formatCheckoutError(raw));
     }
