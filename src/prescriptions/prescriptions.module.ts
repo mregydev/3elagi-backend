@@ -13,6 +13,7 @@ import { PrescriptionImageAnalyzerService } from './prescription-image-analyzer.
 import { UploadsModule } from '../uploads/uploads.module';
 import { AiModule } from '../ai/ai.module';
 import { DoctorPatientAccessModule } from '../doctor-patient-access/doctor-patient-access.module';
+import { PatientsModule } from '../patients/patients.module';
 import { MedicalRecordAiModule } from '../medical-documents/medical-record-ai.module';
 import { PointsModule } from '../points/points.module';
 
@@ -30,6 +31,7 @@ import { PointsModule } from '../points/points.module';
     UploadsModule,
     AiModule,
     DoctorPatientAccessModule,
+    PatientsModule,
     PointsModule,
     MedicalRecordAiModule,
   ],

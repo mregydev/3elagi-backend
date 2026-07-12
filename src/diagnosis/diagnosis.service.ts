@@ -18,6 +18,7 @@ import { CreatePatientDiagnosisDto } from './dto/create-patient-diagnosis.dto';
 import { UpdateDiagnosisDto } from './dto/update-diagnosis.dto';
 import { MedicalDocument } from '../entities/medical-document.entity';
 import { DoctorPatientAccessService } from '../doctor-patient-access/doctor-patient-access.service';
+import { PatientConsentService } from '../patients/patient-consent.service';
 import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
 import { DiagnosisDocumentService } from './diagnosis-document.service';
 import { MedicalRecordImageAnalyzerService } from '../medical-documents/medical-record-image-analyzer.service';
@@ -39,6 +40,7 @@ export class DiagnosisService {
     @InjectRepository(PatientProfile)
     private patientProfileRepo: Repository<PatientProfile>,
     private doctorPatientAccessService: DoctorPatientAccessService,
+    private patientConsentService: PatientConsentService,
     private knowledgeIndexer: KnowledgeIndexerService,
     private diagnosisDocuments: DiagnosisDocumentService,
     private imageAnalyzer: MedicalRecordImageAnalyzerService,
@@ -230,6 +232,9 @@ export class DiagnosisService {
     }
     await this.doctorPatientAccessService.assertDoctorCanPrescribeForPatient(
       userId,
+      dto.patient_id,
+    );
+    await this.patientConsentService.assertMedicalRecordsStorageConsent(
       dto.patient_id,
     );
     const { symptoms, document_ids, ...diagnosisFields } = dto;

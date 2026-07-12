@@ -15,7 +15,7 @@ import {
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { UsersService } from '../users/users.service';
-import { WherebyService } from '../whereby/whereby.service';
+import { DailyService } from '../daily/daily.service';
 import { CreateVideoCallDto } from './dto/create-video-call.dto';
 
 export interface VideoCallSessionView {
@@ -36,7 +36,7 @@ export class VideoCallsService {
     @InjectRepository(VideoCallSession)
     private readonly sessionRepo: Repository<VideoCallSession>,
     @InjectRepository(User) private readonly userRepo: Repository<User>,
-    private readonly whereby: WherebyService,
+    private readonly daily: DailyService,
     private readonly push: PushNotificationsService,
     private readonly presenceGateway: PresenceGateway,
     private readonly users: UsersService,
@@ -85,7 +85,7 @@ export class VideoCallsService {
     const [patientName, doctorName, { roomUrl }] = await Promise.all([
       this.users.getDisplayName(patientUserId),
       this.users.getDisplayName(dto.doctor_user_id),
-      this.whereby.createRoom(),
+      this.daily.createRoom(),
     ]);
 
     const session = this.sessionRepo.create({

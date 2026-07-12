@@ -123,6 +123,7 @@ import { ConsultationComplaints1778310000000 } from './migrations/1778310000000-
 import { DoctorPriceEgpCredits1778320000000 } from './migrations/1778320000000-DoctorPriceEgpCredits';
 import { VideoConsultationPrice1778330000000 } from './migrations/1778330000000-VideoConsultationPrice';
 import { AiMessageAttachments1778340000000 } from './migrations/1778340000000-AiMessageAttachments';
+import { PatientMedicalRecordsConsent1778350000000 } from './migrations/1778350000000-PatientMedicalRecordsConsent';
 import { AdminRagSource } from './entities/admin-rag-source.entity';
 import { Consultation } from './entities/consultation.entity';
 import { ConsultationComplaint } from './entities/consultation-complaint.entity';
@@ -228,6 +229,7 @@ import { ConsultationComplaint } from './entities/consultation-complaint.entity'
           DoctorPriceEgpCredits1778320000000,
           VideoConsultationPrice1778330000000,
           AiMessageAttachments1778340000000,
+          PatientMedicalRecordsConsent1778350000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',

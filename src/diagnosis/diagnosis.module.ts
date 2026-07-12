@@ -14,6 +14,7 @@ import { Appointment } from '../entities/appointment.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
 import { MedicalDocument } from '../entities/medical-document.entity';
 import { DoctorPatientAccessModule } from '../doctor-patient-access/doctor-patient-access.module';
+import { PatientsModule } from '../patients/patients.module';
 import { AiModule } from '../ai/ai.module';
 import { MedicalRecordAiModule } from '../medical-documents/medical-record-ai.module';
 import { UploadsModule } from '../uploads/uploads.module';
@@ -21,6 +22,7 @@ import { UploadsModule } from '../uploads/uploads.module';
 @Module({
   imports: [
     DoctorPatientAccessModule,
+    PatientsModule,
     AiModule,
     MedicalRecordAiModule,
     UploadsModule,

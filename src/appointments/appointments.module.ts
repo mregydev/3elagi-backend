@@ -15,7 +15,7 @@ import { SchedulesModule } from '../schedules/schedules.module';
 import { UsersModule } from '../users/users.module';
 import { PresenceModule } from '../presence/presence.module';
 import { PushNotificationsModule } from '../push-notifications/push-notifications.module';
-import { WherebyModule } from '../whereby/whereby.module';
+import { DailyModule } from '../daily/daily.module';
 
 import { PointsModule } from '../points/points.module';
 
@@ -35,7 +35,7 @@ import { PointsModule } from '../points/points.module';
     UsersModule,
     PresenceModule,
     PushNotificationsModule,
-    WherebyModule,
+    DailyModule,
     PointsModule,
   ],
   controllers: [AppointmentsController],

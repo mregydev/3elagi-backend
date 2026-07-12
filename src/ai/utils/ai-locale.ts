@@ -3,12 +3,25 @@ import { detectMessageLanguage } from './detect-message-language';
 export type AppLocale = 'ar' | 'en' | 'de' | 'es';
 
 const ATTACHED_DOC_MARKER = '[Attached document contents]';
+export const ATTACHMENT_ONLY_PLACEHOLDER = 'Please review the attachment.';
 
 /** Strip embedded document text before detecting the user's own language. */
 export function stripAttachmentBlock(message: string): string {
   const idx = message.indexOf(ATTACHED_DOC_MARKER);
   const head = idx >= 0 ? message.slice(0, idx) : message;
   return head.trim();
+}
+
+/** Text stored/shown for user messages (no embedded doc body or attachment-only filler). */
+export function userMessageDisplayContent(
+  message: string,
+  hasAttachment: boolean,
+): string {
+  const text = stripAttachmentBlock(message);
+  if (hasAttachment && (text === ATTACHMENT_ONLY_PLACEHOLDER || !text)) {
+    return '';
+  }
+  return text;
 }
 
 /** Rough detection of the language used in user-typed text. */

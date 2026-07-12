@@ -16,6 +16,7 @@ import { Symptom } from '../entities/symptom.entity';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { CreatePatientMedicalDocumentDto } from './dto/create-patient-medical-document.dto';
 import { DoctorPatientAccessService } from '../doctor-patient-access/doctor-patient-access.service';
+import { PatientConsentService } from '../patients/patient-consent.service';
 import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
 import { resolveApiLocale, type ApiLocale } from '../common/resolve-api-locale';
 import { DiagnosisDocumentService } from '../diagnosis/diagnosis-document.service';
@@ -42,6 +43,7 @@ export class MedicalDocumentsService {
     @InjectRepository(Symptom)
     private symptomRepo: Repository<Symptom>,
     private doctorPatientAccessService: DoctorPatientAccessService,
+    private patientConsentService: PatientConsentService,
     private knowledgeIndexer: KnowledgeIndexerService,
     private diagnosisDocuments: DiagnosisDocumentService,
     private imageAnalyzer: MedicalRecordImageAnalyzerService,
@@ -147,6 +149,9 @@ export class MedicalDocumentsService {
     }
 
     await this.doctorPatientAccessService.assertPatientUser(subjectUserId);
+    await this.patientConsentService.assertMedicalRecordsStorageConsent(
+      subjectUserId,
+    );
 
     if (!dto.file_url?.trim()) {
       throw new BadRequestException('Image file is required');
@@ -413,6 +418,9 @@ export class MedicalDocumentsService {
         dto.patient_id,
       );
     }
+    await this.patientConsentService.assertMedicalRecordsStorageConsent(
+      dto.patient_id,
+    );
     /*await this.validateDiagnosisAndSymptomLinks(
       dto.patient_id,
       dto.diagnosis_id,

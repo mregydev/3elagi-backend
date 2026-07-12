@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -94,6 +95,10 @@ export class AuthService {
     const existing = await this.userRepo.findOne({ where: { email: dto.email } });
     if (existing) throw new ConflictException('Email already in use');
 
+    if (!dto.medical_records_storage_consent) {
+      throw new BadRequestException('Medical records storage consent is required');
+    }
+
     const hash = await bcrypt.hash(dto.password, 10);
     const user = this.userRepo.create({
       email: dto.email,
@@ -111,6 +116,8 @@ export class AuthService {
       name: dto.name,
       phone: dto.phone,
       photo_url: dto.photo_url ?? null,
+      medical_records_storage_consent: true,
+      medical_records_storage_consent_at: new Date(),
     });
     await this.patientProfileRepo.save(profile);
 

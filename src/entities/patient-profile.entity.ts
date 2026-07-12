@@ -51,6 +51,13 @@ export class PatientProfile {
   @Column({ type: 'jsonb', default: () => "'{}'::jsonb" })
   intake_answers: Record<string, string[]>;
 
+  /** GDPR consent to store medical records in the platform database. */
+  @Column({ type: 'boolean', default: false })
+  medical_records_storage_consent: boolean;
+
+  @Column({ type: 'timestamp', nullable: true })
+  medical_records_storage_consent_at: Date | null;
+
   @CreateDateColumn()
   created_at: Date;
 

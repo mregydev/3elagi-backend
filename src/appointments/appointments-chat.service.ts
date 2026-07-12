@@ -23,7 +23,7 @@ import { PresenceGateway } from '../presence/presence.gateway';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 import { SchedulesService } from '../schedules/schedules.service';
 import { UsersService } from '../users/users.service';
-import { WherebyService } from '../whereby/whereby.service';
+import { DailyService } from '../daily/daily.service';
 import { VideoCallSession } from '../entities/video-call-session.entity';
 import { PointsService } from '../points/points.service';
 import { clampConsultationPrice } from '../points/message-price.constants';
@@ -117,7 +117,7 @@ export class AppointmentsChatService {
     private readonly usersService: UsersService,
     private readonly presenceGateway: PresenceGateway,
     private readonly pushNotifications: PushNotificationsService,
-    private readonly wherebyService: WherebyService,
+    private readonly dailyService: DailyService,
     private readonly pointsService: PointsService,
   ) {}
 
@@ -382,7 +382,7 @@ export class AppointmentsChatService {
     let sessionId = appointment.video_call_session_id ?? null;
 
     if (!roomUrl) {
-      const created = await this.wherebyService.createRoom();
+      const created = await this.dailyService.createRoom();
       roomUrl = created.roomUrl;
       appointment.meeting_link = roomUrl;
     }

@@ -21,6 +21,7 @@ import { User, UserRole } from '../entities/user.entity';
 import { UploadsService } from '../uploads/uploads.service';
 import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
 import { DoctorPatientAccessService } from '../doctor-patient-access/doctor-patient-access.service';
+import { PatientConsentService } from '../patients/patient-consent.service';
 import { PointsService } from '../points/points.service';
 import {
   ExtractedPrescriptionMedication,
@@ -146,6 +147,7 @@ export class PrescriptionsService {
     private uploads: UploadsService,
     private knowledgeIndexer: KnowledgeIndexerService,
     private doctorPatientAccessService: DoctorPatientAccessService,
+    private patientConsentService: PatientConsentService,
     private prescriptionImageAnalyzer: PrescriptionImageAnalyzerService,
     private medicalImageAnalyzer: MedicalRecordImageAnalyzerService,
     private pointsService: PointsService,
@@ -447,6 +449,10 @@ export class PrescriptionsService {
     } else {
       throw new ForbiddenException('Insufficient role');
     }
+
+    await this.patientConsentService.assertMedicalRecordsStorageConsent(
+      patientUserId,
+    );
 
     const profile = await this.patientProfileRepo.findOne({
       where: { user_id: patientUserId },

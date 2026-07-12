@@ -31,6 +31,7 @@ import {
   localeMismatchReply,
   messageLocaleMismatch,
   resolvePreferredLocale,
+  userMessageDisplayContent,
 } from './utils/ai-locale';
 import {
   AI_HISTORY_MESSAGE_LIMIT,
@@ -131,7 +132,13 @@ export class AiChatService {
           messages: messages.map((m) => ({
             id: m.id,
             role: m.role,
-            content: m.content,
+            content:
+              m.role === 'user'
+                ? userMessageDisplayContent(
+                    m.content,
+                    Boolean(m.attachment_url || m.attachment_file_name),
+                  )
+                : m.content,
             createdAt: m.created_at.toISOString(),
             emotions: grouped[m.id] ?? [],
             fileName: m.attachment_file_name ?? undefined,
@@ -220,7 +227,10 @@ export class AiChatService {
         this.messageRepo.create({
           conversation_id: conversation.id,
           role: 'user',
-          content: message,
+          content: userMessageDisplayContent(
+            message,
+            Boolean(attachmentMeta?.url || attachmentMeta?.fileName),
+          ),
           attachment_url: attachmentMeta?.url ?? null,
           attachment_mime_type: attachmentMeta?.mimeType ?? null,
           attachment_file_name: attachmentMeta?.fileName ?? null,

@@ -9,7 +9,7 @@ import { User } from '../entities/user.entity';
 import { Doctor } from '../entities/doctor.entity';
 import { Diagnosis } from '../entities/diagnosis.entity';
 import { Symptom } from '../entities/symptom.entity';
-import { DoctorPatientAccessModule } from '../doctor-patient-access/doctor-patient-access.module';
+import { PatientsModule } from '../patients/patients.module';
 import { AiModule } from '../ai/ai.module';
 import { DiagnosisModule } from '../diagnosis/diagnosis.module';
 import { UploadsModule } from '../uploads/uploads.module';
@@ -18,6 +18,7 @@ import { MedicalRecordAiModule } from './medical-record-ai.module';
 @Module({
   imports: [
     DoctorPatientAccessModule,
+    PatientsModule,
     AiModule,
     DiagnosisModule,
     UploadsModule,
