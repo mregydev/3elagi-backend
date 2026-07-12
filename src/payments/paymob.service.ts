@@ -36,43 +36,66 @@ export class PaymobService {
     );
   }
 
+  private readEnv(...names: string[]): string {
+    for (const name of names) {
+      const value = this.config.get<string>(name)?.trim();
+      if (value) return value;
+    }
+    return '';
+  }
+
   private secretKey(): string {
-    const key =
-      this.config.get<string>('PAYMENT_SECRET_KEY')?.trim() ||
-      this.config.get<string>('PAYMOB_SECRET_KEY')?.trim();
+    const key = this.readEnv(
+      'PAYMENT_SECRET_KEY',
+      'PAYMENT_SECRENT_KEY', // common Cloud Run typo
+      'PAYMOB_SECRET_KEY',
+    );
     if (!key) {
-      throw new BadRequestException('Payment provider is not configured');
+      throw new BadRequestException(
+        'Payment provider is not configured (missing PAYMENT_SECRET_KEY)',
+      );
     }
     return key;
   }
 
   private publicKey(): string {
-    const key =
-      this.config.get<string>('PAYMENT_PUBLIC_KEY')?.trim() ||
-      this.config.get<string>('PAYMOB_PUBLIC_KEY')?.trim();
+    const key = this.readEnv('PAYMENT_PUBLIC_KEY', 'PAYMOB_PUBLIC_KEY');
     if (!key) {
-      throw new BadRequestException('Payment provider is not configured');
+      throw new BadRequestException(
+        'Payment provider is not configured (missing PAYMENT_PUBLIC_KEY)',
+      );
     }
     return key;
   }
 
-  private cardIntegrationId(): number {
-    const raw =
-      this.config.get<string>('PAYMOB_CARD_INTEGRATION_ID')?.trim() ||
-      '5776196';
-    const id = Number(raw);
+  /** Intention API payment_methods — UIG integrations use "card", not the dashboard integration id. */
+  private paymentMethods(): Array<number | string> {
+    const methodsEnv = this.readEnv('PAYMOB_PAYMENT_METHODS');
+    if (methodsEnv) {
+      return methodsEnv.split(',').map((part) => this.parsePaymentMethod(part));
+    }
+    // Default for Visa/Mastercard via Unified Checkout (integration 5776196 is UIG config).
+    return ['card'];
+  }
+
+  private parsePaymentMethod(raw: string): number | string {
+    const value = raw.trim().replace(/^['"]|['"]$/g, '');
+    if (!value) {
+      throw new BadRequestException('Invalid payment method');
+    }
+    if (!/^\d+$/.test(value)) return value;
+    const id = Number(value);
     if (!Number.isFinite(id) || id < 1) {
-      throw new BadRequestException('Invalid card integration id');
+      throw new BadRequestException(`Invalid payment method: ${raw}`);
     }
     return id;
   }
 
   hmacSecret(): string {
-    return (
-      this.config.get<string>('PAYMENT_API_KEY')?.trim() ||
-      this.config.get<string>('PAYMOB_HMAC_SECRET')?.trim() ||
-      ''
-    );
+    const apiKey = this.readEnv('PAYMENT_API_KEY', 'PAYMOB_HMAC_SECRET');
+    // Some deployments mistakenly store the public key in PAYMENT_API_KEY.
+    if (apiKey && !apiKey.includes('_pk_')) return apiKey;
+    return this.readEnv('PAYMENT_SECRET_KEY', 'PAYMENT_SECRENT_KEY', 'PAYMOB_SECRET_KEY');
   }
 
   buildCheckoutUrl(clientSecret: string): string {
@@ -93,7 +116,7 @@ export class PaymobService {
     const body = {
       amount: amountCents,
       currency: 'EGP',
-      payment_methods: [this.cardIntegrationId()],
+      payment_methods: this.paymentMethods(),
       items: [
         {
           name: 'Message credits',
@@ -149,7 +172,9 @@ export class PaymobService {
         data.detail ||
         data.message ||
         `Paymob intention failed (${res.status})`;
-      this.logger.warn(`Paymob intention error: ${msg}`);
+      this.logger.warn(
+        `Paymob intention error (methods=${JSON.stringify(this.paymentMethods())}): ${msg}`,
+      );
       throw new BadRequestException(msg);
     }
 
