@@ -29,6 +29,13 @@ export class PaymentsController {
     return this.payments.createCardCheckout(req.user.id, dto.amount);
   }
 
+  @Get('paymob/config-check')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('doctor', 'patient')
+  configCheck() {
+    return this.payments.paymobConfigCheck();
+  }
+
   @Post('paymob/webhook')
   async paymobWebhook(
     @Body() body: Record<string, unknown>,

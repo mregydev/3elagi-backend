@@ -54,6 +54,31 @@ export class PaymobService {
     return 'intention';
   }
 
+  /** Masked view of the loaded config, for verifying the deployed env. */
+  debugConfig(): Record<string, unknown> {
+    const mask = (v: string) =>
+      v ? `${v.slice(0, 16)}…(len ${v.length})` : 'MISSING';
+    const sk = this.readEnv(
+      'PAYMENT_SECRET_KEY',
+      'PAYMENT_SECRENT_KEY',
+      'PAYMOB_SECRET_KEY',
+    );
+    const pk = this.readEnv('PAYMENT_PUBLIC_KEY', 'PAYMOB_PUBLIC_KEY');
+    return {
+      base_url: this.baseUrl(),
+      checkout_mode: this.checkoutMode(),
+      secret_key: mask(sk),
+      secret_key_mode: sk.includes('_live_') ? 'live' : 'test',
+      secret_key_looks_valid: sk.startsWith('egy_sk_') || sk.startsWith('sk_'),
+      public_key: mask(pk),
+      public_key_looks_valid: pk.startsWith('egy_pk_') || pk.startsWith('pk_'),
+      api_key: mask(this.legacyApiKey()),
+      hmac_configured: !!this.hmacSecret(),
+      payment_methods: this.paymentMethods(),
+      payment_methods_env_raw: this.readEnv('PAYMOB_PAYMENT_METHODS') || '(unset)',
+    };
+  }
+
   private secretKey(): string {
     const key = this.readEnv(
       'PAYMENT_SECRET_KEY',
