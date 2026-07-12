@@ -169,6 +169,20 @@ export class PaymobService {
     return `Paymob checkout failed: ${raw}`;
   }
 
+  /**
+   * Paymob requires an international phone number. Egyptian numbers are usually
+   * stored locally (e.g. 01343434343); convert them to +20… form.
+   */
+  private normalizePhone(raw?: string): string {
+    const cleaned = (raw ?? '').replace(/[^\d+]/g, '');
+    if (!cleaned) return '+201017809765';
+    if (cleaned.startsWith('+')) return cleaned;
+    if (cleaned.startsWith('00')) return `+${cleaned.slice(2)}`;
+    if (cleaned.startsWith('20')) return `+${cleaned}`;
+    if (cleaned.startsWith('0')) return `+20${cleaned.slice(1)}`;
+    return `+20${cleaned}`;
+  }
+
   buildCheckoutUrl(clientSecret: string): string {
     const publicKey = encodeURIComponent(this.publicKey());
     const secret = encodeURIComponent(clientSecret);
@@ -204,7 +218,7 @@ export class PaymobService {
       throw new BadRequestException('Minimum payment is 1 EGP');
     }
 
-    const phone = input.customer.phone?.trim() || '+201000000000';
+    const phone = this.normalizePhone(input.customer.phone);
     const body = {
       amount: amountCents,
       currency: 'EGP',
@@ -320,7 +334,7 @@ export class PaymobService {
 
     const token = await this.authBearerToken();
     const integrationId = this.cardIntegrationId();
-    const phone = input.customer.phone?.trim() || '+201000000000';
+    const phone = this.normalizePhone(input.customer.phone);
     const fullName =
       `${input.customer.firstName} ${input.customer.lastName}`.trim();
 
