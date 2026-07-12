@@ -280,6 +280,7 @@ export class AppointmentsService {
         status: a.status,
         meeting_link: a.meeting_link,
         other_name: a.patient?.name ?? a.patient_name ?? 'Patient',
+        other_user_id: a.patient_user_id ?? null,
         booked_via_app: a.booked_via_app,
       }));
     }
@@ -304,6 +305,7 @@ export class AppointmentsService {
       status: a.status,
       meeting_link: a.meeting_link,
       other_name: a.doctor?.name ?? 'Doctor',
+      other_user_id: a.doctor?.user_id ?? null,
       booked_via_app: a.booked_via_app,
     }));
   }

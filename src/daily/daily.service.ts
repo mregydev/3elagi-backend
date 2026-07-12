@@ -43,7 +43,9 @@ export class DailyService {
           properties: {
             exp,
             eject_at_room_exp: true,
-            enable_prejoin_ui: true,
+            // Skip Daily's name/prejoin screen — the participant name comes from
+            // the app profile via the ?userName= URL param.
+            enable_prejoin_ui: false,
           },
         }),
       });
