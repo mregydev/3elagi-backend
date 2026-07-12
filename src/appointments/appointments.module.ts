@@ -11,6 +11,8 @@ import { IntakeTest } from '../entities/intake-test.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
 import { Message } from '../entities/message.entity';
 import { VideoCallSession } from '../entities/video-call-session.entity';
+import { Diagnosis } from '../entities/diagnosis.entity';
+import { Symptom } from '../entities/symptom.entity';
 import { SchedulesModule } from '../schedules/schedules.module';
 import { UsersModule } from '../users/users.module';
 import { PresenceModule } from '../presence/presence.module';
@@ -30,6 +32,8 @@ import { PointsModule } from '../points/points.module';
       PatientProfile,
       Message,
       VideoCallSession,
+      Diagnosis,
+      Symptom,
     ]),
     SchedulesModule,
     UsersModule,

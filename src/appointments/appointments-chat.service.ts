@@ -11,6 +11,7 @@ import {
   Appointment,
   AppointmentStatus,
 } from '../entities/appointment.entity';
+import { Diagnosis } from '../entities/diagnosis.entity';
 import { Doctor } from '../entities/doctor.entity';
 import { Patient } from '../entities/patient.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
@@ -113,6 +114,8 @@ export class AppointmentsChatService {
     @InjectRepository(Message) private readonly messageRepo: Repository<Message>,
     @InjectRepository(VideoCallSession)
     private readonly videoCallRepo: Repository<VideoCallSession>,
+    @InjectRepository(Diagnosis)
+    private readonly diagnosisRepo: Repository<Diagnosis>,
     private readonly schedulesService: SchedulesService,
     private readonly usersService: UsersService,
     private readonly presenceGateway: PresenceGateway,
@@ -236,6 +239,41 @@ export class AppointmentsChatService {
     return this.patientRepo.save(created);
   }
 
+  /**
+   * Doctor-facing insight for a chat booking. Prefer the AI-composed insight
+   * (it can pull findings from shared images/labs); otherwise fall back to the
+   * patient's stated reason enriched with their recent diagnoses, so the doctor
+   * always gets some useful context.
+   */
+  private async buildDoctorInsight(
+    patientUserId: string,
+    reason?: string,
+    patientInsight?: string,
+  ): Promise<string> {
+    const composed = (patientInsight ?? '').trim();
+    if (composed) return composed.slice(0, 4000);
+
+    const parts: string[] = [];
+    const r = (reason ?? '').trim();
+    if (r) parts.push(`Reason for visit: ${r}`);
+
+    try {
+      const recent = await this.diagnosisRepo.find({
+        where: { patient_id: patientUserId },
+        order: { created_at: 'DESC' },
+        take: 3,
+      });
+      const history = recent
+        .map((d) => d.desc?.trim())
+        .filter((d): d is string => !!d);
+      if (history.length) parts.push(`Recent history: ${history.join('; ')}`);
+    } catch {
+      // best-effort enrichment
+    }
+
+    return parts.join('\n').slice(0, 4000);
+  }
+
   async bookFromChat(
     patientUserId: string,
     doctorUserId: string,
@@ -290,7 +328,11 @@ export class AppointmentsChatService {
     });
     if (conflict) throw new BadRequestException('Time slot already booked');
 
-    const insightForDoctor = (patientInsight ?? reason ?? '').trim().slice(0, 4000);
+    const insightForDoctor = await this.buildDoctorInsight(
+      patientUserId,
+      reason,
+      patientInsight,
+    );
     const price = clampConsultationPrice(doctor.video_consultation_price ?? 1);
     await this.pointsService.reservePoints(
       patientUserId,
