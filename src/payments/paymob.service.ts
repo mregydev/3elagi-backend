@@ -98,6 +98,23 @@ export class PaymobService {
     return this.readEnv('PAYMENT_SECRET_KEY', 'PAYMENT_SECRENT_KEY', 'PAYMOB_SECRET_KEY');
   }
 
+  private formatIntentionError(raw: string): string {
+    if (
+      !raw.includes('Integration ID') &&
+      !raw.includes('Integration ID/Name')
+    ) {
+      return raw;
+    }
+    return (
+      'Paymob rejected the payment integration. In the Paymob dashboard (Test mode), open ' +
+      'Developers → Payment Integrations, use a Card/online integration ID from that list ' +
+      '(not the UIG checkout config alone), ensure it matches your test secret key, then set ' +
+      'PAYMOB_PAYMENT_METHODS to that numeric ID or "card". If only UIG #5776196 appears, ' +
+      'save the integration, set webhook/redirect URLs, and contact Paymob support to enable ' +
+      'Intention API card processing for your merchant account.'
+    );
+  }
+
   buildCheckoutUrl(clientSecret: string): string {
     const publicKey = encodeURIComponent(this.publicKey());
     const secret = encodeURIComponent(clientSecret);
@@ -168,12 +185,13 @@ export class PaymobService {
     };
 
     if (!res.ok || !data.client_secret) {
-      const msg =
+      const raw =
         data.detail ||
         data.message ||
         `Paymob intention failed (${res.status})`;
+      const msg = this.formatIntentionError(raw);
       this.logger.warn(
-        `Paymob intention error (methods=${JSON.stringify(this.paymentMethods())}): ${msg}`,
+        `Paymob intention error (methods=${JSON.stringify(this.paymentMethods())}): ${raw}`,
       );
       throw new BadRequestException(msg);
     }
