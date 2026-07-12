@@ -50,6 +50,8 @@ export interface AppointmentActionMeta {
   time: string;
   status?: string;
   meeting_link?: string | null;
+  /** AI-written, doctor-facing note about why the patient booked + relevant history. */
+  patient_insight?: string;
 }
 
 export type ConsultationActionType = 'start' | 'end' | 'cancel';

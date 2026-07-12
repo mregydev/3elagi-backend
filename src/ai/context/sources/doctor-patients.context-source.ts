@@ -17,9 +17,17 @@ interface PatientSummary {
   recordsAllowed: boolean;
 }
 
+interface PatientJourney {
+  userId: string;
+  name: string;
+  diagnoses: Array<{ diagnosis: Diagnosis; symptoms: Symptom[] }>;
+}
+
 interface DoctorPatientsPayload {
   patients: PatientSummary[];
   myDiagnoses: Array<{ diagnosis: Diagnosis; symptoms: Symptom[] }>;
+  /** Full history for patients who granted records access (all doctors). */
+  journeys: PatientJourney[];
 }
 
 @Injectable()
@@ -92,7 +100,46 @@ export class DoctorPatientsContextSource implements AIContextSource {
       })),
     );
 
-    return { patients, myDiagnoses: withSymptoms };
+    // Full journey (all diagnoses, any doctor) for records-allowed patients.
+    const journeyIds = patients
+      .filter((p) => p.recordsAllowed)
+      .map((p) => p.userId);
+    let journeys: PatientJourney[] = [];
+    if (journeyIds.length) {
+      const patientDiagnoses = await this.diagnosisRepo.find({
+        where: { patient_id: In(journeyIds) },
+        order: { created_at: 'DESC' },
+        take: 80,
+      });
+      const diagIds = patientDiagnoses.map((d) => d.id);
+      const allSymptoms = diagIds.length
+        ? await this.symptomRepo.find({ where: { diagnosis_id: In(diagIds) } })
+        : [];
+      const symptomsByDiag = new Map<string, Symptom[]>();
+      for (const s of allSymptoms) {
+        const arr = symptomsByDiag.get(s.diagnosis_id) ?? [];
+        arr.push(s);
+        symptomsByDiag.set(s.diagnosis_id, arr);
+      }
+      const byPatient = new Map<
+        string,
+        Array<{ diagnosis: Diagnosis; symptoms: Symptom[] }>
+      >();
+      for (const d of patientDiagnoses) {
+        const arr = byPatient.get(d.patient_id) ?? [];
+        arr.push({ diagnosis: d, symptoms: symptomsByDiag.get(d.id) ?? [] });
+        byPatient.set(d.patient_id, arr);
+      }
+      journeys = journeyIds
+        .filter((id) => byPatient.has(id))
+        .map((id) => ({
+          userId: id,
+          name: patients.find((p) => p.userId === id)?.name ?? 'Patient',
+          diagnoses: byPatient.get(id) ?? [],
+        }));
+    }
+
+    return { patients, myDiagnoses: withSymptoms, journeys };
   }
 
   buildContextText(data: unknown): string {
@@ -127,6 +174,19 @@ export class DoctorPatientsContextSource implements AIContextSource {
       sections.push('\n[Diagnoses you added]\nNo diagnoses recorded by you yet.');
     }
 
+    if (payload.journeys.length) {
+      sections.push(
+        "\n[Patient medical journeys — the FULL diagnosis history (from any doctor) for patients who granted you records access. When the doctor asks about a patient, use this to summarize that patient's journey in a clinically useful way: the recurring diagnoses/diseases, repeated symptoms, and how their condition has evolved over time — so the doctor can prepare and follow up.]",
+      );
+      for (const j of payload.journeys) {
+        sections.push(`Patient: ${j.name}`);
+        for (const row of j.diagnoses) {
+          sections.push(buildDiagnosisText(row.diagnosis, row.symptoms));
+        }
+        sections.push('---');
+      }
+    }
+
     return sections.join('\n\n');
   }
 
@@ -139,6 +199,22 @@ export class DoctorPatientsContextSource implements AIContextSource {
       this.accessRepo.count({ where: { doctor_id: doctor.id } }),
       this.diagnosisRepo.count({ where: { doctor_id: doctor.id } }),
     ]);
-    return `doctor_patients:${doctor.id}:${accessCount}:${diagCount}`;
+
+    // Journey data changes when other doctors touch a records-allowed patient too.
+    const allowed = await this.accessRepo.find({
+      where: {
+        doctor_id: doctor.id,
+        records_allowed: true,
+        blocked_by_patient: false,
+        blocked_by_doctor: false,
+      },
+      select: ['patient_user_id'],
+    });
+    const journeyIds = allowed.map((a) => a.patient_user_id);
+    const journeyDiagCount = journeyIds.length
+      ? await this.diagnosisRepo.count({ where: { patient_id: In(journeyIds) } })
+      : 0;
+
+    return `doctor_patients:${doctor.id}:${accessCount}:${diagCount}:${journeyDiagCount}`;
   }
 }

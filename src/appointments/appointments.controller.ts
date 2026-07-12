@@ -81,6 +81,8 @@ export class AppointmentsController {
       dto.doctor_user_id,
       dto.date,
       dto.time,
+      dto.reason,
+      dto.patient_insight,
     );
   }
 

@@ -241,6 +241,8 @@ export class AppointmentsChatService {
     doctorUserId: string,
     date: string,
     time: string,
+    reason?: string,
+    patientInsight?: string,
   ): Promise<{ appointment: Appointment; message: ReturnType<typeof this.mapMessage> }> {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       throw new BadRequestException('date must be YYYY-MM-DD');
@@ -333,6 +335,7 @@ export class AppointmentsChatService {
       patientUserId,
     );
 
+    const insight = (patientInsight ?? reason ?? '').trim();
     const meta: AppointmentActionMeta = {
       appointment_id: appointment.id,
       action: 'request',
@@ -340,6 +343,7 @@ export class AppointmentsChatService {
       time: timeDb,
       status: appointment.status,
       meeting_link: ensured.roomUrl,
+      ...(insight ? { patient_insight: insight.slice(0, 4000) } : {}),
     };
 
     const savedMessage = await this.messageRepo.save(
