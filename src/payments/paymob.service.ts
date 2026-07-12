@@ -160,17 +160,16 @@ export class PaymobService {
 
   private formatCheckoutError(raw: string): string {
     if (!this.isIntegrationError(raw)) return raw;
-    if (!this.legacyApiKey()) {
-      return (
-        'Paymob Intention API is not enabled for this merchant account. Add ' +
-        'PAYMOB_LEGACY_API_KEY from Paymob Dashboard → Settings → API Keys ' +
-        '(this is NOT the public key currently stored in PAYMENT_API_KEY), ' +
-        'keep PAYMOB_CARD_INTEGRATION_ID=5776196, redeploy the API, and checkout ' +
-        'will use Quick Link as a fallback. Or contact support@paymob.com to enable ' +
-        'Intention API card processing.'
-      );
-    }
-    return `Paymob checkout failed: ${raw}`;
+    const mode = this.secretKey().includes('_live_') ? 'Live' : 'Test';
+    return (
+      `Paymob does not recognize the payment integration id ${JSON.stringify(
+        this.paymentMethods(),
+      )}. Your secret key is a ${mode} key, so in the Paymob dashboard switch to ` +
+      `${mode} mode, open Developers → Payment Integrations, copy your card / online ` +
+      `integration id from that list, and set the env PAYMOB_PAYMENT_METHODS to that ` +
+      `number (it must belong to the SAME account and mode as PAYMENT_SECRET_KEY), then ` +
+      `redeploy. 5776196 is not a valid payment-integration id for this account.`
+    );
   }
 
   /**
