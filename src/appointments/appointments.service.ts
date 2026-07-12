@@ -281,6 +281,7 @@ export class AppointmentsService {
         meeting_link: a.meeting_link,
         other_name: a.patient?.name ?? a.patient_name ?? 'Patient',
         other_user_id: a.patient_user_id ?? null,
+        ai_patient_insight: a.ai_patient_insight ?? null,
         booked_via_app: a.booked_via_app,
       }));
     }

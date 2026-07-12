@@ -290,6 +290,7 @@ export class AppointmentsChatService {
     });
     if (conflict) throw new BadRequestException('Time slot already booked');
 
+    const insightForDoctor = (patientInsight ?? reason ?? '').trim().slice(0, 4000);
     const price = clampConsultationPrice(doctor.video_consultation_price ?? 1);
     await this.pointsService.reservePoints(
       patientUserId,
@@ -322,6 +323,7 @@ export class AppointmentsChatService {
           patient_user_id: patientUserId,
           reserved_points: price,
           points_settled: false,
+          ai_patient_insight: insightForDoctor || null,
         }),
       );
     } catch (e) {
@@ -335,7 +337,6 @@ export class AppointmentsChatService {
       patientUserId,
     );
 
-    const insight = (patientInsight ?? reason ?? '').trim();
     const meta: AppointmentActionMeta = {
       appointment_id: appointment.id,
       action: 'request',
@@ -343,7 +344,7 @@ export class AppointmentsChatService {
       time: timeDb,
       status: appointment.status,
       meeting_link: ensured.roomUrl,
-      ...(insight ? { patient_insight: insight.slice(0, 4000) } : {}),
+      ...(insightForDoctor ? { patient_insight: insightForDoctor } : {}),
     };
 
     const savedMessage = await this.messageRepo.save(

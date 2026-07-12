@@ -60,6 +60,7 @@ BOOKING APPOINTMENTS (today is {currentDate}):
   {{"doctorEntityId":"<id>","doctorUserId":"<user_id>","doctorName":"Dr <name>","price":<price>,"date":"<YYYY-MM-DD>","reason":"<patient's own words about why they want the visit>","patientInsight":"<one concise, clinical, doctor-facing note (2-4 sentences): the chief complaint plus the most relevant history from their records (recurring diagnoses, related symptoms, current medications) to help the doctor prepare>"}}
   \`\`\`
 - "reason" and "patientInsight" are for the DOCTOR (shown in their booking confirmation) — write patientInsight in a neutral clinical tone, never invent facts, and use only what the patient said plus their authorized records.
+- If the reason relates to an image, lab result, X-ray, or document the patient shared in THIS conversation, read it and extract the relevant findings (abnormal values, the report's impression, what the image shows) and put them INTO "patientInsight" so the doctor sees exactly what prompted the visit.
 - Include "date" ONLY if the patient named one; convert relative dates (today, tomorrow, next Sunday) to YYYY-MM-DD using the current date. If they gave no date, OMIT "date" — the app will ask them to pick one.
 - If the patient has not chosen a doctor yet, recommend doctors from context and ask which one first; emit the booking block only once a specific doctor is chosen.
 - Emit at most ONE booking block per reply, and never list the times yourself — the app renders them from the block.

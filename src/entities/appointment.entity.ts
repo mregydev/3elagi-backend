@@ -87,6 +87,10 @@ export class Appointment {
   @Column({ type: 'text', nullable: true })
   meeting_link: string | null;
 
+  /** AI-written, doctor-facing note (why the patient booked + relevant history). */
+  @Column({ type: 'text', nullable: true })
+  ai_patient_insight: string | null;
+
   @Column({ type: 'uuid', nullable: true })
   video_call_session_id: string | null;
 
