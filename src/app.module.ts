@@ -125,6 +125,9 @@ import { VideoConsultationPrice1778330000000 } from './migrations/1778330000000-
 import { AiMessageAttachments1778340000000 } from './migrations/1778340000000-AiMessageAttachments';
 import { PatientMedicalRecordsConsent1778350000000 } from './migrations/1778350000000-PatientMedicalRecordsConsent';
 import { AppointmentAiInsight1778360000000 } from './migrations/1778360000000-AppointmentAiInsight';
+import { PaymentIntentions1778370000000 } from './migrations/1778370000000-PaymentIntentions';
+import { PaymentIntention } from './entities/payment-intention.entity';
+import { PaymentsModule } from './payments/payments.module';
 import { AdminRagSource } from './entities/admin-rag-source.entity';
 import { Consultation } from './entities/consultation.entity';
 import { ConsultationComplaint } from './entities/consultation-complaint.entity';
@@ -171,6 +174,7 @@ import { ConsultationComplaint } from './entities/consultation-complaint.entity'
           AdminRagSource,
           Consultation,
           ConsultationComplaint,
+          PaymentIntention,
         ],
         synchronize: false,
         migrations: [
@@ -232,6 +236,7 @@ import { ConsultationComplaint } from './entities/consultation-complaint.entity'
           AiMessageAttachments1778340000000,
           PatientMedicalRecordsConsent1778350000000,
           AppointmentAiInsight1778360000000,
+          PaymentIntentions1778370000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
@@ -278,6 +283,7 @@ import { ConsultationComplaint } from './entities/consultation-complaint.entity'
     SttModule,
     WherebyModule,
     VideoCallsModule,
+    PaymentsModule,
   ],
 })
 export class AppModule {}
