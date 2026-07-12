@@ -162,13 +162,11 @@ export class PaymobService {
     if (!this.isIntegrationError(raw)) return raw;
     const mode = this.secretKey().includes('_live_') ? 'Live' : 'Test';
     return (
-      `Paymob does not recognize the payment integration id ${JSON.stringify(
+      `Paymob does not recognize the payment integration ${JSON.stringify(
         this.paymentMethods(),
-      )}. Your secret key is a ${mode} key, so in the Paymob dashboard switch to ` +
-      `${mode} mode, open Developers → Payment Integrations, copy your card / online ` +
-      `integration id from that list, and set the env PAYMOB_PAYMENT_METHODS to that ` +
-      `number (it must belong to the SAME account and mode as PAYMENT_SECRET_KEY), then ` +
-      `redeploy. 5776196 is not a valid payment-integration id for this account.`
+      )}. It must be a numeric integration id from Developers → Payment Integrations ` +
+      `in the SAME account and mode (${mode}) as PAYMENT_SECRET_KEY. Set env ` +
+      `PAYMOB_PAYMENT_METHODS to that number, or remove it to use the default 5776196.`
     );
   }
 
