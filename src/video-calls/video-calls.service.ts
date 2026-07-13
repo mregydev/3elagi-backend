@@ -8,6 +8,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User, UserRole } from '../entities/user.entity';
+import { Doctor } from '../entities/doctor.entity';
 import {
   VideoCallSession,
   type VideoCallStatus,
@@ -26,6 +27,7 @@ export interface VideoCallSessionView {
   doctorUserId: string;
   patientName: string;
   doctorName: string;
+  durationMinutes: number;
 }
 
 @Injectable()
@@ -36,6 +38,7 @@ export class VideoCallsService {
     @InjectRepository(VideoCallSession)
     private readonly sessionRepo: Repository<VideoCallSession>,
     @InjectRepository(User) private readonly userRepo: Repository<User>,
+    @InjectRepository(Doctor) private readonly doctorRepo: Repository<Doctor>,
     private readonly daily: DailyService,
     private readonly push: PushNotificationsService,
     private readonly presenceGateway: PresenceGateway,
@@ -51,6 +54,7 @@ export class VideoCallsService {
       doctorUserId: session.doctor_user_id,
       patientName: session.patient_name,
       doctorName: session.doctor_name,
+      durationMinutes: session.duration_minutes ?? 30,
     };
   }
 
@@ -82,10 +86,16 @@ export class VideoCallsService {
   ): Promise<VideoCallSessionView> {
     await this.assertDoctorUser(dto.doctor_user_id);
 
+    const doctor = await this.doctorRepo.findOne({
+      where: { user_id: dto.doctor_user_id },
+      select: ['video_consultation_minutes'],
+    });
+    const durationMinutes = doctor?.video_consultation_minutes ?? 30;
+
     const [patientName, doctorName, { roomUrl }] = await Promise.all([
       this.users.getDisplayName(patientUserId),
       this.users.getDisplayName(dto.doctor_user_id),
-      this.daily.createRoom(),
+      this.daily.createRoom({ durationMinutes }),
     ]);
 
     const session = this.sessionRepo.create({
@@ -95,6 +105,7 @@ export class VideoCallsService {
       status: 'ringing',
       patient_name: patientName,
       doctor_name: doctorName,
+      duration_minutes: durationMinutes,
     });
     await this.sessionRepo.save(session);
 

@@ -36,6 +36,10 @@ export class VideoCallSession {
   @Column({ type: 'text' })
   doctor_name: string;
 
+  /** Meeting length in minutes (the doctor's video consultation length). */
+  @Column({ type: 'int', nullable: true })
+  duration_minutes: number | null;
+
   @CreateDateColumn({ type: 'timestamptz' })
   created_at: Date;
 

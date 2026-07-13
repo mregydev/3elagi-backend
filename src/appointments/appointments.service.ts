@@ -254,6 +254,20 @@ export class AppointmentsService {
     return appts;
   }
 
+  /** Hide the meeting link once the appointment window (start + duration) passes. */
+  private activeMeetingLink(
+    date: string,
+    time: string | null,
+    durationMinutes: number,
+    link: string | null,
+  ): string | null {
+    if (!link || !time) return link;
+    const end =
+      new Date(`${date}T${time}`).getTime() +
+      (durationMinutes + 5) * 60_000;
+    return Date.now() > end ? null : link;
+  }
+
   async listUpcomingForUser(userId: string, role: string) {
     const today = localDateYmd();
 
@@ -273,17 +287,26 @@ export class AppointmentsService {
         },
         order: { date: 'ASC', time: 'ASC' },
       });
-      return appts.map((a) => ({
-        id: a.id,
-        date: a.date,
-        time: a.time,
-        status: a.status,
-        meeting_link: a.meeting_link,
-        other_name: a.patient?.name ?? a.patient_name ?? 'Patient',
-        other_user_id: a.patient_user_id ?? null,
-        ai_patient_insight: a.ai_patient_insight ?? null,
-        booked_via_app: a.booked_via_app,
-      }));
+      return appts.map((a) => {
+        const durationMinutes = a.doctor?.video_consultation_minutes ?? 30;
+        return {
+          id: a.id,
+          date: a.date,
+          time: a.time,
+          status: a.status,
+          duration_minutes: durationMinutes,
+          meeting_link: this.activeMeetingLink(
+            a.date,
+            a.time,
+            durationMinutes,
+            a.meeting_link,
+          ),
+          other_name: a.patient?.name ?? a.patient_name ?? 'Patient',
+          other_user_id: a.patient_user_id ?? null,
+          ai_patient_insight: a.ai_patient_insight ?? null,
+          booked_via_app: a.booked_via_app,
+        };
+      });
     }
 
     const appts = await this.appointmentRepo.find({
@@ -299,16 +322,25 @@ export class AppointmentsService {
       },
       order: { date: 'ASC', time: 'ASC' },
     });
-    return appts.map((a) => ({
-      id: a.id,
-      date: a.date,
-      time: a.time,
-      status: a.status,
-      meeting_link: a.meeting_link,
-      other_name: a.doctor?.name ?? 'Doctor',
-      other_user_id: a.doctor?.user_id ?? null,
-      booked_via_app: a.booked_via_app,
-    }));
+    return appts.map((a) => {
+      const durationMinutes = a.doctor?.video_consultation_minutes ?? 30;
+      return {
+        id: a.id,
+        date: a.date,
+        time: a.time,
+        status: a.status,
+        duration_minutes: durationMinutes,
+        meeting_link: this.activeMeetingLink(
+          a.date,
+          a.time,
+          durationMinutes,
+          a.meeting_link,
+        ),
+        other_name: a.doctor?.name ?? 'Doctor',
+        other_user_id: a.doctor?.user_id ?? null,
+        booked_via_app: a.booked_via_app,
+      };
+    });
   }
 
   async findById(id: string) {

@@ -386,6 +386,7 @@ export class AppointmentsChatService {
       time: timeDb,
       status: appointment.status,
       meeting_link: ensured.roomUrl,
+      duration_minutes: doctor.video_consultation_minutes ?? 30,
       ...(insightForDoctor ? { patient_insight: insightForDoctor } : {}),
     };
 
@@ -428,8 +429,26 @@ export class AppointmentsChatService {
     let roomUrl = appointment.meeting_link ?? null;
     let sessionId = appointment.video_call_session_id ?? null;
 
+    const doctorRow = await this.doctorRepo.findOne({
+      where: { user_id: doctorUserId },
+      select: ['video_consultation_minutes'],
+    });
+    const durationMinutes = doctorRow?.video_consultation_minutes ?? 30;
+
     if (!roomUrl) {
-      const created = await this.dailyService.createRoom();
+      // Room lives until the appointment's end (start + the doctor's video length),
+      // so Daily auto-removes the meeting once its time passes.
+      const expiresAtUnix =
+        appointment.time && appointment.date
+          ? Math.floor(
+              new Date(`${appointment.date}T${appointment.time}`).getTime() / 1000,
+            ) +
+            durationMinutes * 60
+          : undefined;
+      const created = await this.dailyService.createRoom({
+        expiresAtUnix,
+        durationMinutes,
+      });
       roomUrl = created.roomUrl;
       appointment.meeting_link = roomUrl;
     }
@@ -445,6 +464,7 @@ export class AppointmentsChatService {
           status: 'accepted',
           patient_name: patientName,
           doctor_name: doctorName,
+          duration_minutes: durationMinutes,
         }),
       );
       sessionId = session.id;

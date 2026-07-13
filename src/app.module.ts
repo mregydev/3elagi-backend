@@ -126,6 +126,7 @@ import { AiMessageAttachments1778340000000 } from './migrations/1778340000000-Ai
 import { PatientMedicalRecordsConsent1778350000000 } from './migrations/1778350000000-PatientMedicalRecordsConsent';
 import { AppointmentAiInsight1778360000000 } from './migrations/1778360000000-AppointmentAiInsight';
 import { PaymentIntentions1778370000000 } from './migrations/1778370000000-PaymentIntentions';
+import { VideoCallDuration1778380000000 } from './migrations/1778380000000-VideoCallDuration';
 import { PaymentIntention } from './entities/payment-intention.entity';
 import { PaymentsModule } from './payments/payments.module';
 import { AdminRagSource } from './entities/admin-rag-source.entity';
@@ -237,6 +238,7 @@ import { ConsultationComplaint } from './entities/consultation-complaint.entity'
           PatientMedicalRecordsConsent1778350000000,
           AppointmentAiInsight1778360000000,
           PaymentIntentions1778370000000,
+          VideoCallDuration1778380000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',

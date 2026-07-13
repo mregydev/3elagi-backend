@@ -12,14 +12,15 @@ import { PaymentIntention } from '../entities/payment-intention.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
 import { User } from '../entities/user.entity';
 import { PointsService } from '../points/points.service';
-import { KashierService } from './kashier.service';
+import { validatePaymobTransactionHmac } from './paymob-hmac.util';
+import { PaymobService } from './paymob.service';
 
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
 
   constructor(
-    private readonly kashier: KashierService,
+    private readonly paymob: PaymobService,
     private readonly points: PointsService,
     private readonly config: ConfigService,
     @InjectRepository(PaymentIntention)
@@ -44,8 +45,18 @@ export class PaymentsService {
     );
   }
 
+  private splitName(fullName: string): { firstName: string; lastName: string } {
+    const parts = fullName.trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return { firstName: 'Customer', lastName: 'User' };
+    if (parts.length === 1) return { firstName: parts[0], lastName: 'User' };
+    return {
+      firstName: parts[0],
+      lastName: parts.slice(1).join(' '),
+    };
+  }
+
   paymentConfigCheck(): Record<string, unknown> {
-    return this.kashier.debugConfig();
+    return this.paymob.debugConfig();
   }
 
   async createCardCheckout(userId: string, amountEgp: number) {
@@ -59,53 +70,81 @@ export class PaymentsService {
       where: { user_id: userId },
     });
     const displayName = profile?.name?.trim() || user.email.split('@')[0];
+    const { firstName, lastName } = this.splitName(displayName);
 
-    const orderId = `credits-${userId.slice(0, 8)}-${randomUUID()}`;
+    const specialReference = `credits-${userId.slice(0, 8)}-${randomUUID()}`;
     const intention = await this.intentionRepo.save(
       this.intentionRepo.create({
         user_id: userId,
         amount_egp: amountEgp,
-        special_reference: orderId,
+        special_reference: specialReference,
         status: 'pending',
       }),
     );
 
     const apiBase = this.apiPublicBase();
-    const checkoutUrl = this.kashier.buildCheckoutUrl({
-      orderId,
+    const paymob = await this.paymob.createCardIntention({
       amountEgp,
-      redirectUrl: `${apiBase}/payments/kashier/return`,
-      webhookUrl: `${apiBase}/payments/kashier/webhook`,
+      specialReference,
+      notificationUrl: `${apiBase}/payments/paymob/webhook`,
+      redirectionUrl: `${apiBase}/payments/paymob/return`,
       customer: {
         email: user.email,
-        name: displayName,
+        firstName,
+        lastName,
         phone: profile?.phone,
       },
     });
 
     return {
       intention_id: intention.id,
-      special_reference: orderId,
-      checkout_url: checkoutUrl,
+      special_reference: specialReference,
+      checkout_url: paymob.checkoutUrl,
+      client_secret: paymob.clientSecret,
     };
   }
 
-  async handleKashierWebhook(body: Record<string, unknown>): Promise<void> {
-    // Kashier posts { event, data: {...} }; some setups send the data flat.
-    const data =
-      (body.data as Record<string, unknown>) ??
-      (body as Record<string, unknown>);
+  private resolveMerchantReference(
+    body: Record<string, unknown>,
+  ): string | null {
+    const obj = body.obj as Record<string, unknown> | undefined;
+    const order = obj?.order as Record<string, unknown> | undefined;
+    const paymentKeyClaims = obj?.payment_key_claims as
+      | Record<string, unknown>
+      | undefined;
+    const extras = paymentKeyClaims?.extra as Record<string, unknown> | undefined;
 
-    if (!this.kashier.verifyWebhook(data)) {
-      throw new BadRequestException('Invalid signature');
+    const candidates = [
+      obj?.merchant_order_id,
+      order?.merchant_order_id,
+      body.merchant_order_id,
+      paymentKeyClaims?.special_reference,
+      extras?.special_reference,
+      body.special_reference,
+    ];
+
+    for (const value of candidates) {
+      if (typeof value === 'string' && value.trim()) return value.trim();
+    }
+    return null;
+  }
+
+  async handlePaymobWebhook(
+    body: Record<string, unknown>,
+    hmac: string | undefined,
+  ): Promise<void> {
+    const hmacSecret = this.paymob.hmacSecret();
+    const obj = body.obj as Record<string, unknown> | undefined;
+    if (!obj || !hmacSecret) {
+      throw new BadRequestException('Invalid webhook payload');
+    }
+    if (!validatePaymobTransactionHmac(obj, hmac, hmacSecret)) {
+      throw new BadRequestException('Invalid HMAC');
     }
 
-    const reference =
-      (typeof data.merchantOrderId === 'string' && data.merchantOrderId) ||
-      (typeof data.orderId === 'string' && data.orderId) ||
-      '';
+    const reference = this.resolveMerchantReference(body);
     if (!reference) {
-      this.logger.warn('Kashier webhook missing merchantOrderId');
+      this.logger.warn('Paymob webhook missing merchant reference');
       return;
     }
 
@@ -116,32 +155,33 @@ export class PaymentsService {
       this.logger.warn(`No payment intention for reference ${reference}`);
       return;
     }
+
     if (intention.status === 'paid') return;
 
-    const txnId = String(data.transactionId ?? data.kashierOrderId ?? '');
-    const success = String(data.status ?? '').toUpperCase() === 'SUCCESS';
+    const success = obj.success === true || obj.success === 'true';
     if (!success) {
       intention.status = 'failed';
-      intention.paymob_transaction_id = txnId;
+      intention.paymob_transaction_id = String(obj.id ?? '');
       await this.intentionRepo.save(intention);
       return;
     }
 
-    const paidAmount = Number(data.amount);
+    const amountCents = Number(obj.amount_cents);
+    const expectedCents = intention.amount_egp * 100;
     if (
-      Number.isFinite(paidAmount) &&
-      paidAmount > 0 &&
-      Math.round(paidAmount) !== intention.amount_egp
+      Number.isFinite(amountCents) &&
+      amountCents > 0 &&
+      amountCents !== expectedCents
     ) {
       this.logger.error(
-        `Kashier amount mismatch for ${reference}: got ${paidAmount}, expected ${intention.amount_egp}`,
+        `Paymob amount mismatch for ${reference}: got ${amountCents}, expected ${expectedCents}`,
       );
       throw new BadRequestException('Amount mismatch');
     }
 
     await this.points.addPoints(intention.user_id, intention.amount_egp);
     intention.status = 'paid';
-    intention.paymob_transaction_id = txnId;
+    intention.paymob_transaction_id = String(obj.id ?? '');
     await this.intentionRepo.save(intention);
   }
 

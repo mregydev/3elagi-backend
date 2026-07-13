@@ -50,6 +50,8 @@ export interface AppointmentActionMeta {
   time: string;
   status?: string;
   meeting_link?: string | null;
+  /** Meeting length in minutes (the doctor's video consultation length). */
+  duration_minutes?: number;
   /** AI-written, doctor-facing note about why the patient booked + relevant history. */
   patient_insight?: string;
 }

@@ -36,18 +36,26 @@ export class PaymentsController {
     return this.payments.paymentConfigCheck();
   }
 
-  @Post('kashier/webhook')
-  async kashierWebhook(@Body() body: Record<string, unknown>) {
-    await this.payments.handleKashierWebhook(body);
+  @Post('paymob/webhook')
+  async paymobWebhook(
+    @Body() body: Record<string, unknown>,
+    @Query('hmac') hmac: string | undefined,
+  ) {
+    await this.payments.handlePaymobWebhook(body, hmac);
     return { received: true };
   }
 
-  @Get('kashier/return')
-  kashierReturn(
-    @Query('paymentStatus') paymentStatus: string | undefined,
+  @Get('paymob/return')
+  paymobReturn(
+    @Query('success') success: string | undefined,
+    @Query('txn_response_code') txnCode: string | undefined,
     @Res() res: Response,
   ) {
-    const ok = (paymentStatus ?? '').toUpperCase() === 'SUCCESS';
+    const ok =
+      success === 'true' ||
+      success === 'True' ||
+      txnCode === 'APPROVED' ||
+      txnCode === '00';
     res.type('html').send(this.payments.buildReturnHtml(ok));
   }
 }
