@@ -64,42 +64,104 @@ export class KashierService {
     return mode === 'live' ? 'live' : 'test';
   }
 
-  private checkoutBase(): string {
-    return (
-      this.readEnv('KASHIER_CHECKOUT_URL').replace(/\/$/, '') ||
-      'https://checkout.kashier.io'
-    );
+  /** V3 orders API base (FEP). */
+  private ordersBase(): string {
+    const override = this.readEnv('KASHIER_ORDERS_URL').replace(/\/$/, '');
+    if (override) return override;
+    return this.mode() === 'live'
+      ? 'https://fep.kashier.io'
+      : 'https://test-fep.kashier.io';
   }
 
   private formatAmount(amountEgp: number): string {
     return amountEgp.toFixed(2);
   }
 
-  buildCheckoutUrl(input: KashierCheckoutInput): string {
+  /** HMAC-SHA256 of `/<mid>/<orderRef>/<amount>/<currency>` signed with the secret. */
+  private orderHash(orderRef: string, amount: string, currency: string): string {
+    const path = `/${this.merchantId()}/${orderRef}/${amount}/${currency}`;
+    return createHmac('sha256', this.paymentSecret()).update(path).digest('hex');
+  }
+
+  /**
+   * Create a Kashier V3 order. Builds the signed payload (hash + valid Unix
+   * timestamp) server-side and returns the hosted checkout URL to redirect to.
+   */
+  async createOrder(
+    input: KashierCheckoutInput,
+  ): Promise<{ checkoutUrl: string; kashierOrderId: string | null }> {
     const mid = this.merchantId();
     const currency = 'EGP';
     const amount = this.formatAmount(input.amountEgp);
-    const path = `/?payment=${mid}.${input.orderId}.${amount}.${currency}`;
-    const hash = createHmac('sha256', this.paymentSecret())
-      .update(path)
-      .digest('hex');
+    const hash = this.orderHash(input.orderId, amount, currency);
+    const timestamp = Math.floor(Date.now() / 1000);
 
-    const params = new URLSearchParams({
+    const payload: Record<string, unknown> = {
       merchantId: mid,
-      orderId: input.orderId,
       amount,
       currency,
+      merchantOrderId: input.orderId,
+      orderReference: input.orderId,
       hash,
+      timestamp,
       mode: this.mode(),
       merchantRedirect: input.redirectUrl,
       serverWebhook: input.webhookUrl,
       allowedMethods: 'card',
       display: 'en',
-    });
-    if (input.customer?.email) params.set('customerEmail', input.customer.email);
-    if (input.customer?.name) params.set('customerReference', input.customer.name);
+      metadata: { orderReference: input.orderId },
+    };
+    if (input.customer?.email) payload.customerEmail = input.customer.email;
+    if (input.customer?.name) payload.customerReference = input.customer.name;
 
-    return `${this.checkoutBase()}/?${params.toString()}`;
+    let res: Response;
+    try {
+      res = await fetch(`${this.ordersBase()}/v3/orders`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: this.apiKey(),
+        },
+        body: JSON.stringify(payload),
+      });
+    } catch (err) {
+      this.logger.error('Kashier order request failed', err as Error);
+      throw new BadRequestException('Could not reach the payment provider');
+    }
+
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    if (!res.ok) {
+      this.logger.warn(
+        `Kashier order error ${res.status}: ${JSON.stringify(data)}`,
+      );
+      const detail =
+        (data.message as string) ||
+        (data.messages as string) ||
+        JSON.stringify(data);
+      throw new BadRequestException(`Kashier order failed (${res.status}): ${detail}`);
+    }
+
+    const body = (data.data as Record<string, unknown>) ?? data;
+    const checkoutUrl =
+      (body.checkoutUrl as string) ||
+      (body.redirectUrl as string) ||
+      (body.url as string) ||
+      (data.checkoutUrl as string) ||
+      '';
+    const kashierOrderId =
+      (body.orderId as string) ||
+      (body.kashierOrderId as string) ||
+      (body.id as string) ||
+      null;
+
+    if (!checkoutUrl) {
+      this.logger.warn(`Kashier order returned no checkout URL: ${JSON.stringify(data)}`);
+      throw new BadRequestException(
+        'Kashier did not return a checkout URL. Response: ' + JSON.stringify(data),
+      );
+    }
+
+    return { checkoutUrl, kashierOrderId };
   }
 
   /**
@@ -141,7 +203,7 @@ export class KashierService {
       v ? `${v.slice(0, 10)}…(len ${v.length})` : 'MISSING';
     return {
       provider: 'kashier',
-      checkout_base: this.checkoutBase(),
+      orders_base: this.ordersBase(),
       mode: this.mode(),
       merchant_id: this.readEnv('MERCHAT_ID', 'MERCHANT_ID', 'KASHIER_MERCHANT_ID') || 'MISSING',
       api_key: mask(this.apiKey()),

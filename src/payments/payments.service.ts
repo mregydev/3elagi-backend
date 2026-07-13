@@ -71,7 +71,7 @@ export class PaymentsService {
     );
 
     const apiBase = this.apiPublicBase();
-    const checkoutUrl = this.kashier.buildCheckoutUrl({
+    const { checkoutUrl } = await this.kashier.createOrder({
       orderId,
       amountEgp,
       redirectUrl: `${apiBase}/payments/kashier/return`,
