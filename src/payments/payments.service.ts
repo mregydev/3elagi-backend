@@ -38,11 +38,28 @@ export class PaymentsService {
     );
   }
 
+  /** Web app origin only (no /points path — we append that ourselves). */
   private webAppReturnBase(): string {
-    return (
-      this.config.get<string>('PAYMENT_RETURN_WEB_URL')?.replace(/\/$/, '') ||
-      'https://3elagi-mobile.vercel.app'
-    );
+    const raw =
+      this.config.get<string>('PAYMENT_RETURN_WEB_URL')?.trim() ||
+      'https://3elagi-mobile.vercel.app';
+    return raw.replace(/\/$/, '').replace(/\/points$/i, '');
+  }
+
+  /**
+   * Absolute URLs sent to Paymob Intention API.
+   * Dashboard Redirect URL must be `/` (or blank) so Paymob does not append
+   * `/points` onto these full URLs.
+   */
+  private paymobCallbackUrls(): {
+    notificationUrl: string;
+    redirectionUrl: string;
+  } {
+    const apiBase = this.apiPublicBase();
+    return {
+      notificationUrl: `${apiBase}/payments/paymob/webhook`,
+      redirectionUrl: `${apiBase}/payments/paymob/return`,
+    };
   }
 
   private splitName(fullName: string): { firstName: string; lastName: string } {
@@ -82,12 +99,12 @@ export class PaymentsService {
       }),
     );
 
-    const apiBase = this.apiPublicBase();
+    const { notificationUrl, redirectionUrl } = this.paymobCallbackUrls();
     const paymob = await this.paymob.createCardIntention({
       amountEgp,
       specialReference,
-      notificationUrl: `${apiBase}/payments/paymob/webhook`,
-      redirectionUrl: `${apiBase}/payments/paymob/return`,
+      notificationUrl,
+      redirectionUrl,
       customer: {
         email: user.email,
         firstName,
