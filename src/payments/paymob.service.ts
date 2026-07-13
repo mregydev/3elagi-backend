@@ -139,7 +139,7 @@ export class PaymobService {
     const body = {
       amount: amountCents,
       currency: 'EGP',
-      payment_methods: [integrationId,"wallet"],
+      payment_methods: [integrationId],
       items: [
         {
           name: 'Message credits',
