@@ -131,13 +131,8 @@ export class KashierService {
 
     const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     if (!res.ok) {
-      this.logger.warn(
-        `Kashier order error ${res.status}: ${JSON.stringify(data)}`,
-      );
-      const detail =
-        (data.message as string) ||
-        (data.messages as string) ||
-        JSON.stringify(data);
+      const detail = JSON.stringify(data);
+      this.logger.warn(`Kashier order error ${res.status}: ${detail}`);
       throw new BadRequestException(`Kashier order failed (${res.status}): ${detail}`);
     }
 
