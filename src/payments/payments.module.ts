@@ -4,7 +4,7 @@ import { PaymentIntention } from '../entities/payment-intention.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
 import { User } from '../entities/user.entity';
 import { PointsModule } from '../points/points.module';
-import { PaymobService } from './paymob.service';
+import { KashierService } from './kashier.service';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 
@@ -14,7 +14,7 @@ import { PaymentsService } from './payments.service';
     TypeOrmModule.forFeature([PaymentIntention, User, PatientProfile]),
   ],
   controllers: [PaymentsController],
-  providers: [PaymentsService, PaymobService],
+  providers: [PaymentsService, KashierService],
   exports: [PaymentsService],
 })
 export class PaymentsModule {}

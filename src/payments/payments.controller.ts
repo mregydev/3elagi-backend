@@ -29,28 +29,25 @@ export class PaymentsController {
     return this.payments.createCardCheckout(req.user.id, dto.amount);
   }
 
-  @Get('paymob/config-check')
+  @Get('config-check')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('doctor', 'patient')
   configCheck() {
-    return this.payments.paymobConfigCheck();
+    return this.payments.paymentConfigCheck();
   }
 
-  @Post('paymob/webhook')
-  async paymobWebhook(
-    @Body() body: Record<string, unknown>,
-    @Query('hmac') hmac: string | undefined,
-  ) {
-    await this.payments.handlePaymobWebhook(body, hmac);
+  @Post('kashier/webhook')
+  async kashierWebhook(@Body() body: Record<string, unknown>) {
+    await this.payments.handleKashierWebhook(body);
     return { received: true };
   }
 
-  @Get('paymob/return')
-  paymobReturn(
-    @Query('success') success: string | undefined,
+  @Get('kashier/return')
+  kashierReturn(
+    @Query('paymentStatus') paymentStatus: string | undefined,
     @Res() res: Response,
   ) {
-    const ok = success === 'true' || success === '1';
+    const ok = (paymentStatus ?? '').toUpperCase() === 'SUCCESS';
     res.type('html').send(this.payments.buildReturnHtml(ok));
   }
 }
