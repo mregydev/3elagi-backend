@@ -29,8 +29,28 @@ export class DoctorsService {
     private specialitiesService: SpecialitiesService,
   ) {}
 
+  private withoutBankDetails<T extends Partial<Doctor>>(doctor: T): Omit<
+    T,
+    'iban' | 'account_holder_full_name' | 'national_id'
+  > {
+    const {
+      iban: _iban,
+      account_holder_full_name: _holder,
+      national_id: _nid,
+      ...safe
+    } = doctor as T & {
+      iban?: string | null;
+      account_holder_full_name?: string | null;
+      national_id?: string | null;
+    };
+    return safe;
+  }
+
   async findByClinic(clinicId: string) {
-    return this.doctorRepo.find({ where: { default_clinic_id: clinicId } });
+    const doctors = await this.doctorRepo.find({
+      where: { default_clinic_id: clinicId },
+    });
+    return doctors.map((d) => this.withoutBankDetails(d));
   }
 
   async findById(id: string, userId: string, role: string) {
@@ -41,8 +61,9 @@ export class DoctorsService {
       if (!self || self.id !== id) {
         throw new ForbiddenException('You can only view your own doctor profile');
       }
+      return doctor;
     }
-    return doctor;
+    return this.withoutBankDetails(doctor);
   }
 
   async findByUserId(userId: string) {
@@ -82,6 +103,7 @@ export class DoctorsService {
       professional_title, description, experience_years, consultation_fee_egp,
       faqs, tags, certification_urls, speciality_id,
       consultation_price, video_consultation_price, video_consultation_minutes,
+      iban, account_holder_full_name, national_id,
     } = updates as Partial<Doctor>;
     const safeUpdates: Partial<Doctor> = {};
     if (name !== undefined) safeUpdates.name = name;
@@ -157,6 +179,27 @@ export class DoctorsService {
       safeUpdates.video_consultation_minutes = clampVideoConsultationMinutes(
         video_consultation_minutes,
       );
+    }
+    if (iban !== undefined) {
+      const cleaned =
+        typeof iban === 'string'
+          ? iban.replace(/\s+/g, '').toUpperCase().slice(0, 64)
+          : '';
+      safeUpdates.iban = cleaned || null;
+    }
+    if (account_holder_full_name !== undefined) {
+      const cleaned =
+        typeof account_holder_full_name === 'string'
+          ? account_holder_full_name.trim().slice(0, 200)
+          : '';
+      safeUpdates.account_holder_full_name = cleaned || null;
+    }
+    if (national_id !== undefined) {
+      const cleaned =
+        typeof national_id === 'string'
+          ? national_id.replace(/\s+/g, '').slice(0, 32)
+          : '';
+      safeUpdates.national_id = cleaned || null;
     }
     await this.doctorRepo.update(doctor.id, safeUpdates);
     void this.knowledgeIndexer.indexDoctor(doctor.id).catch(() => undefined);

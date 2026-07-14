@@ -107,6 +107,18 @@ export class Doctor {
   @JoinColumn({ name: 'speciality_id' })
   speciality: DoctorSpeciality | null;
 
+  /** Bank account IBAN for payouts (doctor-only; never expose publicly). */
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  iban: string | null;
+
+  /** Full name on the bank account. */
+  @Column({ type: 'varchar', length: 200, nullable: true })
+  account_holder_full_name: string | null;
+
+  /** National ID / national number for payout verification. */
+  @Column({ type: 'varchar', length: 32, nullable: true })
+  national_id: string | null;
+
   @CreateDateColumn()
   created_at: Date;
 

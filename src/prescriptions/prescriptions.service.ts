@@ -51,6 +51,7 @@ export interface CreatePrescriptionForUserDto {
   symptoms?: string;
   medications: PrescriptionMedicationInput[];
   image_url?: string;
+  body_part?: string | null;
   lang?: ApiLocale;
 }
 
@@ -475,6 +476,7 @@ export class PrescriptionsService {
       title: dto.title.trim(),
       symptoms: dto.symptoms?.trim() || null,
       image_url: imageUrl,
+      body_part: dto.body_part?.trim() || null,
       items: medications.map((med) => ({
         name: med.medication_name,
         dose: med.dose,

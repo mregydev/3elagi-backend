@@ -75,6 +75,9 @@ export class Prescription {
   @Column({ type: 'jsonb', nullable: true })
   ai_insight: MedicalAiInsight | null;
 
+  @Column({ type: 'varchar', length: 32, nullable: true })
+  body_part: string | null;
+
   @CreateDateColumn()
   created_at: Date;
 }

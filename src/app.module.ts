@@ -127,6 +127,8 @@ import { PatientMedicalRecordsConsent1778350000000 } from './migrations/17783500
 import { AppointmentAiInsight1778360000000 } from './migrations/1778360000000-AppointmentAiInsight';
 import { PaymentIntentions1778370000000 } from './migrations/1778370000000-PaymentIntentions';
 import { VideoCallDuration1778380000000 } from './migrations/1778380000000-VideoCallDuration';
+import { DoctorBankDetails1778390000000 } from './migrations/1778390000000-DoctorBankDetails';
+import { MedicalRecordBodyPart1778400000000 } from './migrations/1778400000000-MedicalRecordBodyPart';
 import { PaymentIntention } from './entities/payment-intention.entity';
 import { PaymentsModule } from './payments/payments.module';
 import { AdminRagSource } from './entities/admin-rag-source.entity';
@@ -239,6 +241,8 @@ import { ConsultationComplaint } from './entities/consultation-complaint.entity'
           AppointmentAiInsight1778360000000,
           PaymentIntentions1778370000000,
           VideoCallDuration1778380000000,
+          DoctorBankDetails1778390000000,
+          MedicalRecordBodyPart1778400000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',

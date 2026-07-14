@@ -78,6 +78,9 @@ export class DoctorsController {
       consultation_price: number;
       video_consultation_price: number;
       video_consultation_minutes: number;
+      iban: string | null;
+      account_holder_full_name: string | null;
+      national_id: string | null;
     }>,
     @Request() req,
   ) {

@@ -172,6 +172,7 @@ export class MedicalDocumentsService {
       file_name: dto.file_name?.trim() || 'upload.jpg',
       notes,
       title,
+      body_part: dto.body_part?.trim() || null,
       ai_insight: dto.ai_insight ?? null,
     });
     let saved = await this.docRepo.save(doc);
@@ -437,6 +438,7 @@ export class MedicalDocumentsService {
         file_name: dto.file_name,
         notes: dto.notes,
         title,
+        body_part: dto.body_part?.trim() || null,
         symptom_id: dto.symptom_id ?? null,
       });
       const saved = await this.docRepo.save(doc);

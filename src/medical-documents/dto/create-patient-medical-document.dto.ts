@@ -8,6 +8,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { DocumentType } from '../../entities/medical-document.entity';
+import { MEDICAL_BODY_PARTS } from '../../common/medical-body-part';
 import type { ApiLocale } from '../../common/resolve-api-locale';
 import type { MedicalAiInsight } from '../../common/medical-ai-insight.types';
 
@@ -38,6 +39,10 @@ export class CreatePatientMedicalDocumentDto {
 
   @IsString()
   title: string;
+
+  @IsOptional()
+  @IsIn([...MEDICAL_BODY_PARTS])
+  body_part?: string | null;
 
   /** When set by a doctor, the record is stored on this patient's user id. */
   @IsOptional()

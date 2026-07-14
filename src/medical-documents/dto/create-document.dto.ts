@@ -1,5 +1,6 @@
-import { IsString, IsOptional, IsEnum, IsUUID } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsUUID, IsIn } from 'class-validator';
 import { DocumentType } from '../../entities/medical-document.entity';
+import { MEDICAL_BODY_PARTS } from '../../common/medical-body-part';
 
 export class CreateDocumentDto {
   /** Patient user id (users.id); stored in medical_documents.patient_id. */
@@ -24,6 +25,10 @@ export class CreateDocumentDto {
   @IsString()
   @IsOptional()
   file_name?: string;
+
+  @IsOptional()
+  @IsIn([...MEDICAL_BODY_PARTS])
+  body_part?: string | null;
 
   @IsUUID()
   @IsOptional()

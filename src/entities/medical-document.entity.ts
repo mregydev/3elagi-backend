@@ -60,6 +60,9 @@ export class MedicalDocument {
   @Column({ type: 'jsonb', nullable: true })
   ai_insight: MedicalAiInsight | null;
 
+  @Column({ type: 'varchar', length: 32, nullable: true })
+  body_part: string | null;
+
   @ManyToOne(() => Symptom, { eager: false, nullable: true })
   @JoinColumn({ name: 'symptom_id' })
   symptom: Symptom | null;
