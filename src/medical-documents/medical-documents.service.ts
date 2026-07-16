@@ -140,8 +140,10 @@ export class MedicalDocumentsService {
 
     let subjectUserId = userId;
     const targetPatientId = dto.patient_user_id?.trim();
+    // Self-add: ignore own id (patients often echo it from the URL).
+    const targetingOther = !!targetPatientId && targetPatientId !== userId;
 
-    if (targetPatientId) {
+    if (targetingOther) {
       if (role !== UserRole.DOCTOR) {
         throw new ForbiddenException('Only doctors can add records for another patient');
       }
@@ -151,14 +153,13 @@ export class MedicalDocumentsService {
       );
       subjectUserId = targetPatientId;
     } else if (role === UserRole.DOCTOR) {
-      throw new BadRequestException('patient_user_id is required when adding records as a doctor');
-    } else {
-      const user = await this.userRepo.findOne({ where: { id: userId } });
-      if (!user || user.role !== UserRole.PATIENT) {
-        throw new ForbiddenException(
-          'Only patients and doctors can use this endpoint for personal records',
-        );
-      }
+      throw new BadRequestException(
+        'patient_user_id is required when adding records as a doctor',
+      );
+    } else if (role !== UserRole.PATIENT) {
+      throw new ForbiddenException(
+        'Only patients and doctors can use this endpoint for personal records',
+      );
     }
 
     await this.doctorPatientAccessService.assertPatientUser(subjectUserId);

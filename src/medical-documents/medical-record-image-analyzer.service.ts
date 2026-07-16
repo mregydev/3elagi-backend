@@ -42,7 +42,7 @@ Return ONLY valid JSON (no markdown) shaped like:
   "type": "lab" or "xray" or "prescription",
   "title": "Short record title in ${langLabel}",
   "notes": "Brief factual description of what the image shows in ${langLabel}",
-  "body_part": "one of: ${bodyParts}",
+  "body_part": "MUST be exactly one English snake_case key from: ${bodyParts}",
   "ai_insight": {
     "description": "One short plain-language sentence summarizing the record in ${langLabel}",
     "possible_diseases": "One short sentence listing possible conditions or findings to discuss with a doctor — use cautious language (may suggest, could indicate), never a definitive diagnosis, in ${langLabel}"
@@ -52,6 +52,8 @@ Return ONLY valid JSON (no markdown) shaped like:
 Rules:
 - Base everything only on what is visible in the image.
 - Pick the single most relevant body_part; use "general" if unclear.
+- body_part MUST be an exact English key from the list above (e.g. "head", "lungs", "left_arm"). Never translate body_part into ${langLabel} or any other language.
+- title, notes, and ai_insight text SHOULD be in ${langLabel}.
 - Do not invent values not shown.
 - Never prescribe treatment.
 - possible_diseases must stay non-diagnostic and encourage seeing a doctor.
@@ -252,13 +254,13 @@ Return ONLY valid JSON (no markdown) shaped like:
 {
   "symptoms": ["short symptom statement in ${langLabel}", ...],
   "document_ids": ["<id copied exactly from the list above>", ...],
-  "body_part": "one of: ${bodyParts}"
+  "body_part": "MUST be exactly one English snake_case key from: ${bodyParts}"
 }
 
 Rules:
 - symptoms: at most 5 short, clinically relevant statements in ${langLabel} consistent with the diagnosis title and patient context.
 - document_ids: ONLY include ids that literally appear in the available documents list above. If none are relevant, return an empty array. Never invent ids.
-- body_part: pick the single most relevant one from the list; use "general" if unclear.
+- body_part: MUST be an exact English key from the list (e.g. "head", "lungs"). Never translate body_part into ${langLabel}. Use "general" if unclear.
 - Never provide treatment or medication instructions.`;
 
     try {
