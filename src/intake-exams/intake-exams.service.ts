@@ -264,8 +264,13 @@ export class IntakeExamsService {
         viewerUserId,
         patientUserId,
       );
+      // Doctors only see submitted (completed) exams — not pending / in-progress drafts.
       const instances = await this.instanceRepo.find({
-        where: { patient_user_id: patientUserId, doctor_id: doctor.id },
+        where: {
+          patient_user_id: patientUserId,
+          doctor_id: doctor.id,
+          status: 'completed',
+        },
         order: { deadline_at: 'DESC' },
       });
       return this.mapInstances(instances);
@@ -334,6 +339,11 @@ export class IntakeExamsService {
         viewerUserId,
         instance.patient_user_id,
       );
+      if (instance.status !== 'completed') {
+        throw new ForbiddenException(
+          'Only completed intake exams are visible to doctors',
+        );
+      }
     } else if (viewerUserId !== instance.patient_user_id) {
       throw new ForbiddenException('You can only access your own intake exams');
     }
