@@ -15,6 +15,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { CreateDiagnosisDto } from './dto/create-diagnosis.dto';
 import { UpdateDiagnosisDto } from './dto/update-diagnosis.dto';
+import { CompleteDiagnosisWithAiDto } from './dto/complete-diagnosis-with-ai.dto';
 
 @Controller('diagnosis')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -25,6 +26,11 @@ export class DiagnosisController {
   @Get()
   findAll(@Query('patient_id') patientId: string | undefined, @Request() req) {
     return this.service.findAll(patientId, req.user.id, req.user.role);
+  }
+
+  @Post('complete-with-ai')
+  completeWithAi(@Body() dto: CompleteDiagnosisWithAiDto, @Request() req) {
+    return this.service.completeWithAi(dto, req.user.id, req.user.role);
   }
 
   @Get(':id')

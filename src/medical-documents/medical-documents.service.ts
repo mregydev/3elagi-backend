@@ -333,6 +333,7 @@ export class MedicalDocumentsService {
       file_name: input.fileName,
       title: input.analyzed.title,
       notes: input.analyzed.notes,
+      body_part: input.analyzed.body_part,
       ai_insight:
         input.includeInsight === false ? undefined : input.analyzed.ai_insight,
       patient_user_id: input.patientUserId,

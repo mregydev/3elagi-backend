@@ -134,6 +134,9 @@ import { PaymentsModule } from './payments/payments.module';
 import { AdminRagSource } from './entities/admin-rag-source.entity';
 import { Consultation } from './entities/consultation.entity';
 import { ConsultationComplaint } from './entities/consultation-complaint.entity';
+import { MedicalDocumentRequest } from './entities/medical-document-request.entity';
+import { MedicalDocumentRequests1778410000000 } from './migrations/1778410000000-MedicalDocumentRequests';
+import { MedicalDocumentRequestsModule } from './medical-document-requests/medical-document-requests.module';
 
 @Module({
   imports: [
@@ -178,6 +181,7 @@ import { ConsultationComplaint } from './entities/consultation-complaint.entity'
           Consultation,
           ConsultationComplaint,
           PaymentIntention,
+          MedicalDocumentRequest,
         ],
         synchronize: false,
         migrations: [
@@ -243,6 +247,7 @@ import { ConsultationComplaint } from './entities/consultation-complaint.entity'
           VideoCallDuration1778380000000,
           DoctorBankDetails1778390000000,
           MedicalRecordBodyPart1778400000000,
+          MedicalDocumentRequests1778410000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
@@ -290,6 +295,7 @@ import { ConsultationComplaint } from './entities/consultation-complaint.entity'
     WherebyModule,
     VideoCallsModule,
     PaymentsModule,
+    MedicalDocumentRequestsModule,
   ],
 })
 export class AppModule {}

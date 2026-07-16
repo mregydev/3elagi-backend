@@ -13,10 +13,11 @@ import { User, UserRole } from '../entities/user.entity';
 import { Appointment } from '../entities/appointment.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
 import { CreateDiagnosisDto } from './dto/create-diagnosis.dto';
-import type { ApiLocale } from '../common/resolve-api-locale';
+import { resolveApiLocale, type ApiLocale } from '../common/resolve-api-locale';
 import { CreatePatientDiagnosisDto } from './dto/create-patient-diagnosis.dto';
 import { UpdateDiagnosisDto } from './dto/update-diagnosis.dto';
-import { MedicalDocument } from '../entities/medical-document.entity';
+import { CompleteDiagnosisWithAiDto } from './dto/complete-diagnosis-with-ai.dto';
+import { MedicalDocument, DocumentType } from '../entities/medical-document.entity';
 import { DoctorPatientAccessService } from '../doctor-patient-access/doctor-patient-access.service';
 import { PatientConsentService } from '../patients/patient-consent.service';
 import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
@@ -39,6 +40,8 @@ export class DiagnosisService {
     private appointmentRepo: Repository<Appointment>,
     @InjectRepository(PatientProfile)
     private patientProfileRepo: Repository<PatientProfile>,
+    @InjectRepository(MedicalDocument)
+    private medicalDocumentRepo: Repository<MedicalDocument>,
     private doctorPatientAccessService: DoctorPatientAccessService,
     private patientConsentService: PatientConsentService,
     private knowledgeIndexer: KnowledgeIndexerService,
@@ -217,6 +220,78 @@ export class DiagnosisService {
     desc: string,
   ) {
     throw new ForbiddenException('Patients cannot modify diagnoses');
+  }
+
+  /** Builds up to 5 short context statements from the patient profile + recent lab/xray records. */
+  private async buildPatientContext(patientUserId: string): Promise<string> {
+    const profile = await this.patientProfileRepo.findOne({
+      where: { user_id: patientUserId },
+    });
+    const lines: string[] = [];
+    if (profile?.chronic_conditions?.trim()) {
+      lines.push(`Chronic conditions: ${profile.chronic_conditions.trim()}`);
+    }
+    if (profile?.allergies?.trim()) {
+      lines.push(`Allergies: ${profile.allergies.trim()}`);
+    }
+    if (profile?.medical_notes?.trim()) {
+      lines.push(`Medical notes: ${profile.medical_notes.trim()}`);
+    }
+
+    if (lines.length < 5) {
+      const docs = await this.medicalDocumentRepo.find({
+        where: { patient_id: patientUserId },
+        order: { created_at: 'DESC' },
+        take: 5,
+      });
+      for (const doc of docs) {
+        if (lines.length >= 5) break;
+        const label = doc.title || doc.type;
+        const notes = doc.notes?.trim() ? `: ${doc.notes.trim()}` : '';
+        lines.push(`${label}${notes}`);
+      }
+    }
+
+    return lines.slice(0, 5).join('\n');
+  }
+
+  async completeWithAi(
+    dto: CompleteDiagnosisWithAiDto,
+    userId: string,
+    userRole: string,
+  ): Promise<{ symptoms: { desc: string }[]; document_ids: string[]; body_part?: string }> {
+    await this.assertDoctorUser(userId, userRole);
+    const patientUser = await this.userRepo.findOne({ where: { id: dto.patient_id } });
+    if (!patientUser || patientUser.role !== UserRole.PATIENT) {
+      throw new NotFoundException('Patient user not found');
+    }
+    await this.doctorPatientAccessService.assertDoctorCanEditRecords(userId, dto.patient_id);
+    const outputLang = resolveApiLocale(dto.lang);
+
+    const availableDocs = await this.medicalDocumentRepo.find({
+      where: { patient_id: dto.patient_id, type: In([DocumentType.LAB, DocumentType.XRAY]) },
+      order: { created_at: 'DESC' },
+      take: 20,
+    });
+    const patientContext = await this.buildPatientContext(dto.patient_id);
+
+    const result = await this.imageAnalyzer.draftDiagnosisComplete({
+      diagnosisTitle: dto.desc,
+      availableDocuments: availableDocs.map((d) => ({
+        id: d.id,
+        type: d.type,
+        title: d.title ?? d.type,
+        notes: d.notes ?? undefined,
+      })),
+      patientContext,
+      outputLang,
+    });
+
+    return {
+      symptoms: result.symptoms.map((desc) => ({ desc })),
+      document_ids: result.document_ids,
+      body_part: result.body_part,
+    };
   }
 
   async create(dto: CreateDiagnosisDto, userId: string, userRole: string) {

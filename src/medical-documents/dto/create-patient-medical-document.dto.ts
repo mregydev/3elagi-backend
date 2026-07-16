@@ -20,7 +20,11 @@ class MedicalAiInsightDto {
   possible_diseases!: string;
 }
 
-const PATIENT_UPLOAD_TYPES = [DocumentType.LAB, DocumentType.XRAY] as const;
+const PATIENT_UPLOAD_TYPES = [
+  DocumentType.LAB,
+  DocumentType.XRAY,
+  DocumentType.PRESCRIPTION,
+] as const;
 export type PatientUploadDocumentType = (typeof PATIENT_UPLOAD_TYPES)[number];
 
 export class CreatePatientMedicalDocumentDto {
