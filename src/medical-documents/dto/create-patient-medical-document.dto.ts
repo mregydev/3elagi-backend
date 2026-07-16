@@ -1,6 +1,5 @@
 import {
   IsBoolean,
-  IsEnum,
   IsIn,
   IsOptional,
   IsString,
@@ -20,7 +19,8 @@ class MedicalAiInsightDto {
   possible_diseases!: string;
 }
 
-const PATIENT_UPLOAD_TYPES = [
+/** Patients may upload labs, imaging, and prescriptions — never diagnoses. */
+export const PATIENT_UPLOAD_TYPES = [
   DocumentType.LAB,
   DocumentType.XRAY,
   DocumentType.PRESCRIPTION,
@@ -28,7 +28,7 @@ const PATIENT_UPLOAD_TYPES = [
 export type PatientUploadDocumentType = (typeof PATIENT_UPLOAD_TYPES)[number];
 
 export class CreatePatientMedicalDocumentDto {
-  @IsEnum(PATIENT_UPLOAD_TYPES)
+  @IsIn([...PATIENT_UPLOAD_TYPES])
   type: PatientUploadDocumentType;
 
   @IsString()

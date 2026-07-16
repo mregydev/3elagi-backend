@@ -18,8 +18,9 @@ export class PatientDiagnosisController {
     return this.service.findForPatientUser(req.user.id);
   }
 
+  /** Diagnoses are doctor-only; patients cannot create them. */
   @Post()
-  @Roles('patient', 'doctor')
+  @Roles('doctor')
   create(@Body() dto: CreatePatientDiagnosisDto, @Request() req) {
     return this.service.createForPatientUser(req.user.id, dto);
   }
@@ -30,8 +31,9 @@ export class PatientDiagnosisController {
     return this.service.findOneForPatientUser(id, req.user.id);
   }
 
+  /** Symptom edits on diagnoses are doctor-only. */
   @Post(':id/symptoms')
-  @Roles('patient', 'doctor')
+  @Roles('doctor')
   addSymptom(
     @Param('id') id: string,
     @Body() dto: AddPatientSymptomDto,

@@ -125,6 +125,19 @@ export class MedicalDocumentsService {
     role: string,
     dto: CreatePatientMedicalDocumentDto,
   ) {
+    // Patients (and doctors acting for a patient) may only create lab / xray /
+    // prescription documents here. Diagnoses are doctor-only via /diagnosis.
+    const allowed: string[] = [
+      DocumentType.LAB,
+      DocumentType.XRAY,
+      DocumentType.PRESCRIPTION,
+    ];
+    if (!allowed.includes(dto.type)) {
+      throw new ForbiddenException(
+        'Patients can only add lab results, X-rays, or prescriptions. Diagnoses must be added by a doctor.',
+      );
+    }
+
     let subjectUserId = userId;
     const targetPatientId = dto.patient_user_id?.trim();
 

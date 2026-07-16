@@ -34,6 +34,11 @@ const MEDICAL_IMAGE_MIMES = new Set([
   'application/pdf',
 ]);
 
+/**
+ * Patient portal medical documents.
+ * Patients may list/create/update lab, xray, and prescription records.
+ * Diagnoses are never created here — doctors use POST /diagnosis.
+ */
 @Controller('patient/medical-documents')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('patient', 'doctor')
