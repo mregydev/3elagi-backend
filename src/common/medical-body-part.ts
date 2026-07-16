@@ -55,9 +55,30 @@ const BODY_PART_ALIASES: Record<string, MedicalBodyPart> = {
   mouth: 'throat',
   'nose throat mouth': 'throat',
   arm: 'left_arm',
+  arms: 'left_arm',
+  forearm: 'left_arm',
+  'fore arm': 'left_arm',
+  'upper arm': 'left_arm',
+  'upper limb': 'left_arm',
+  elbow: 'left_arm',
+  wrist: 'left_hand',
+  radius: 'left_arm',
+  ulna: 'left_arm',
+  humerus: 'left_arm',
+  'broken arm': 'left_arm',
+  'fractured arm': 'left_arm',
+  'arm fracture': 'left_arm',
+  'forearm fracture': 'left_arm',
+  'radius and ulna': 'left_arm',
   hand: 'left_hand',
   leg: 'left_leg',
   foot: 'left_foot',
+  ankle: 'left_foot',
+  knee: 'left_leg',
+  thigh: 'left_leg',
+  tibia: 'left_leg',
+  fibula: 'left_leg',
+  femur: 'left_leg',
   rib: 'chest',
   ribs: 'chest',
   'rib cage': 'chest',
@@ -68,6 +89,19 @@ const BODY_PART_ALIASES: Record<string, MedicalBodyPart> = {
   uterus: 'reproductive',
   ovary: 'reproductive',
   prostate: 'reproductive',
+  // sided English
+  'left arm': 'left_arm',
+  'right arm': 'right_arm',
+  'left forearm': 'left_arm',
+  'right forearm': 'right_arm',
+  'left hand': 'left_hand',
+  'right hand': 'right_hand',
+  'left wrist': 'left_hand',
+  'right wrist': 'right_hand',
+  'left leg': 'left_leg',
+  'right leg': 'right_leg',
+  'left foot': 'left_foot',
+  'right foot': 'right_foot',
 
   // Arabic (common + app labels)
   عام: 'general',
@@ -190,10 +224,38 @@ export function normalizeBodyPart(
   let best: { part: MedicalBodyPart; len: number } | undefined;
   for (const [alias, part] of Object.entries(BODY_PART_ALIASES)) {
     if (alias.length < 3) continue;
-    if (compact.includes(alias) || raw.includes(alias)) {
+    if (
+      compact.includes(alias) ||
+      noDiacritics.includes(stripDiacritics(alias)) ||
+      raw.includes(alias)
+    ) {
       if (!best || alias.length > best.len) best = { part, len: alias.length };
     }
   }
 
+  return best?.part ?? null;
+}
+
+/** Infer a non-general body part from free text (title, symptoms, doc names). */
+export function inferBodyPartFromText(
+  ...texts: Array<string | null | undefined>
+): MedicalBodyPart | null {
+  let best: { part: MedicalBodyPart; len: number } | undefined;
+  for (const text of texts) {
+    if (!text?.trim()) continue;
+    const normalized = normalizeBodyPart(text);
+    if (normalized && normalized !== 'general') {
+      // Prefer more specific matches found via alias length in the source text.
+      const compact = text.toLowerCase().replace(/\s+/g, ' ').trim();
+      let matchLen = normalized.length;
+      for (const [alias, part] of Object.entries(BODY_PART_ALIASES)) {
+        if (part !== normalized || alias.length < 3) continue;
+        if (compact.includes(alias) || stripDiacritics(compact).includes(stripDiacritics(alias))) {
+          matchLen = Math.max(matchLen, alias.length);
+        }
+      }
+      if (!best || matchLen > best.len) best = { part: normalized, len: matchLen };
+    }
+  }
   return best?.part ?? null;
 }

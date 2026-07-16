@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { DocumentType } from '../entities/medical-document.entity';
 import {
   MEDICAL_BODY_PARTS,
+  inferBodyPartFromText,
   normalizeBodyPart,
   type MedicalBodyPart,
 } from '../common/medical-body-part';
@@ -218,7 +219,13 @@ Rules:
 
   async draftDiagnosisComplete(input: {
     diagnosisTitle: string;
-    availableDocuments: { id: string; type: string; title: string; notes?: string }[];
+    availableDocuments: {
+      id: string;
+      type: string;
+      title: string;
+      notes?: string;
+      body_part?: string | null;
+    }[];
     patientContext?: string;
     outputLang?: ApiLocale;
   }): Promise<{ symptoms: string[]; document_ids: string[]; body_part?: string }> {
@@ -234,8 +241,8 @@ Rules:
           .map(
             (d) =>
               `- id: ${d.id} | type: ${d.type} | title: ${d.title}${
-                d.notes ? ` | notes: ${d.notes}` : ''
-              }`,
+                d.body_part ? ` | body_part: ${d.body_part}` : ''
+              }${d.notes ? ` | notes: ${d.notes}` : ''}`,
           )
           .join('\n')
       : 'None';
@@ -260,7 +267,8 @@ Return ONLY valid JSON (no markdown) shaped like:
 Rules:
 - symptoms: at most 5 short, clinically relevant statements in ${langLabel} consistent with the diagnosis title and patient context.
 - document_ids: ONLY include ids that literally appear in the available documents list above. If none are relevant, return an empty array. Never invent ids.
-- body_part: MUST be an exact English key from the list (e.g. "head", "lungs"). Never translate body_part into ${langLabel}. Use "general" if unclear.
+- body_part: MUST be an exact English key from the list (e.g. "left_arm", "lungs", "head"). Never translate body_part into ${langLabel}.
+- Infer body_part from the diagnosis title, symptoms, and any relevant linked document titles/body_part (e.g. forearm / arm fracture → left_arm or right_arm; chest X-ray → chest or lungs). Prefer a specific anatomical key over "general". Use "general" only when no anatomy is indicated.
 - Never provide treatment or medication instructions.`;
 
     try {
@@ -281,7 +289,25 @@ Rules:
         .filter(Boolean)
         .slice(0, 5);
 
-      const body_part = normalizeBodyPart(parsed.body_part) ?? undefined;
+      let body_part = normalizeBodyPart(parsed.body_part) ?? undefined;
+      if (!body_part || body_part === 'general') {
+        const linkedDocs = input.availableDocuments.filter((d) =>
+          document_ids.includes(d.id),
+        );
+        const inferred =
+          inferBodyPartFromText(
+            input.diagnosisTitle,
+            ...symptoms,
+            ...linkedDocs.map((d) => d.title),
+            ...linkedDocs.map((d) => d.notes),
+            ...linkedDocs.map((d) => d.body_part),
+          ) ??
+          inferBodyPartFromText(
+            input.diagnosisTitle,
+            ...input.availableDocuments.map((d) => d.title),
+          );
+        if (inferred) body_part = inferred;
+      }
 
       return { symptoms, document_ids, body_part };
     } catch (err) {

@@ -293,6 +293,7 @@ export class DiagnosisService {
         type: d.type,
         title: d.title ?? d.type,
         notes: d.notes ?? undefined,
+        body_part: d.body_part ?? undefined,
       })),
       patientContext,
       outputLang,
@@ -301,7 +302,7 @@ export class DiagnosisService {
     return {
       symptoms: result.symptoms.map((desc) => ({ desc })),
       document_ids: result.document_ids,
-      body_part: result.body_part,
+      body_part: result.body_part ?? undefined,
     };
   }
 
