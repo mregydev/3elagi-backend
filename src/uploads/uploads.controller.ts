@@ -20,7 +20,8 @@ import { Response } from 'express';
 import * as path from 'path';
 import * as fs from 'fs';
 
-@Controller('uploads')
+/** Also accept legacy `/upload/*` paths used by some clients. */
+@Controller(['uploads', 'upload'])
 export class UploadsController {
   constructor(private readonly uploadsService: UploadsService) {}
 

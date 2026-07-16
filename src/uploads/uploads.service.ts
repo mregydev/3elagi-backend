@@ -45,11 +45,6 @@ const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 const MAX_CHUNKED_UPLOAD_BYTES = 200 * 1024 * 1024;
 const CHUNK_SESSION_TTL_MS = 60 * 60 * 1000;
 
-const RAG_DOCUMENT_MIMES = new Set([
-  'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-]);
-
 interface ChunkUploadSession {
   filename: string;
   mimeType: string;
@@ -552,12 +547,25 @@ export class UploadsService {
     if (!mimeType || mimeType === 'application/octet-stream') {
       const lower = filename.toLowerCase();
       if (lower.endsWith('.pdf')) mimeType = 'application/pdf';
-      if (lower.endsWith('.docx')) {
+      else if (lower.endsWith('.docx')) {
         mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-      }
+      } else if (lower.endsWith('.png')) mimeType = 'image/png';
+      else if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) mimeType = 'image/jpeg';
+      else if (lower.endsWith('.webp')) mimeType = 'image/webp';
+      else if (lower.endsWith('.gif')) mimeType = 'image/gif';
+      else if (lower.endsWith('.mp4')) mimeType = 'video/mp4';
+      else if (lower.endsWith('.webm')) mimeType = 'video/webm';
+      else if (lower.endsWith('.mov')) mimeType = 'video/quicktime';
+      else if (lower.endsWith('.m4a')) mimeType = 'audio/mp4';
+      else if (lower.endsWith('.mp3')) mimeType = 'audio/mpeg';
+      else if (lower.endsWith('.wav')) mimeType = 'audio/wav';
+      else if (lower.endsWith('.ogg')) mimeType = 'audio/ogg';
     }
-    if (!mimeType || !RAG_DOCUMENT_MIMES.has(mimeType)) {
-      throw new BadRequestException('Only PDF and DOCX documents are supported');
+    mimeType = (mimeType ?? '').split(';')[0].trim().toLowerCase();
+    if (!mimeType || !isAllowedUploadMime(mimeType)) {
+      throw new BadRequestException(
+        'File type not allowed. Supported: images, PDF, DOCX, audio, and video.',
+      );
     }
     if (!Number.isFinite(totalSize) || totalSize <= 0) {
       throw new BadRequestException('total_size must be positive');
