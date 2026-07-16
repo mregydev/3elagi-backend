@@ -19,6 +19,7 @@ const ALLOWED_TYPES: IntakeQuestionType[] = [
   'text',
   'single_choice',
   'multi_choice',
+  'image',
   'video',
   'audio',
   'guidance',
@@ -53,6 +54,7 @@ function mapOldType(t: string | undefined): IntakeQuestionType {
     case 'text':
     case 'single_choice':
     case 'multi_choice':
+    case 'image':
     case 'video':
     case 'audio':
     case 'guidance':
