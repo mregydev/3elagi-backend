@@ -259,7 +259,7 @@ export class MessagesService {
       if (
         !meta?.record_id ||
         !meta?.title ||
-        !['lab', 'xray', 'diagnosis'].includes(meta.record_type ?? '')
+        !['lab', 'xray', 'diagnosis', 'intake'].includes(meta.record_type ?? '')
       ) {
         throw new BadRequestException('invalid medical link metadata');
       }
@@ -472,7 +472,7 @@ export class MessagesService {
       if (
         !meta?.record_id ||
         !meta?.title ||
-        !['lab', 'xray', 'diagnosis'].includes(meta.record_type)
+        !['lab', 'xray', 'diagnosis', 'intake'].includes(meta.record_type)
       ) {
         throw new BadRequestException('invalid medical link metadata');
       }
