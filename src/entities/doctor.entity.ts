@@ -28,6 +28,10 @@ export class Doctor {
   @Column()
   name: string;
 
+  /** ISO 3166-1 alpha-2 practice / residence country. Defaults to Egypt for legacy rows. */
+  @Column({ type: 'varchar', length: 2, default: 'EG' })
+  country: string;
+
   @Column({ nullable: true })
   age: number;
 

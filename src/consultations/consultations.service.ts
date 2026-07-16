@@ -19,6 +19,7 @@ import {
 } from '../entities/message.entity';
 import { Doctor } from '../entities/doctor.entity';
 import { User, UserRole } from '../entities/user.entity';
+import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
 import { PointsService } from '../points/points.service';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { DiagnosisService } from '../diagnosis/diagnosis.service';
@@ -45,7 +46,14 @@ export class ConsultationsService {
     private presence: PresenceGateway,
     private diagnosis: DiagnosisService,
     private users: UsersService,
+    private knowledgeIndexer: KnowledgeIndexerService,
   ) {}
+
+  private scheduleIndexConsultation(consultationId: string): void {
+    void this.knowledgeIndexer
+      .indexConsultation(consultationId)
+      .catch(() => undefined);
+  }
 
   private mapMessage(row: Message) {
     return {
@@ -237,6 +245,8 @@ export class ConsultationsService {
       },
     );
 
+    this.scheduleIndexConsultation(saved.id);
+
     const summary = await this.points.getSummary(patientUserId);
     return { consultation: this.mapConsultation(saved), points: summary };
   }
@@ -269,13 +279,19 @@ export class ConsultationsService {
     const legacyDiagnosisText = dto.diagnosis?.trim();
 
     if (details && doctor) {
+      const detailsDto = dto.diagnosis_details!;
       const created = await this.diagnosis.create(
         {
           desc: details,
           patient_id: c.patient_id,
           doctor_id: doctor.id,
-          symptoms: dto.diagnosis_details?.symptoms,
-          document_ids: dto.diagnosis_details?.document_ids,
+          body_part: detailsDto.body_part,
+          symptoms: detailsDto.symptoms,
+          document_ids: detailsDto.document_ids,
+          prescription_id: detailsDto.prescription_id,
+          prescription: detailsDto.prescription,
+          intake_exam_assignment_id: detailsDto.intake_exam_assignment_id,
+          intake_exam: detailsDto.intake_exam,
         },
         doctorUserId,
         UserRole.DOCTOR,
@@ -322,6 +338,8 @@ export class ConsultationsService {
         diagnosis_summary: diagnosisSummary,
       },
     );
+
+    this.scheduleIndexConsultation(saved.id);
 
     return { consultation: this.mapConsultation(saved) };
   }
@@ -373,6 +391,8 @@ export class ConsultationsService {
         cancel_reason: saved.cancel_reason ?? undefined,
       },
     );
+
+    this.scheduleIndexConsultation(saved.id);
 
     return { consultation: this.mapConsultation(saved) };
   }

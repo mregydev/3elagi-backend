@@ -8,6 +8,7 @@ import { AiUsageLog } from '../entities/ai-usage-log.entity';
 import { Diagnosis } from '../entities/diagnosis.entity';
 import { Doctor } from '../entities/doctor.entity';
 import { Appointment } from '../entities/appointment.entity';
+import { Consultation } from '../entities/consultation.entity';
 import { DoctorReview } from '../entities/review.entity';
 import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
 import { DoctorPatientAccess } from '../entities/doctor-patient-access.entity';
@@ -35,6 +36,7 @@ import { DoctorProfileContextSource } from './context/sources/doctor-profile.con
 import { DoctorsContextSource } from './context/sources/doctors.context-source';
 import { GeneralKnowledgeContextSource } from './context/sources/general-knowledge.context-source';
 import { AppointmentsContextSource } from './context/sources/appointments.context-source';
+import { ConsultationsContextSource } from './context/sources/consultations.context-source';
 import { MedicalRecordsContextSource } from './context/sources/medical-records.context-source';
 import { PatientHealthInsightsContextSource } from './context/sources/patient-health-insights.context-source';
 import { PatientProfileContextSource } from './context/sources/patient-profile.context-source';
@@ -69,6 +71,7 @@ import { UploadsModule } from '../uploads/uploads.module';
       DoctorPatientAccess,
       User,
       Appointment,
+      Consultation,
     ]),
   ],
   controllers: [AiController],
@@ -91,6 +94,7 @@ import { UploadsModule } from '../uploads/uploads.module';
     DoctorsContextSource,
     GeneralKnowledgeContextSource,
     AppointmentsContextSource,
+    ConsultationsContextSource,
     EmbeddingsService,
     embeddingsProviderFactory,
     VectorSearchService,

@@ -1,3 +1,4 @@
+import { Consultation } from '../entities/consultation.entity';
 import { Diagnosis } from '../entities/diagnosis.entity';
 import { Doctor } from '../entities/doctor.entity';
 import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
@@ -285,6 +286,39 @@ export function buildPrescriptionText(
     );
   }
   appendAiInsight(lines, prescription.ai_insight);
+  return lines.join('\n');
+}
+
+export function buildConsultationText(
+  consultation: Consultation,
+  patientName?: string | null,
+  doctorName?: string | null,
+  diagnosisDesc?: string | null,
+): string {
+  const lines = [
+    'Consultation:',
+    consultation.status,
+    '',
+    'Started:',
+    formatDate(consultation.created_at),
+  ];
+  if (consultation.closed_at) {
+    lines.push('', 'Closed:', formatDate(consultation.closed_at));
+  }
+  if (patientName) lines.push('', 'Patient:', patientName);
+  if (doctorName) lines.push('', 'Doctor:', doctorName);
+  if (consultation.description?.trim()) {
+    lines.push('', 'Reason / description:', consultation.description.trim());
+  }
+  if (consultation.doctor_note?.trim()) {
+    lines.push('', 'Doctor note:', consultation.doctor_note.trim());
+  }
+  if (diagnosisDesc?.trim()) {
+    lines.push('', 'Linked diagnosis:', diagnosisDesc.trim());
+  }
+  if (consultation.cancel_reason?.trim()) {
+    lines.push('', 'Cancel reason:', consultation.cancel_reason.trim());
+  }
   return lines.join('\n');
 }
 

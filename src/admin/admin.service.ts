@@ -26,6 +26,7 @@ const APPROVAL_VALUES: ApprovalStatus[] = ['pending', 'approved', 'rejected'];
 interface UpdateDoctorDto {
   name?: string;
   phone?: string;
+  country?: string;
   age?: number;
   email?: string;
   photo_url?: string;
@@ -38,6 +39,7 @@ interface UpdateDoctorDto {
 interface UpdatePatientDto {
   name?: string;
   phone?: string;
+  country?: string;
   birth_date?: string | null;
   gender?: string | null;
   chronic_conditions?: string | null;
@@ -86,6 +88,9 @@ export class AdminService {
     const safe: Partial<Doctor> = {};
     if (dto.name !== undefined) safe.name = dto.name;
     if (dto.phone !== undefined) safe.phone = dto.phone;
+    if (dto.country !== undefined) {
+      safe.country = dto.country.trim().toUpperCase();
+    }
     if (dto.age !== undefined) safe.age = dto.age;
     if (dto.email !== undefined) safe.email = dto.email;
     if (dto.photo_url !== undefined) safe.photo_url = dto.photo_url;
@@ -159,6 +164,9 @@ export class AdminService {
     const safe: Partial<PatientProfile> = {};
     if (dto.name !== undefined) safe.name = dto.name;
     if (dto.phone !== undefined) safe.phone = dto.phone;
+    if (dto.country !== undefined) {
+      safe.country = dto.country.trim().toUpperCase();
+    }
     if (dto.birth_date !== undefined) safe.birth_date = dto.birth_date;
     if (dto.gender !== undefined) safe.gender = dto.gender;
     if (dto.chronic_conditions !== undefined)

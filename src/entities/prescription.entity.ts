@@ -78,6 +78,10 @@ export class Prescription {
   @Column({ type: 'varchar', length: 32, nullable: true })
   body_part: string | null;
 
+  /** Optional link to the diagnosis this prescription was created/attached for. */
+  @Column({ type: 'uuid', nullable: true })
+  diagnosis_id: string | null;
+
   @CreateDateColumn()
   created_at: Date;
 }

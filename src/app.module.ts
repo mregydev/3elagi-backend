@@ -136,6 +136,9 @@ import { Consultation } from './entities/consultation.entity';
 import { ConsultationComplaint } from './entities/consultation-complaint.entity';
 import { MedicalDocumentRequest } from './entities/medical-document-request.entity';
 import { MedicalDocumentRequests1778410000000 } from './migrations/1778410000000-MedicalDocumentRequests';
+import { DiagnosisPrescriptionIntakeLinks1778420000000 } from './migrations/1778420000000-DiagnosisPrescriptionIntakeLinks';
+import { PatientProfileCountry1778430000000 } from './migrations/1778430000000-PatientProfileCountry';
+import { DoctorCountry1778440000000 } from './migrations/1778440000000-DoctorCountry';
 import { MedicalDocumentRequestsModule } from './medical-document-requests/medical-document-requests.module';
 
 @Module({
@@ -248,6 +251,9 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
           DoctorBankDetails1778390000000,
           MedicalRecordBodyPart1778400000000,
           MedicalDocumentRequests1778410000000,
+          DiagnosisPrescriptionIntakeLinks1778420000000,
+          PatientProfileCountry1778430000000,
+          DoctorCountry1778440000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
   ForbiddenException,
@@ -12,6 +13,8 @@ import { Symptom } from '../entities/symptom.entity';
 import { User, UserRole } from '../entities/user.entity';
 import { Appointment } from '../entities/appointment.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
+import { Prescription } from '../entities/prescription.entity';
+import { IntakeExamAssignment } from '../entities/intake-exam-assignment.entity';
 import { CreateDiagnosisDto } from './dto/create-diagnosis.dto';
 import { resolveApiLocale, type ApiLocale } from '../common/resolve-api-locale';
 import { CreatePatientDiagnosisDto } from './dto/create-patient-diagnosis.dto';
@@ -24,6 +27,8 @@ import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
 import { DiagnosisDocumentService } from './diagnosis-document.service';
 import { MedicalRecordImageAnalyzerService } from '../medical-documents/medical-record-image-analyzer.service';
 import { UploadsService } from '../uploads/uploads.service';
+import { PrescriptionsService } from '../prescriptions/prescriptions.service';
+import { IntakeExamsService } from '../intake-exams/intake-exams.service';
 import type { MedicalAiInsight } from '../common/medical-ai-insight.types';
 
 type DiagnosisWithDocuments = Diagnosis & { documents?: MedicalDocument[] };
@@ -42,12 +47,18 @@ export class DiagnosisService {
     private patientProfileRepo: Repository<PatientProfile>,
     @InjectRepository(MedicalDocument)
     private medicalDocumentRepo: Repository<MedicalDocument>,
+    @InjectRepository(Prescription)
+    private prescriptionRepo: Repository<Prescription>,
+    @InjectRepository(IntakeExamAssignment)
+    private intakeAssignmentRepo: Repository<IntakeExamAssignment>,
     private doctorPatientAccessService: DoctorPatientAccessService,
     private patientConsentService: PatientConsentService,
     private knowledgeIndexer: KnowledgeIndexerService,
     private diagnosisDocuments: DiagnosisDocumentService,
     private imageAnalyzer: MedicalRecordImageAnalyzerService,
     private uploads: UploadsService,
+    private prescriptionsService: PrescriptionsService,
+    private intakeExamsService: IntakeExamsService,
   ) {}
 
   private scheduleIndexDiagnosis(diagnosisId: string): void {
@@ -294,6 +305,105 @@ export class DiagnosisService {
     };
   }
 
+  private async attachPrescriptionToDiagnosis(
+    diagnosisId: string,
+    patientUserId: string,
+    doctorUserId: string,
+    doctorRole: string,
+    doctorEntityId: string,
+    dto: CreateDiagnosisDto,
+  ): Promise<void> {
+    if (dto.prescription_id && dto.prescription) {
+      throw new BadRequestException(
+        'Provide either prescription_id or prescription, not both',
+      );
+    }
+    if (dto.prescription_id) {
+      const rx = await this.prescriptionRepo.findOne({
+        where: { id: dto.prescription_id },
+      });
+      if (!rx) throw new NotFoundException('Prescription not found');
+      if (rx.patient_user_id !== patientUserId) {
+        throw new ForbiddenException('Prescription does not belong to this patient');
+      }
+      if (rx.doctor_id && rx.doctor_id !== doctorEntityId) {
+        throw new ForbiddenException('You can only attach your own prescriptions');
+      }
+      rx.diagnosis_id = diagnosisId;
+      await this.prescriptionRepo.save(rx);
+      return;
+    }
+    if (dto.prescription) {
+      const meds = (dto.prescription.medications ?? [])
+        .map((m) => ({
+          medication_name: m.medication_name?.trim() ?? '',
+          dose: m.dose?.trim() || undefined,
+          interval: m.interval?.trim() || undefined,
+          notes: m.notes?.trim() || undefined,
+        }))
+        .filter((m) => m.medication_name.length > 0);
+      if (!meds.length) {
+        throw new BadRequestException('Prescription must include at least one medication');
+      }
+      await this.prescriptionsService.createForPatientUser(
+        {
+          patient_user_id: patientUserId,
+          title: dto.prescription.title.trim() || dto.desc.trim(),
+          symptoms: dto.prescription.symptoms?.trim() || undefined,
+          medications: meds,
+          body_part: dto.prescription.body_part ?? dto.body_part ?? null,
+          diagnosis_id: diagnosisId,
+        },
+        doctorUserId,
+        doctorRole,
+      );
+    }
+  }
+
+  private async attachIntakeToDiagnosis(
+    diagnosisId: string,
+    patientUserId: string,
+    doctorUserId: string,
+    doctorEntityId: string,
+    dto: CreateDiagnosisDto,
+  ): Promise<void> {
+    if (dto.intake_exam_assignment_id && dto.intake_exam) {
+      throw new BadRequestException(
+        'Provide either intake_exam_assignment_id or intake_exam, not both',
+      );
+    }
+    if (dto.intake_exam_assignment_id) {
+      const assignment = await this.intakeAssignmentRepo.findOne({
+        where: { id: dto.intake_exam_assignment_id },
+      });
+      if (!assignment) throw new NotFoundException('Intake exam assignment not found');
+      if (assignment.patient_user_id !== patientUserId) {
+        throw new ForbiddenException('Intake exam does not belong to this patient');
+      }
+      if (assignment.doctor_id !== doctorEntityId) {
+        throw new ForbiddenException('You can only attach your own intake exams');
+      }
+      assignment.diagnosis_id = diagnosisId;
+      await this.intakeAssignmentRepo.save(assignment);
+      return;
+    }
+    if (dto.intake_exam) {
+      const view = await this.intakeExamsService.assignExam(doctorUserId, {
+        patient_user_id: patientUserId,
+        intake_test_id: dto.intake_exam.intake_test_id,
+        deadline_at: dto.intake_exam.deadline_at,
+        recurrence_type: dto.intake_exam.recurrence_type,
+        recurrence_interval: dto.intake_exam.recurrence_interval,
+      });
+      if (view.assignment_id) {
+        await this.intakeAssignmentRepo.update(
+          { id: view.assignment_id },
+          { diagnosis_id: diagnosisId },
+        );
+      }
+    }
+  }
+
   async create(dto: CreateDiagnosisDto, userId: string, userRole: string) {
     const doctor = await this.assertDoctorUser(userId, userRole);
     const patientUser = await this.userRepo.findOne({ where: { id: dto.patient_id } });
@@ -312,7 +422,15 @@ export class DiagnosisService {
     await this.patientConsentService.assertMedicalRecordsStorageConsent(
       dto.patient_id,
     );
-    const { symptoms, document_ids, ...diagnosisFields } = dto;
+    const {
+      symptoms,
+      document_ids,
+      prescription_id,
+      prescription,
+      intake_exam_assignment_id,
+      intake_exam,
+      ...diagnosisFields
+    } = dto;
     const row = this.diagnosisRepo.create(diagnosisFields);
     const saved = await this.diagnosisRepo.save(row);
     await this.saveSymptoms(saved.id, symptoms, doctor.id);
@@ -320,6 +438,21 @@ export class DiagnosisService {
       saved.id,
       dto.patient_id,
       document_ids,
+    );
+    await this.attachPrescriptionToDiagnosis(
+      saved.id,
+      dto.patient_id,
+      userId,
+      userRole,
+      doctor.id,
+      { ...dto, prescription_id, prescription },
+    );
+    await this.attachIntakeToDiagnosis(
+      saved.id,
+      dto.patient_id,
+      userId,
+      doctor.id,
+      { ...dto, intake_exam_assignment_id, intake_exam },
     );
     this.scheduleIndexDiagnosis(saved.id);
     return this.findOne(saved.id, userId, userRole);

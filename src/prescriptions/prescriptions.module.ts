@@ -7,6 +7,8 @@ import { Patient } from '../entities/patient.entity';
 import { Clinic } from '../entities/clinic.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
 import { User } from '../entities/user.entity';
+import { MedicalDocument } from '../entities/medical-document.entity';
+import { Consultation } from '../entities/consultation.entity';
 import { PrescriptionsService } from './prescriptions.service';
 import { PrescriptionsController } from './prescriptions.controller';
 import { PrescriptionImageAnalyzerService } from './prescription-image-analyzer.service';
@@ -27,6 +29,8 @@ import { PointsModule } from '../points/points.module';
       Clinic,
       PatientProfile,
       User,
+      MedicalDocument,
+      Consultation,
     ]),
     UploadsModule,
     AiModule,
@@ -37,5 +41,6 @@ import { PointsModule } from '../points/points.module';
   ],
   providers: [PrescriptionsService, PrescriptionImageAnalyzerService],
   controllers: [PrescriptionsController],
+  exports: [PrescriptionsService],
 })
 export class PrescriptionsModule {}

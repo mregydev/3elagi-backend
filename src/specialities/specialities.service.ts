@@ -128,6 +128,7 @@ export class SpecialitiesService {
       doctor_id: d.id,
       name,
       photo_url: d.photo_url ?? user?.photo_url ?? null,
+      country: d.country ?? 'EG',
       specialty:
         d.speciality?.name_en ??
         requestedSpec?.name_en ??

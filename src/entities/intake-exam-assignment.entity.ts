@@ -58,6 +58,10 @@ export class IntakeExamAssignment {
   @Column({ type: 'boolean', default: true })
   is_active: boolean;
 
+  /** Optional link to the diagnosis this intake exam was assigned/attached for. */
+  @Column({ type: 'uuid', nullable: true })
+  diagnosis_id: string | null;
+
   @CreateDateColumn()
   created_at: Date;
 

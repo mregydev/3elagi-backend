@@ -67,6 +67,7 @@ export class PatientsService {
       role: user.role,
       name: profile.name,
       phone: profile.phone,
+      country: profile.country ?? 'EG',
       birth_date: profile.birth_date,
       photo_url: profile.photo_url ?? user.photo_url,
       gender: profile.gender,
@@ -112,6 +113,9 @@ export class PatientsService {
 
     if (updates.name !== undefined) profile.name = updates.name;
     if (updates.phone !== undefined) profile.phone = updates.phone;
+    if (updates.country !== undefined) {
+      profile.country = updates.country.trim().toUpperCase();
+    }
     if (updates.birth_date !== undefined) profile.birth_date = updates.birth_date;
     if (updates.photo_url !== undefined) profile.photo_url = updates.photo_url;
 

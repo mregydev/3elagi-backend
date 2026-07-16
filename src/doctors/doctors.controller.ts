@@ -61,6 +61,7 @@ export class DoctorsController {
       name: string;
       age: number;
       phone: string;
+      country: string;
       email: string;
       photo_url: string;
       graduation_cert_url: string;

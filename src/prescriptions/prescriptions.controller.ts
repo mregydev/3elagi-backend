@@ -119,6 +119,27 @@ export class PrescriptionsController {
     );
   }
 
+  /** Draft-only Egypt medications for doctor review — does not save. */
+  @Post('ai-draft')
+  @Roles('doctor')
+  draftAi(
+    @Body()
+    body: {
+      patient_user_id: string;
+      diagnosis_title: string;
+      consultation_id?: string;
+      symptoms?: string[];
+      lang?: 'ar' | 'en' | 'de' | 'es';
+    },
+    @Request() req,
+  ) {
+    return this.service.draftAiPrescriptionForDiagnosis(
+      body,
+      req.user.id,
+      req.user.role,
+    );
+  }
+
   @Post('patient-user')
   @Roles('doctor', 'patient')
   createForPatientUser(@Body() body: CreatePrescriptionForUserDto, @Request() req) {

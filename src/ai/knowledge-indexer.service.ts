@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { Consultation } from '../entities/consultation.entity';
 import { Diagnosis } from '../entities/diagnosis.entity';
 import { Doctor } from '../entities/doctor.entity';
 import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
@@ -15,6 +16,7 @@ import type { KnowledgeEntityType } from './types/knowledge-entity-type';
 import { PLATFORM_KNOWLEDGE_SCOPE } from './types/knowledge-entity-type';
 import {
   buildAllergyText,
+  buildConsultationText,
   buildDiagnosisText,
   buildDoctorDirectorySummary,
   buildDoctorProfileText,
@@ -59,6 +61,8 @@ export class KnowledgeIndexerService implements OnModuleInit {
     private readonly prescriptionRepo: Repository<Prescription>,
     @InjectRepository(Patient)
     private readonly clinicPatientRepo: Repository<Patient>,
+    @InjectRepository(Consultation)
+    private readonly consultationRepo: Repository<Consultation>,
   ) {}
 
   onModuleInit(): void {
@@ -185,7 +189,54 @@ export class KnowledgeIndexerService implements OnModuleInit {
     await this.indexPatientDiagnoses(patientUserId);
     await this.indexPatientDocuments(patientUserId);
     await this.indexPatientPrescriptions(patientUserId);
+    await this.indexPatientConsultations(patientUserId);
     await this.cache.bumpKnowledgeBaseVersion(patientUserId);
+  }
+
+  async indexConsultation(consultationId: string): Promise<void> {
+    const consultation = await this.consultationRepo.findOne({
+      where: { id: consultationId },
+    });
+    if (!consultation) {
+      await this.deleteChunk('consultation_summary', consultationId);
+      return;
+    }
+
+    const [profile, doctor, diagnosis] = await Promise.all([
+      this.profileRepo.findOne({ where: { user_id: consultation.patient_id } }),
+      this.doctorRepo.findOne({ where: { user_id: consultation.doctor_id } }),
+      consultation.diagnosis_id
+        ? this.diagnosisRepo.findOne({ where: { id: consultation.diagnosis_id } })
+        : Promise.resolve(null),
+    ]);
+
+    await this.upsertChunk({
+      entityType: 'consultation_summary',
+      entityId: consultationId,
+      patientId: consultation.patient_id,
+      doctorId: doctor?.id ?? null,
+      text: buildConsultationText(
+        consultation,
+        profile?.name ?? null,
+        doctor?.name ? `Dr ${doctor.name}` : null,
+        diagnosis?.desc ?? null,
+      ),
+      metadata: {
+        status: consultation.status,
+        diagnosisId: consultation.diagnosis_id,
+      },
+    });
+    await this.cache.bumpKnowledgeBaseVersion(consultation.patient_id);
+  }
+
+  private async indexPatientConsultations(patientUserId: string): Promise<void> {
+    const rows = await this.consultationRepo.find({
+      where: { patient_id: patientUserId },
+      select: ['id'],
+    });
+    for (const row of rows) {
+      await this.indexConsultation(row.id);
+    }
   }
 
   async indexPatientProfile(patientUserId: string): Promise<void> {

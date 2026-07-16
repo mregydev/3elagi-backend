@@ -1,5 +1,6 @@
-import { IsString, IsOptional, IsNumber } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsString, IsOptional, IsNumber, IsIn } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { PATIENT_COUNTRY_CODES } from '../../common/patient-countries';
 
 export class UpdatePatientDto {
   @IsString()
@@ -13,6 +14,16 @@ export class UpdatePatientDto {
   @IsString()
   @IsOptional()
   phone?: string;
+
+  @IsOptional()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
+  @IsString()
+  @IsIn([...PATIENT_COUNTRY_CODES], {
+    message: `country must be one of: ${PATIENT_COUNTRY_CODES.join(', ')}`,
+  })
+  country?: string;
 
   @IsNumber()
   @IsOptional()

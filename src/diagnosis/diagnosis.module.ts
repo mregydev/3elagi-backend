@@ -18,6 +18,10 @@ import { PatientsModule } from '../patients/patients.module';
 import { AiModule } from '../ai/ai.module';
 import { MedicalRecordAiModule } from '../medical-documents/medical-record-ai.module';
 import { UploadsModule } from '../uploads/uploads.module';
+import { PrescriptionsModule } from '../prescriptions/prescriptions.module';
+import { IntakeExamsModule } from '../intake-exams/intake-exams.module';
+import { Prescription } from '../entities/prescription.entity';
+import { IntakeExamAssignment } from '../entities/intake-exam-assignment.entity';
 
 @Module({
   imports: [
@@ -26,6 +30,8 @@ import { UploadsModule } from '../uploads/uploads.module';
     AiModule,
     MedicalRecordAiModule,
     UploadsModule,
+    PrescriptionsModule,
+    IntakeExamsModule,
     TypeOrmModule.forFeature([
       Diagnosis,
       DiagnosisDocument,
@@ -36,6 +42,8 @@ import { UploadsModule } from '../uploads/uploads.module';
       Appointment,
       PatientProfile,
       MedicalDocument,
+      Prescription,
+      IntakeExamAssignment,
     ]),
   ],
   controllers: [DiagnosisController, PatientDiagnosisController],

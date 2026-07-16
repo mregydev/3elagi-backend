@@ -18,6 +18,8 @@ import { Patient } from '../entities/patient.entity';
 import { Clinic } from '../entities/clinic.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
 import { User, UserRole } from '../entities/user.entity';
+import { MedicalDocument } from '../entities/medical-document.entity';
+import { Consultation } from '../entities/consultation.entity';
 import { UploadsService } from '../uploads/uploads.service';
 import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
 import { DoctorPatientAccessService } from '../doctor-patient-access/doctor-patient-access.service';
@@ -53,6 +55,7 @@ export interface CreatePrescriptionForUserDto {
   image_url?: string;
   body_part?: string | null;
   lang?: ApiLocale;
+  diagnosis_id?: string | null;
 }
 
 const PDF_LABELS = {
@@ -145,6 +148,10 @@ export class PrescriptionsService {
     @InjectRepository(PatientProfile)
     private patientProfileRepo: Repository<PatientProfile>,
     @InjectRepository(User) private userRepo: Repository<User>,
+    @InjectRepository(MedicalDocument)
+    private medicalDocumentRepo: Repository<MedicalDocument>,
+    @InjectRepository(Consultation)
+    private consultationRepo: Repository<Consultation>,
     private uploads: UploadsService,
     private knowledgeIndexer: KnowledgeIndexerService,
     private doctorPatientAccessService: DoctorPatientAccessService,
@@ -423,6 +430,107 @@ export class PrescriptionsService {
     );
   }
 
+  /**
+   * Optional AI draft for doctors — Egypt-listed meds only. Never auto-saves;
+   * the doctor must review and create the prescription explicitly.
+   */
+  async draftAiPrescriptionForDiagnosis(
+    input: {
+      patient_user_id: string;
+      diagnosis_title: string;
+      consultation_id?: string;
+      symptoms?: string[];
+      lang?: ApiLocale;
+    },
+    doctorUserId: string,
+    role: string,
+  ) {
+    if (role !== UserRole.DOCTOR) {
+      throw new ForbiddenException('Only doctors can draft prescriptions with AI');
+    }
+    const patientUserId = input.patient_user_id?.trim();
+    const title = input.diagnosis_title?.trim();
+    if (!patientUserId) throw new BadRequestException('patient_user_id is required');
+    if (!title) throw new BadRequestException('diagnosis_title is required');
+
+    await this.doctorPatientAccessService.assertDoctorCanPrescribeForPatient(
+      doctorUserId,
+      patientUserId,
+    );
+
+    const profile = await this.patientProfileRepo.findOne({
+      where: { user_id: patientUserId },
+    });
+    const docs = await this.medicalDocumentRepo.find({
+      where: { patient_id: patientUserId },
+      order: { created_at: 'DESC' },
+      take: 8,
+    });
+    const patientLines: string[] = [];
+    if (profile?.chronic_conditions?.trim()) {
+      patientLines.push(`Chronic conditions: ${profile.chronic_conditions.trim()}`);
+    }
+    if (profile?.allergies?.trim()) {
+      patientLines.push(`Allergies: ${profile.allergies.trim()}`);
+    }
+    if (profile?.medical_notes?.trim()) {
+      patientLines.push(`Medical notes: ${profile.medical_notes.trim()}`);
+    }
+    for (const doc of docs) {
+      patientLines.push(
+        `${doc.type}: ${doc.title || doc.type}${doc.notes?.trim() ? ` — ${doc.notes.trim()}` : ''}`,
+      );
+    }
+
+    let consultationContext = '';
+    const consultId = input.consultation_id?.trim();
+    if (consultId) {
+      const consult = await this.consultationRepo.findOne({ where: { id: consultId } });
+      if (consult && consult.patient_id === patientUserId) {
+        consultationContext = [
+          `Status: ${consult.status}`,
+          consult.description?.trim()
+            ? `Patient reason: ${consult.description.trim()}`
+            : null,
+          consult.doctor_note?.trim()
+            ? `Doctor note: ${consult.doctor_note.trim()}`
+            : null,
+          `Started: ${consult.created_at?.toISOString?.() ?? ''}`,
+        ]
+          .filter(Boolean)
+          .join('\n');
+      }
+    } else {
+      const latest = await this.consultationRepo.findOne({
+        where: { patient_id: patientUserId, doctor_id: doctorUserId },
+        order: { created_at: 'DESC' },
+      });
+      if (latest) {
+        consultationContext = [
+          `Status: ${latest.status}`,
+          latest.description?.trim()
+            ? `Patient reason: ${latest.description.trim()}`
+            : null,
+          latest.doctor_note?.trim()
+            ? `Doctor note: ${latest.doctor_note.trim()}`
+            : null,
+          `Started: ${latest.created_at?.toISOString?.() ?? ''}`,
+        ]
+          .filter(Boolean)
+          .join('\n');
+      }
+    }
+
+    return this.prescriptionImageAnalyzer.draftCountryPrescription({
+      diagnosisTitle: title,
+      patientContext: patientLines.join('\n'),
+      consultationContext,
+      symptoms: input.symptoms,
+      patientCountry: profile?.country ?? 'EG',
+      outputLang: resolveApiLocale(input.lang),
+    });
+  }
+
   async createForPatientUser(
     dto: CreatePrescriptionForUserDto,
     userId: string,
@@ -477,6 +585,7 @@ export class PrescriptionsService {
       symptoms: dto.symptoms?.trim() || null,
       image_url: imageUrl,
       body_part: dto.body_part?.trim() || null,
+      diagnosis_id: dto.diagnosis_id?.trim() || null,
       items: medications.map((med) => ({
         name: med.medication_name,
         dose: med.dose,

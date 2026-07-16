@@ -97,7 +97,7 @@ export class DoctorsService {
     if (!doctor) throw new NotFoundException('Doctor profile not found');
     // Whitelist: doctors must not be able to change privilege-sensitive fields
     const {
-      name, phone, age, email, photo_url,
+      name, phone, country, age, email, photo_url,
       graduation_cert_url, work_permit_url,
       digital_signature_url, personal_clinic_location,
       professional_title, description, experience_years, consultation_fee_egp,
@@ -108,6 +108,9 @@ export class DoctorsService {
     const safeUpdates: Partial<Doctor> = {};
     if (name !== undefined) safeUpdates.name = name;
     if (phone !== undefined) safeUpdates.phone = phone;
+    if (country !== undefined) {
+      safeUpdates.country = String(country).trim().toUpperCase();
+    }
     if (age !== undefined) safeUpdates.age = age;
     if (email !== undefined) safeUpdates.email = email;
     if (photo_url !== undefined) safeUpdates.photo_url = photo_url;

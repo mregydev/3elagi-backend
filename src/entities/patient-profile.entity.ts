@@ -24,6 +24,10 @@ export class PatientProfile {
   @Column()
   phone: string;
 
+  /** ISO 3166-1 alpha-2 residence country. Defaults to Egypt for legacy rows. */
+  @Column({ type: 'varchar', length: 2, default: 'EG' })
+  country: string;
+
   @Column({ type: 'date', nullable: true })
   birth_date: string | null;
 
