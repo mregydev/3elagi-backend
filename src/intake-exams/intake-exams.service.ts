@@ -77,6 +77,7 @@ export interface IntakeExamInstanceView {
   created_at: string;
 }
 
+// TODO: Add a new field to the intake exam instance to store the payment status
 @Injectable()
 export class IntakeExamsService {
   private readonly logger = new Logger(IntakeExamsService.name);
