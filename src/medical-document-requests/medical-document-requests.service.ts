@@ -9,7 +9,6 @@ import { In, Repository } from 'typeorm';
 import * as PDFDocument from 'pdfkit';
 import * as path from 'path';
 import * as fs from 'fs';
-import * as QRCode from 'qrcode';
 import {
   MedicalDocumentRequest,
   MedicalDocumentRequestStatus,
@@ -316,7 +315,9 @@ export class MedicalDocumentRequestsService {
       throw new BadRequestException('Only pending requests can be cancelled');
     }
     row.status = MedicalDocumentRequestStatus.CANCELLED;
-    return this.repo.save(row);
+    const saved = await this.repo.save(row);
+    await this.markChatRequestStatus(id, 'cancelled');
+    return saved;
   }
 
   async listForPatientUser(userId: string) {
@@ -406,9 +407,31 @@ export class MedicalDocumentRequestsService {
         `Document type must match the request type (${row.type})`,
       );
     }
-    row.fulfilled_document_id = doc.id;
-    row.status = MedicalDocumentRequestStatus.FULFILLED;
-    return this.repo.save(row);
+    const snapshot = { ...row };
+    await this.markChatRequestStatus(row.id, 'fulfilled');
+    await this.repo.remove(row);
+    return {
+      ...snapshot,
+      fulfilled_document_id: doc.id,
+      status: MedicalDocumentRequestStatus.FULFILLED,
+    } as MedicalDocumentRequest;
+  }
+
+  private async markChatRequestStatus(
+    requestId: string,
+    status: 'fulfilled' | 'cancelled',
+  ): Promise<void> {
+    const messages = await this.messageRepo
+      .createQueryBuilder('m')
+      .where('m.type = :type', { type: 'document_request' })
+      .andWhere(`m.attachment_meta ->> 'request_id' = :requestId`, { requestId })
+      .getMany();
+    if (!messages.length) return;
+    for (const msg of messages) {
+      const meta = (msg.attachment_meta ?? {}) as DocumentRequestMeta;
+      msg.attachment_meta = { ...meta, status };
+    }
+    await this.messageRepo.save(messages);
   }
 
   async getOrGeneratePdfForPatientUser(
@@ -422,6 +445,17 @@ export class MedicalDocumentRequestsService {
     }
     const pdf_url = await this.generateAndStorePdf(row, opts.lang ?? 'en');
     return { pdf_url };
+  }
+
+  private load3elagiLogoBuffer(): Buffer | null {
+    const logoPath = path.join(process.cwd(), 'assets/images/3elagi-mark.png');
+    try {
+      if (fs.existsSync(logoPath)) return fs.readFileSync(logoPath);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('[medical-document-requests] load 3elagi logo failed', e);
+    }
+    return null;
   }
 
   private async generateAndStorePdf(
@@ -441,9 +475,7 @@ export class MedicalDocumentRequestsService {
     const signatureBuffer = doctor.digital_signature_url
       ? await this.uploads.getBufferFromUrl(doctor.digital_signature_url)
       : null;
-    const logoBuffer = clinic?.logo_url
-      ? await this.uploads.getBufferFromUrl(clinic.logo_url).catch(() => null)
-      : null;
+    const logoBuffer = this.load3elagiLogoBuffer();
 
     const pdfBuffer = await this.renderPdf(
       row,
@@ -477,22 +509,16 @@ export class MedicalDocumentRequestsService {
     lang: ApiLocale = 'en',
   ): Promise<Buffer> {
     const refNo = buildRefNumber(row);
-    let qrBuffer: Buffer | null = null;
-    try {
-      qrBuffer = await QRCode.toBuffer(`MDR:${row.id}`, {
-        margin: 1,
-        scale: 6,
-        color: { dark: '#0f172a', light: '#ffffff' },
-      });
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error('[medical-document-requests] QR generation failed', e);
-    }
 
     return new Promise((resolve, reject) => {
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const doc: any = new (PDFDocument as any)({ size: 'A4', margin: 50 });
+        const doc: any = new (PDFDocument as any)({
+          size: 'A4',
+          // margin: 0 so edge-to-edge header/footer never trip PDFKit's
+          // bottom-margin page-break (which was creating trailing blank pages).
+          margin: 0,
+        });
         const chunks: Buffer[] = [];
         doc.on('data', (c: Buffer) => chunks.push(c));
         doc.on('end', () => resolve(Buffer.concat(chunks)));
@@ -502,6 +528,7 @@ export class MedicalDocumentRequestsService {
         const L = pdfLabelsFor(lang);
         const isAr = lang === 'ar';
         const pageWidth = doc.page.width;
+        const pageHeight = doc.page.height;
         const innerWidth = pageWidth - 100;
 
         const arFontPath = path.join(process.cwd(), 'assets/fonts/NotoSansArabic-Regular.ttf');
@@ -552,6 +579,7 @@ export class MedicalDocumentRequestsService {
         const headerH = 100;
         doc.rect(0, 0, pageWidth, headerH).fill(PRIMARY);
 
+        // 3elagi logo (right in EN, left in AR — opposite the doctor name)
         const logoSize = 56;
         const logoY = (headerH - logoSize) / 2;
         const logoX = isAr ? 30 : pageWidth - 30 - logoSize;
@@ -569,22 +597,29 @@ export class MedicalDocumentRequestsService {
             // eslint-disable-next-line no-console
             console.error('[medical-document-requests] embed logo failed', e);
           }
+        } else {
+          write('3elagi', logoX, logoY + 18, 14, '#ffffff', {
+            width: logoSize + 40,
+            align: isAr ? 'left' : 'right',
+            lineBreak: false,
+          });
         }
 
         const nameBlockX = isAr ? pageWidth - 50 - innerWidth : 50;
         write(`${L.dr} ${doctor.name}`, nameBlockX, 28, 22, '#ffffff', {
           align: isAr ? 'right' : 'left',
-          width: innerWidth,
+          width: innerWidth * 0.55,
         });
         write(L.docTitle, nameBlockX, 62, 10, '#ffffff', {
           align: isAr ? 'right' : 'left',
-          width: innerWidth,
+          width: innerWidth * 0.55,
         });
 
         const clinicTextWidth = innerWidth - (logoSize + 16);
         const clinicTextX = isAr ? logoX + logoSize + 16 : 50;
         const clinicName = clinic?.name ?? doctor.personal_clinic_location ?? '';
-        const clinicLoc = clinic?.location ?? doctor.personal_clinic_location ?? '';
+        const clinicLoc = clinic?.location ?? '';
+        // Clinic details sit under/near the logo side (same pattern as prescriptions)
         if (clinicName) {
           write(clinicName, clinicTextX, 30, 10, '#ffffff', {
             align: isAr ? 'left' : 'right',
@@ -656,38 +691,36 @@ export class MedicalDocumentRequestsService {
           y = doc.y + 16;
         }
 
-        // Signature footer (anchored within the last page)
-        const sigY = doc.page.height - 170;
-        doc.moveTo(50, sigY).lineTo(pageWidth - 50, sigY).strokeColor('#e2e8f0').stroke();
-
-        const qrSize = 70;
-        const qrX = isAr ? pageWidth - 50 - qrSize : 50;
-        if (qrBuffer) {
-          try {
-            doc.image(qrBuffer, qrX, sigY + 10, { fit: [qrSize, qrSize] });
-            write(L.scanToVerify, qrX, sigY + 10 + qrSize + 2, 7, '#94a3b8', {
-              width: qrSize,
-              align: 'center',
-              lineBreak: false,
-            });
-          } catch (e) {
-            // eslint-disable-next-line no-console
-            console.error('[medical-document-requests] embed QR failed', e);
-          }
+        // Signature + contact on the content page (never add a page only for footer).
+        const contactParts: string[] = [];
+        if (clinic?.phone) contactParts.push(clinic.phone);
+        if (clinic?.location) contactParts.push(clinic.location);
+        const contactH = contactParts.length ? 36 : 0;
+        const footerBlockH = 96;
+        const pageBottom = pageHeight - contactH - 12;
+        const contentEndY = Math.max(doc.y, y);
+        let sigY = contentEndY + 28;
+        const bottomAnchoredY = pageBottom - footerBlockH;
+        if (contentEndY + 28 + footerBlockH <= pageBottom) {
+          sigY = Math.max(sigY, bottomAnchoredY);
+        } else {
+          sigY = contentEndY + 20;
         }
+
+        doc.moveTo(50, sigY).lineTo(pageWidth - 50, sigY).strokeColor('#e2e8f0').stroke();
 
         const sigBlockWidth = 180;
         const sigX = isAr ? 50 : pageWidth - 50 - sigBlockWidth;
         const sigAlign: 'right' | 'left' = isAr ? 'right' : 'left';
-        write(L.signature, sigX, sigY + 6, 9, '#64748b', {
+        write(L.signature, sigX, sigY + 8, 9, '#64748b', {
           lineBreak: false,
           width: sigBlockWidth,
           align: sigAlign,
         });
         if (signatureBuffer) {
           try {
-            doc.image(signatureBuffer, sigX, sigY + 18, {
-              fit: [sigBlockWidth, 50],
+            doc.image(signatureBuffer, sigX, sigY + 20, {
+              fit: [sigBlockWidth, 48],
               align: sigAlign,
             });
           } catch (e) {
@@ -695,18 +728,15 @@ export class MedicalDocumentRequestsService {
             console.error('[medical-document-requests] embed signature failed', e);
           }
         }
-        write(`${L.dr} ${doctor.name}`, sigX, sigY + 72, 11, '#0f172a', {
+        write(`${L.dr} ${doctor.name}`, sigX, sigY + 74, 11, '#0f172a', {
           lineBreak: false,
           width: sigBlockWidth,
           align: sigAlign,
         });
 
-        const contactParts: string[] = [];
-        if (clinic?.phone) contactParts.push(clinic.phone);
-        if (clinic?.location) contactParts.push(clinic.location);
         if (contactParts.length) {
-          const stripY = doc.page.height - 36;
-          doc.rect(0, stripY, pageWidth, 36).fill('#f1f5f9');
+          const stripY = pageHeight - contactH;
+          doc.rect(0, stripY, pageWidth, contactH).fill('#f1f5f9');
           write(contactParts.join('  •  '), 50, stripY + 12, 9, '#475569', {
             width: innerWidth,
             align: 'center',
