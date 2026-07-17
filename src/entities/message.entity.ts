@@ -32,6 +32,8 @@ export interface DocumentRequestMeta {
   title: string;
   description?: string;
   status: 'pending' | 'fulfilled' | 'cancelled';
+  /** Medical document id when the patient uploaded the lab/x-ray result. */
+  fulfilled_document_id?: string;
 }
 
 export type AccessActionType =

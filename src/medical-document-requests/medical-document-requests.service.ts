@@ -408,7 +408,7 @@ export class MedicalDocumentRequestsService {
       );
     }
     const snapshot = { ...row };
-    await this.markChatRequestStatus(row.id, 'fulfilled');
+    await this.markChatRequestStatus(row.id, 'fulfilled', doc.id);
     await this.repo.remove(row);
     return {
       ...snapshot,
@@ -420,6 +420,7 @@ export class MedicalDocumentRequestsService {
   private async markChatRequestStatus(
     requestId: string,
     status: 'fulfilled' | 'cancelled',
+    fulfilledDocumentId?: string,
   ): Promise<void> {
     const messages = await this.messageRepo
       .createQueryBuilder('m')
@@ -429,9 +430,37 @@ export class MedicalDocumentRequestsService {
     if (!messages.length) return;
     for (const msg of messages) {
       const meta = (msg.attachment_meta ?? {}) as DocumentRequestMeta;
-      msg.attachment_meta = { ...meta, status };
+      msg.attachment_meta = {
+        ...meta,
+        status,
+        ...(fulfilledDocumentId
+          ? { fulfilled_document_id: fulfilledDocumentId }
+          : {}),
+      };
     }
-    await this.messageRepo.save(messages);
+    const saved = await this.messageRepo.save(messages);
+    for (const msg of saved) {
+      const mapped = {
+        id: msg.id,
+        type: msg.type,
+        content: msg.content,
+        creator: msg.creator,
+        recipient: msg.recipient,
+        datetime: msg.datetime,
+        attachment_url: msg.attachment_url,
+        attachment_meta: msg.attachment_meta,
+        read_at: msg.read_at,
+        edited_at: msg.edited_at,
+      };
+      this.presence.emitToUser(msg.recipient, 'message:updated', {
+        message: mapped,
+        peer_id: msg.creator,
+      });
+      this.presence.emitToUser(msg.creator, 'message:updated', {
+        message: mapped,
+        peer_id: msg.recipient,
+      });
+    }
   }
 
   async getOrGeneratePdfForPatientUser(
