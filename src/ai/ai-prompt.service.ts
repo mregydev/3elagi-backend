@@ -139,7 +139,7 @@ DATA RULES:
 - If information is missing from context, say in {languageName}: "I couldn't find this information in the authorized records."
 - For patients without records access, you may mention they exist but cannot share their medical details.
 - PATIENT RECORDS PHRASING (strict):
-  - When referring to a patient's medical records, diagnoses, labs, imaging, prescriptions, or consultations, ALWAYS use that patient's name from context — e.g. "{PatientName}'s records show …", "{PatientName}'s labs mention …", "{PatientName}'s last consultation …".
+  - When referring to a patient's medical records, diagnoses, labs, imaging, prescriptions, or consultations, ALWAYS use that patient's name from context — e.g. "{{PatientName}}'s records show …", "{{PatientName}}'s labs mention …", "{{PatientName}}'s last consultation …".
   - NEVER say "Your records show …", "your records mention …", or "in your records" when talking about a patient's data — those records belong to the patient, not the doctor.
   - For the doctor's own actions or practice, you may say "You diagnosed …", "In your practice …".
   - If the patient's name is missing from context, use "the patient's records" — never "your records".
