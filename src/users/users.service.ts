@@ -153,6 +153,7 @@ export class UsersService {
       let video_consultation_price: number | null = null;
       let rating_average: number | null = null;
       let rating_total: number | null = null;
+      let country: string | null = null;
 
       if (user.role === UserRole.DOCTOR && doctor) {
         name = doctor.name;
@@ -162,12 +163,14 @@ export class UsersService {
         doctor_id = doctor.id;
         consultation_price = doctor.consultation_price ?? 1;
         video_consultation_price = doctor.video_consultation_price ?? 1;
+        country = doctor.country?.trim().toUpperCase() || 'EG';
         const rating = ratingByDoctorId.get(doctor.id);
         rating_average = rating?.average ?? 0;
         rating_total = rating?.total ?? 0;
       } else if (user.role === UserRole.PATIENT && profile) {
         name = profile.name;
         photo_url = profile.photo_url ?? user.photo_url ?? null;
+        country = profile.country?.trim().toUpperCase() || 'EG';
       }
 
       if (user.role === UserRole.DOCTOR && !name.startsWith('Dr.')) {
@@ -187,6 +190,7 @@ export class UsersService {
           video_consultation_price,
           rating_average,
           rating_total,
+          country,
         },
       ];
     });
@@ -250,6 +254,7 @@ export class UsersService {
     let video_consultation_price: number | null = null;
     let rating_average: number | null = null;
     let rating_total: number | null = null;
+    let country: string | null = null;
 
     if (user.role === UserRole.DOCTOR && doctor) {
       name = doctor.name;
@@ -259,6 +264,7 @@ export class UsersService {
       doctor_id = doctor.id;
       consultation_price = doctor.consultation_price ?? 1;
       video_consultation_price = doctor.video_consultation_price ?? 1;
+      country = doctor.country?.trim().toUpperCase() || 'EG';
       const rating = await this.reviewRepo
         .createQueryBuilder('r')
         .select('COALESCE(AVG(r.rating), 0)', 'avg')
@@ -270,6 +276,7 @@ export class UsersService {
     } else if (user.role === UserRole.PATIENT && profile) {
       name = profile.name;
       photo_url = profile.photo_url ?? user.photo_url ?? null;
+      country = profile.country?.trim().toUpperCase() || 'EG';
     }
 
     if (user.role === UserRole.DOCTOR && !name.startsWith('Dr.')) {
@@ -288,6 +295,7 @@ export class UsersService {
       video_consultation_price,
       rating_average,
       rating_total,
+      country,
     };
   }
 
