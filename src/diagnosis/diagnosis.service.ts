@@ -31,7 +31,10 @@ import { PrescriptionsService } from '../prescriptions/prescriptions.service';
 import { IntakeExamsService } from '../intake-exams/intake-exams.service';
 import type { MedicalAiInsight } from '../common/medical-ai-insight.types';
 
-type DiagnosisWithDocuments = Diagnosis & { documents?: MedicalDocument[] };
+type DiagnosisWithDocuments = Diagnosis & {
+  documents?: MedicalDocument[];
+  prescriptions?: Prescription[];
+};
 
 @Injectable()
 export class DiagnosisService {
@@ -135,9 +138,36 @@ export class DiagnosisService {
     const byDiagnosis = await this.diagnosisDocuments.documentsForDiagnosisIds(
       rows.map((row) => row.id),
     );
+    const prescriptions = await this.prescriptionRepo.find({
+      where: { diagnosis_id: In(rows.map((row) => row.id)) },
+      relations: ['medications'],
+      order: { created_at: 'DESC' },
+    });
+    const doctorIds = [
+      ...new Set(
+        prescriptions.map((rx) => rx.doctor_id).filter((id): id is string => !!id),
+      ),
+    ];
+    const doctors = doctorIds.length
+      ? await this.doctorRepo.find({ where: { id: In(doctorIds) } })
+      : [];
+    const doctorNameById = new Map(doctors.map((d) => [d.id, d.name]));
+    const prescriptionsByDiagnosis = new Map<string, Prescription[]>();
+    for (const rx of prescriptions) {
+      if (!rx.diagnosis_id) continue;
+      const list = prescriptionsByDiagnosis.get(rx.diagnosis_id) ?? [];
+      list.push({
+        ...rx,
+        doctor_name: rx.doctor_id
+          ? doctorNameById.get(rx.doctor_id) ?? null
+          : null,
+      } as Prescription & { doctor_name?: string | null });
+      prescriptionsByDiagnosis.set(rx.diagnosis_id, list);
+    }
     return rows.map((row) => ({
       ...row,
       documents: byDiagnosis.get(row.id) ?? [],
+      prescriptions: prescriptionsByDiagnosis.get(row.id) ?? [],
     }));
   }
 

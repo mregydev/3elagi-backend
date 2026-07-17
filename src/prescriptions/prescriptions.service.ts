@@ -209,6 +209,110 @@ export class PrescriptionsService {
     return this.medicationRepo.save(rows);
   }
 
+  private load3elagiLogoBuffer(): Buffer | null {
+    const logoPath = path.join(process.cwd(), 'assets/images/3elagi-mark.png');
+    try {
+      if (fs.existsSync(logoPath)) return fs.readFileSync(logoPath);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('[prescriptions] load 3elagi logo failed', e);
+    }
+    return null;
+  }
+
+  private async renderAndStorePdf(
+    saved: Prescription,
+    doctor: Doctor,
+    patient: { name: string; phone?: string | null; age?: number | null },
+    clinic: Clinic | null,
+    lang: ApiLocale,
+  ): Promise<string | null> {
+    const signatureBuffer = doctor.digital_signature_url
+      ? await this.uploads.getBufferFromUrl(doctor.digital_signature_url)
+      : null;
+    const logoBuffer = this.load3elagiLogoBuffer();
+    const pseudoPatient = {
+      name: patient.name,
+      phone: patient.phone ?? '',
+      age: patient.age ?? null,
+    } as Patient;
+    const pdfBuffer = await this.renderPdf(
+      saved,
+      doctor,
+      pseudoPatient,
+      clinic,
+      signatureBuffer,
+      logoBuffer,
+      lang,
+    );
+    const upload = await this.uploads.uploadFile({
+      originalname: `prescription-${saved.id}.pdf`,
+      mimetype: 'application/pdf',
+      buffer: pdfBuffer,
+      size: pdfBuffer.length,
+    } as Express.Multer.File);
+    await this.repo.update(saved.id, { pdf_url: upload.url });
+    saved.pdf_url = upload.url;
+    return upload.url;
+  }
+
+  /**
+   * Return existing prescription PDF, or generate one (3elagi logo header +
+   * doctor signature footer when available). Doctor-authored Rxs only.
+   */
+  async getOrGeneratePdfForPatientUser(
+    id: string,
+    userId: string,
+    role: string,
+    opts: { lang?: ApiLocale; regenerate?: boolean } = {},
+  ): Promise<{ pdf_url: string }> {
+    const row = await this.findOneForPatientUser(id, userId, role);
+    if (row.pdf_url && !opts.regenerate) {
+      return { pdf_url: row.pdf_url };
+    }
+    if (!row.doctor_id) {
+      throw new BadRequestException(
+        'PDF is only available for prescriptions issued by a doctor',
+      );
+    }
+    const doctor = await this.doctorRepo.findOne({ where: { id: row.doctor_id } });
+    if (!doctor) throw new NotFoundException('Doctor not found');
+
+    const patientUserId = row.patient_user_id!;
+    const profile = await this.patientProfileRepo.findOne({
+      where: { user_id: patientUserId },
+    });
+    const patientUser =
+      profile != null
+        ? null
+        : await this.userRepo.findOne({ where: { id: patientUserId } });
+    const clinic = row.clinic_id
+      ? await this.clinicRepo.findOne({ where: { id: row.clinic_id } })
+      : null;
+
+    const withMeds =
+      (await this.repo.findOne({
+        where: { id: row.id },
+        relations: ['medications'],
+      })) ?? row;
+
+    const pdf_url = await this.renderAndStorePdf(
+      withMeds,
+      doctor,
+      {
+        name: profile?.name ?? patientUser?.email?.split('@')[0] ?? 'Patient',
+        phone: profile?.phone ?? '',
+        age: null,
+      },
+      clinic,
+      resolveApiLocale(opts.lang),
+    );
+    if (!pdf_url) {
+      throw new BadRequestException('Failed to generate prescription PDF');
+    }
+    return { pdf_url };
+  }
+
   private async attachDoctorNames(rows: Prescription[]): Promise<
     (Prescription & { doctor_name?: string | null })[]
   > {
@@ -603,34 +707,17 @@ export class PrescriptionsService {
         const clinic = saved.clinic_id
           ? await this.clinicRepo.findOne({ where: { id: saved.clinic_id } })
           : null;
-        const signatureBuffer = doctor.digital_signature_url
-          ? await this.uploads.getBufferFromUrl(doctor.digital_signature_url)
-          : null;
-        const logoBuffer = clinic?.logo_url
-          ? await this.uploads.getBufferFromUrl(clinic.logo_url).catch(() => null)
-          : null;
-        const pseudoPatient = {
-          name: patientDisplayName,
-          phone: patientPhone,
-          age: null as number | null,
-        } as Patient;
-        const pdfBuffer = await this.renderPdf(
+        await this.renderAndStorePdf(
           saved,
           doctor,
-          pseudoPatient,
+          {
+            name: patientDisplayName,
+            phone: patientPhone,
+            age: null,
+          },
           clinic,
-          signatureBuffer,
-          logoBuffer,
           resolveApiLocale(dto.lang),
         );
-        const upload = await this.uploads.uploadFile({
-          originalname: `prescription-${saved.id}.pdf`,
-          mimetype: 'application/pdf',
-          buffer: pdfBuffer,
-          size: pdfBuffer.length,
-        } as Express.Multer.File);
-        saved.pdf_url = upload.url;
-        await this.repo.update(saved.id, { pdf_url: upload.url });
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error('[prescriptions] PDF generation failed', err);
@@ -689,29 +776,17 @@ export class PrescriptionsService {
       const clinic = saved.clinic_id
         ? await this.clinicRepo.findOne({ where: { id: saved.clinic_id } })
         : null;
-      const signatureBuffer = doctor.digital_signature_url
-        ? await this.uploads.getBufferFromUrl(doctor.digital_signature_url)
-        : null;
-      const logoBuffer = clinic?.logo_url
-        ? await this.uploads.getBufferFromUrl(clinic.logo_url).catch(() => null)
-        : null;
-      const pdfBuffer = await this.renderPdf(
+      await this.renderAndStorePdf(
         saved,
         doctor,
-        patient,
+        {
+          name: patient.name,
+          phone: patient.phone,
+          age: patient.age,
+        },
         clinic,
-        signatureBuffer,
-        logoBuffer,
         resolveApiLocale(dto.lang),
       );
-      const upload = await this.uploads.uploadFile({
-        originalname: `prescription-${saved.id}.pdf`,
-        mimetype: 'application/pdf',
-        buffer: pdfBuffer,
-        size: pdfBuffer.length,
-      } as Express.Multer.File);
-      saved.pdf_url = upload.url;
-      await this.repo.update(saved.id, { pdf_url: upload.url });
     } catch (err) {
       // PDF gen failure should not break creation; just log
       // eslint-disable-next-line no-console
@@ -816,13 +891,13 @@ export class PrescriptionsService {
         const headerH = 100;
         doc.rect(0, 0, pageWidth, headerH).fill(PRIMARY);
 
-        // Optional clinic logo (right in EN, left in AR — opposite the doctor name)
+        // 3elagi logo (right in EN, left in AR — opposite the doctor name)
         const logoSize = 56;
         const logoY = (headerH - logoSize) / 2;
         const logoX = isAr ? 30 : pageWidth - 30 - logoSize;
         if (logoBuffer) {
           try {
-            // Soft white circle behind logo for visibility
+            // Soft white circle behind logo for visibility on blue header
             doc.save();
             doc.circle(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2 + 2).fill('#ffffff');
             doc.restore();
@@ -835,6 +910,13 @@ export class PrescriptionsService {
             // eslint-disable-next-line no-console
             console.error('[prescriptions] embed logo failed', e);
           }
+        } else {
+          // Fallback wordmark when asset is missing
+          write('3elagi', logoX, logoY + 18, 14, '#ffffff', {
+            width: logoSize + 40,
+            align: isAr ? 'left' : 'right',
+            lineBreak: false,
+          });
         }
 
         // Doctor name + tagline (opposite side from logo)

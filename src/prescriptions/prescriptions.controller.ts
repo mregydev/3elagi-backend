@@ -59,6 +59,20 @@ export class PrescriptionsController {
     return this.service.findOneForPatientUser(id, req.user.id, req.user.role);
   }
 
+  @Get('patient-user/:patientUserId/:id/pdf')
+  @Roles('doctor', 'patient')
+  getPdfForPatientUser(
+    @Param('id') id: string,
+    @Query('lang') lang: string | undefined,
+    @Query('regenerate') regenerate: string | undefined,
+    @Request() req,
+  ) {
+    return this.service.getOrGeneratePdfForPatientUser(id, req.user.id, req.user.role, {
+      lang: resolveApiLocale(lang),
+      regenerate: regenerate === 'true',
+    });
+  }
+
   @Post('patient-user/:patientUserId/:id/generate-insight')
   @Roles('doctor', 'patient')
   generateInsight(
