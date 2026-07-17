@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import * as PDFDocument from 'pdfkit';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -292,10 +292,7 @@ export class MedicalDocumentRequestsService {
     return { doctor, recordsAllowed: row.records_allowed };
   }
 
-  async listForPatientAsDoctor(
-    patientUserId: string,
-    doctorUserId: string,
-  ): Promise<MedicalDocumentRequest[]> {
+  async listForPatientAsDoctor(patientUserId: string, doctorUserId: string) {
     const { doctor, recordsAllowed } = await this.getDoctorReadAccess(
       doctorUserId,
       patientUserId,
@@ -304,7 +301,8 @@ export class MedicalDocumentRequestsService {
       patient_user_id: patientUserId,
     };
     if (!recordsAllowed) where.doctor_id = doctor.id;
-    return this.repo.find({ where, order: { created_at: 'DESC' } });
+    const rows = await this.repo.find({ where, order: { created_at: 'DESC' } });
+    return this.withDoctorNames(rows);
   }
 
   async cancel(id: string, doctorUserId: string): Promise<MedicalDocumentRequest> {
@@ -321,14 +319,53 @@ export class MedicalDocumentRequestsService {
     return this.repo.save(row);
   }
 
-  async listForPatientUser(userId: string): Promise<MedicalDocumentRequest[]> {
-    return this.repo.find({
+  async listForPatientUser(userId: string) {
+    const rows = await this.repo.find({
       where: { patient_user_id: userId },
       order: { created_at: 'DESC' },
     });
+    return this.withDoctorNames(rows);
   }
 
-  async findOneForPatientUser(id: string, userId: string): Promise<MedicalDocumentRequest> {
+  async findOneForPatientUser(id: string, userId: string) {
+    const row = await this.requirePatientRequest(id, userId);
+    const doctor = await this.doctorRepo.findOne({ where: { id: row.doctor_id } });
+    return this.withDoctorName(row, doctor?.name);
+  }
+
+  async findOneForDoctor(id: string, doctorUserId: string) {
+    const row = await this.repo.findOne({ where: { id } });
+    if (!row) throw new NotFoundException('Request not found');
+    const { doctor, recordsAllowed } = await this.getDoctorReadAccess(
+      doctorUserId,
+      row.patient_user_id,
+    );
+    if (row.doctor_id !== doctor.id && !recordsAllowed) {
+      throw new NotFoundException('Request not found');
+    }
+    const owner =
+      row.doctor_id === doctor.id
+        ? doctor
+        : await this.doctorRepo.findOne({ where: { id: row.doctor_id } });
+    return this.withDoctorName(row, owner?.name ?? null);
+  }
+
+  async getOrGeneratePdfForDoctor(
+    id: string,
+    doctorUserId: string,
+    opts: { lang?: ApiLocale; regenerate?: boolean } = {},
+  ): Promise<{ pdf_url: string }> {
+    await this.findOneForDoctor(id, doctorUserId);
+    const entity = await this.repo.findOne({ where: { id } });
+    if (!entity) throw new NotFoundException('Request not found');
+    if (entity.pdf_url && !opts.regenerate) {
+      return { pdf_url: entity.pdf_url };
+    }
+    const pdf_url = await this.generateAndStorePdf(entity, opts.lang ?? 'en');
+    return { pdf_url };
+  }
+
+  private async requirePatientRequest(id: string, userId: string) {
     const row = await this.repo.findOne({ where: { id } });
     if (!row || row.patient_user_id !== userId) {
       throw new NotFoundException('Request not found');
@@ -336,12 +373,27 @@ export class MedicalDocumentRequestsService {
     return row;
   }
 
+  private async withDoctorNames(rows: MedicalDocumentRequest[]) {
+    if (!rows.length) return [];
+    const doctorIds = [...new Set(rows.map((r) => r.doctor_id))];
+    const doctors = await this.doctorRepo.find({ where: { id: In(doctorIds) } });
+    const nameById = new Map(doctors.map((d) => [d.id, d.name]));
+    return rows.map((row) => this.withDoctorName(row, nameById.get(row.doctor_id)));
+  }
+
+  private withDoctorName(row: MedicalDocumentRequest, doctorName?: string | null) {
+    return {
+      ...row,
+      doctor_name: doctorName ?? null,
+    };
+  }
+
   async fulfill(
     id: string,
     userId: string,
     documentId: string,
   ): Promise<MedicalDocumentRequest> {
-    const row = await this.findOneForPatientUser(id, userId);
+    const row = await this.requirePatientRequest(id, userId);
     if (row.status === MedicalDocumentRequestStatus.CANCELLED) {
       throw new BadRequestException('This request was cancelled');
     }
@@ -364,7 +416,7 @@ export class MedicalDocumentRequestsService {
     userId: string,
     opts: { lang?: ApiLocale; regenerate?: boolean } = {},
   ): Promise<{ pdf_url: string }> {
-    const row = await this.findOneForPatientUser(id, userId);
+    const row = await this.requirePatientRequest(id, userId);
     if (row.pdf_url && !opts.regenerate) {
       return { pdf_url: row.pdf_url };
     }
