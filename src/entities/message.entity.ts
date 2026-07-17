@@ -14,6 +14,7 @@ export type MessageType =
   | 'video'
   | 'voice'
   | 'medical_link'
+  | 'document_request'
   | 'access_action'
   | 'appointment_action'
   | 'consultation_action';
@@ -23,6 +24,14 @@ export interface MedicalLinkMeta {
   record_id: string;
   title: string;
   note?: string;
+}
+
+export interface DocumentRequestMeta {
+  request_id: string;
+  request_type: 'lab' | 'xray';
+  title: string;
+  description?: string;
+  status: 'pending' | 'fulfilled' | 'cancelled';
 }
 
 export type AccessActionType =
@@ -82,6 +91,7 @@ export interface ConsultationActionMeta {
 
 export type MessageAttachmentMeta =
   | MedicalLinkMeta
+  | DocumentRequestMeta
   | AccessActionMeta
   | AppointmentActionMeta
   | ConsultationActionMeta;

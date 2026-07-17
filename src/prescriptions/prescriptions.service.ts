@@ -9,7 +9,6 @@ import { Repository, In } from 'typeorm';
 import * as PDFDocument from 'pdfkit';
 import * as path from 'path';
 import * as fs from 'fs';
-import * as QRCode from 'qrcode';
 import { Prescription, PrescriptionItem } from '../entities/prescription.entity';
 import { PrescriptionMedication } from '../entities/prescription-medication.entity';
 import { Doctor } from '../entities/doctor.entity';
@@ -72,7 +71,6 @@ const PDF_LABELS = {
     signature: 'Signature',
     dr: 'Dr.',
     ref: 'Ref',
-    scanToVerify: 'Scan to verify',
   },
   ar: {
     digitalPrescription: 'وصفة طبية',
@@ -87,7 +85,6 @@ const PDF_LABELS = {
     signature: 'التوقيع',
     dr: 'د.',
     ref: 'رقم',
-    scanToVerify: 'امسح للتحقق',
   },
   de: {
     digitalPrescription: 'Digitales Rezept',
@@ -102,7 +99,6 @@ const PDF_LABELS = {
     signature: 'Unterschrift',
     dr: 'Dr.',
     ref: 'Ref',
-    scanToVerify: 'Zum Prüfen scannen',
   },
   es: {
     digitalPrescription: 'Receta digital',
@@ -117,7 +113,6 @@ const PDF_LABELS = {
     signature: 'Firma',
     dr: 'Dr.',
     ref: 'Ref',
-    scanToVerify: 'Escanear para verificar',
   },
 } as const;
 
@@ -806,23 +801,17 @@ export class PrescriptionsService {
     lang: ApiLocale = 'en',
   ): Promise<Buffer> {
     const refNo = buildRefNumber(rx);
-    let qrBuffer: Buffer | null = null;
-    try {
-      const qrPayload = `RX:${rx.id}`;
-      qrBuffer = await QRCode.toBuffer(qrPayload, {
-        margin: 1,
-        scale: 6,
-        color: { dark: '#0f172a', light: '#ffffff' },
-      });
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error('[prescriptions] QR generation failed', e);
-    }
 
     return new Promise((resolve, reject) => {
       try {
+        // margin: 0 so edge-to-edge header/footer never trip PDFKit's
+        // bottom-margin page-break (which was creating trailing blank pages).
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const doc: any = new (PDFDocument as any)({ size: 'A4', margin: 50 });
+        const doc: any = new (PDFDocument as any)({
+          size: 'A4',
+          margin: 0,
+          autoFirstPage: true,
+        });
         const chunks: Buffer[] = [];
         doc.on('data', (c: Buffer) => chunks.push(c));
         doc.on('end', () => resolve(Buffer.concat(chunks)));
@@ -832,7 +821,9 @@ export class PrescriptionsService {
         const L = pdfLabelsFor(lang);
         const isAr = lang === 'ar';
         const pageWidth = doc.page.width;
-        const innerWidth = pageWidth - 100;
+        const pageHeight = doc.page.height;
+        const contentMargin = 50;
+        const innerWidth = pageWidth - contentMargin * 2;
 
         // Always register Arabic font when present so Arabic glyphs render
         // correctly even when the prescription language is English (e.g. an
@@ -1059,40 +1050,38 @@ export class PrescriptionsService {
           });
         }
 
-        // Signature footer (anchored within the last page)
-        const sigY = doc.page.height - 170;
-        doc.moveTo(50, sigY).lineTo(pageWidth - 50, sigY).strokeColor('#e2e8f0').stroke();
-
-        // QR code on the side opposite the signature
-        const qrSize = 70;
-        const qrX = isAr ? pageWidth - 50 - qrSize : 50;
-        const qrTextX = qrX;
-        if (qrBuffer) {
-          try {
-            doc.image(qrBuffer, qrX, sigY + 10, { fit: [qrSize, qrSize] });
-            write(L.scanToVerify, qrTextX, sigY + 10 + qrSize + 2, 7, '#94a3b8', {
-              width: qrSize,
-              align: 'center',
-              lineBreak: false,
-            });
-          } catch (e) {
-            // eslint-disable-next-line no-console
-            console.error('[prescriptions] embed QR failed', e);
-          }
+        // Signature + contact on the content page (never add a page only for footer).
+        const contactParts: string[] = [];
+        if (clinic?.phone) contactParts.push(clinic.phone);
+        if (clinic?.location) contactParts.push(clinic.location);
+        const contactH = contactParts.length ? 36 : 0;
+        const footerBlockH = 96;
+        const pageBottom = pageHeight - contactH - 12;
+        const contentEndY = Math.max(doc.y, y);
+        let sigY = contentEndY + 28;
+        const bottomAnchoredY = pageBottom - footerBlockH;
+        if (contentEndY + 28 + footerBlockH <= pageBottom) {
+          // Short prescription: keep signature near the bottom of this page.
+          sigY = Math.max(sigY, bottomAnchoredY);
+        } else {
+          // Keep signature immediately after content; do not add a blank page.
+          sigY = contentEndY + 20;
         }
+
+        doc.moveTo(50, sigY).lineTo(pageWidth - 50, sigY).strokeColor('#e2e8f0').stroke();
 
         const sigBlockWidth = 180;
         const sigX = isAr ? 50 : pageWidth - 50 - sigBlockWidth;
         const sigAlign: 'right' | 'left' = isAr ? 'right' : 'left';
-        write(L.signature, sigX, sigY + 6, 9, '#64748b', {
+        write(L.signature, sigX, sigY + 8, 9, '#64748b', {
           lineBreak: false,
           width: sigBlockWidth,
           align: sigAlign,
         });
         if (signatureBuffer) {
           try {
-            doc.image(signatureBuffer, sigX, sigY + 18, {
-              fit: [sigBlockWidth, 50],
+            doc.image(signatureBuffer, sigX, sigY + 20, {
+              fit: [sigBlockWidth, 48],
               align: sigAlign,
             });
           } catch (e) {
@@ -1100,19 +1089,15 @@ export class PrescriptionsService {
             console.error('[prescriptions] embed signature failed', e);
           }
         }
-        write(`${L.dr} ${doctor.name}`, sigX, sigY + 72, 11, '#0f172a', {
+        write(`${L.dr} ${doctor.name}`, sigX, sigY + 74, 11, '#0f172a', {
           lineBreak: false,
           width: sigBlockWidth,
           align: sigAlign,
         });
 
-        // Bottom contact strip with clinic phone + location
-        const contactParts: string[] = [];
-        if (clinic?.phone) contactParts.push(clinic.phone);
-        if (clinic?.location) contactParts.push(clinic.location);
         if (contactParts.length) {
-          const stripY = doc.page.height - 36;
-          doc.rect(0, stripY, pageWidth, 36).fill('#f1f5f9');
+          const stripY = pageHeight - contactH;
+          doc.rect(0, stripY, pageWidth, contactH).fill('#f1f5f9');
           const contactStr = contactParts.join('  •  ');
           write(contactStr, 50, stripY + 12, 9, '#475569', {
             width: innerWidth,

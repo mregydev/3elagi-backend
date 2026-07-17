@@ -24,6 +24,7 @@ export class CreateMessageDto {
     'video',
     'voice',
     'medical_link',
+    'document_request',
     'access_action',
     'appointment_action',
   ])

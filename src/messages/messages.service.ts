@@ -132,6 +132,7 @@ export class MessagesService {
     if (type === 'image') return 'Photo';
     if (type === 'video') return 'Video';
     if (type === 'voice') return 'Voice message';
+    if (type === 'document_request') return 'Document request';
     return 'New message';
   }
 

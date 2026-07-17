@@ -19,11 +19,16 @@ import { Doctor } from '../entities/doctor.entity';
 import { Clinic } from '../entities/clinic.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
 import { MedicalDocument } from '../entities/medical-document.entity';
+import {
+  DocumentRequestMeta,
+  Message,
+} from '../entities/message.entity';
 import { resolveApiLocale, type ApiLocale } from '../common/resolve-api-locale';
 import { DoctorPatientAccessService } from '../doctor-patient-access/doctor-patient-access.service';
 import { PatientConsentService } from '../patients/patient-consent.service';
 import { UploadsService } from '../uploads/uploads.service';
 import { MedicalRecordImageAnalyzerService } from '../medical-documents/medical-record-image-analyzer.service';
+import { PresenceGateway } from '../presence/presence.gateway';
 import { CreateMedicalDocumentRequestDto } from './dto/create-medical-document-request.dto';
 import { AiDraftRequestDescriptionDto } from './dto/ai-draft-request-description.dto';
 
@@ -116,10 +121,12 @@ export class MedicalDocumentRequestsService {
     private patientProfileRepo: Repository<PatientProfile>,
     @InjectRepository(MedicalDocument)
     private docRepo: Repository<MedicalDocument>,
+    @InjectRepository(Message) private messageRepo: Repository<Message>,
     private doctorPatientAccessService: DoctorPatientAccessService,
     private patientConsentService: PatientConsentService,
     private uploads: UploadsService,
     private imageAnalyzer: MedicalRecordImageAnalyzerService,
+    private presence: PresenceGateway,
   ) {}
 
   private async getDoctor(userId: string): Promise<Doctor> {
@@ -161,6 +168,58 @@ export class MedicalDocumentRequestsService {
     return lines.slice(0, MAX_CONTEXT_STATEMENTS).join('\n');
   }
 
+  private documentRequestContent(row: MedicalDocumentRequest): string {
+    const kind =
+      row.type === MedicalDocumentRequestType.XRAY
+        ? 'X-ray request'
+        : 'Lab request';
+    return `${kind}: ${row.title}`;
+  }
+
+  /** Post a document_request bubble into the doctor↔patient chat thread. */
+  private async postRequestChatMessage(
+    doctorUserId: string,
+    patientUserId: string,
+    row: MedicalDocumentRequest,
+  ): Promise<void> {
+    const meta: DocumentRequestMeta = {
+      request_id: row.id,
+      request_type: row.type === MedicalDocumentRequestType.XRAY ? 'xray' : 'lab',
+      title: row.title,
+      ...(row.description ? { description: row.description } : {}),
+      status: 'pending',
+    };
+    const created = this.messageRepo.create({
+      type: 'document_request',
+      content: this.documentRequestContent(row),
+      creator: doctorUserId,
+      recipient: patientUserId,
+      attachment_url: null,
+      attachment_meta: meta,
+    });
+    const saved = await this.messageRepo.save(created);
+    const mapped = {
+      id: saved.id,
+      type: saved.type,
+      content: saved.content,
+      creator: saved.creator,
+      recipient: saved.recipient,
+      datetime: saved.datetime,
+      attachment_url: saved.attachment_url,
+      attachment_meta: saved.attachment_meta,
+      read_at: saved.read_at,
+      edited_at: saved.edited_at,
+    };
+    this.presence.emitToUser(patientUserId, 'message:new', {
+      message: mapped,
+      peer_id: doctorUserId,
+    });
+    this.presence.emitToUser(doctorUserId, 'message:new', {
+      message: mapped,
+      peer_id: patientUserId,
+    });
+  }
+
   async createForPatient(
     dto: CreateMedicalDocumentRequestDto,
     doctorUserId: string,
@@ -184,7 +243,18 @@ export class MedicalDocumentRequestsService {
       description: dto.description?.trim() || null,
       status: MedicalDocumentRequestStatus.PENDING,
     });
-    return this.repo.save(row);
+    const saved = await this.repo.save(row);
+
+    // Always mirror into the chat thread so patients see the request where they talk.
+    try {
+      await this.postRequestChatMessage(doctorUserId, patientUserId, saved);
+    } catch (e) {
+      // Request itself succeeded — don't fail create if chat notify fails.
+      // eslint-disable-next-line no-console
+      console.error('[medical-document-requests] chat notify failed', e);
+    }
+
+    return saved;
   }
 
   async draftDescription(
