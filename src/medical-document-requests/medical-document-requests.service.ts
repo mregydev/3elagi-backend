@@ -349,8 +349,10 @@ export class MedicalDocumentRequestsService {
     if (!doc || doc.patient_id !== userId) {
       throw new NotFoundException('Document not found');
     }
-    if (String(doc.type) !== row.type) {
-      throw new BadRequestException(`Document type must match the request type (${row.type})`);
+    if (String(doc.type).toLowerCase() !== String(row.type).toLowerCase()) {
+      throw new BadRequestException(
+        `Document type must match the request type (${row.type})`,
+      );
     }
     row.fulfilled_document_id = doc.id;
     row.status = MedicalDocumentRequestStatus.FULFILLED;
