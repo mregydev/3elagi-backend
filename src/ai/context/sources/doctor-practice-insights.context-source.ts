@@ -216,7 +216,7 @@ export class DoctorPracticeInsightsContextSource implements AIContextSource {
     }
 
     lines.push(
-      '\nUse this data to advise on workload, patient engagement frequency, strengths, areas to improve, and how the doctor compares to peers — always encourage clinical judgment and never prescribe treatments.',
+      '\nUse this data to advise on workload, patient engagement frequency, strengths, areas to improve, and how the doctor compares to peers — always encourage clinical judgment. Medication suggestions are reference only; the doctor must confirm and decide treatment.',
     );
 
     return lines.join('\n');

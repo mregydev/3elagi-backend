@@ -35,6 +35,8 @@ interface UpsertChunkInput {
   doctorId: string | null;
   text: string;
   metadata?: Record<string, unknown>;
+  /** When true, embedding/DB failures throw instead of being swallowed. */
+  throwOnError?: boolean;
 }
 
 @Injectable()
@@ -145,28 +147,51 @@ export class KnowledgeIndexerService implements OnModuleInit {
     metadata?: Record<string, unknown>,
   ): Promise<void> {
     const chunks = this.chunkLongText(text);
+    if (!chunks.length) {
+      throw new Error('No text chunks to index for admin knowledge');
+    }
     await this.deleteAdminKnowledge(sourceId);
 
+    let indexed = 0;
+    let lastError: unknown;
     for (let idx = 0; idx < chunks.length; idx += 1) {
-      await this.upsertChunk({
-        entityType: 'admin_knowledge',
-        entityId: `${sourceId}:${idx + 1}`,
-        patientId: null,
-        doctorId: null,
-        text: chunks[idx],
-        metadata: {
-          scope: PLATFORM_KNOWLEDGE_SCOPE,
-          sourceId,
-          title,
-          chunkIndex: idx + 1,
-          chunkCount: chunks.length,
-          ...(metadata ?? {}),
-        },
-      });
+      try {
+        await this.upsertChunk({
+          entityType: 'admin_knowledge',
+          entityId: `${sourceId}:${idx + 1}`,
+          patientId: null,
+          doctorId: null,
+          text: chunks[idx],
+          metadata: {
+            scope: PLATFORM_KNOWLEDGE_SCOPE,
+            sourceId,
+            title,
+            chunkIndex: idx + 1,
+            chunkCount: chunks.length,
+            ...(metadata ?? {}),
+          },
+          throwOnError: true,
+        });
+        indexed += 1;
+      } catch (err) {
+        lastError = err;
+        this.logger.error(
+          `Failed admin knowledge chunk ${sourceId}:${idx + 1}`,
+          err instanceof Error ? err.stack : String(err),
+        );
+      }
+    }
+
+    if (indexed === 0) {
+      throw new Error(
+        lastError instanceof Error
+          ? `Failed to embed/index admin knowledge: ${lastError.message}`
+          : 'Failed to embed/index admin knowledge',
+      );
     }
 
     this.logger.log(
-      `Indexed admin knowledge ${sourceId} into ${chunks.length} chunk(s)`,
+      `Indexed admin knowledge ${sourceId} into ${indexed}/${chunks.length} chunk(s)`,
     );
     await this.cache.bumpKnowledgeBaseVersion();
   }
@@ -504,9 +529,9 @@ export class KnowledgeIndexerService implements OnModuleInit {
     try {
       const [embedding] = await this.embeddings.embedDocuments([input.text]);
       if (!embedding?.length) {
-        this.logger.error(
-          `Skipping ${input.entityType}:${input.entityId} — empty embedding`,
-        );
+        const message = `Empty embedding for ${input.entityType}:${input.entityId}`;
+        this.logger.error(message);
+        if (input.throwOnError) throw new Error(message);
         return;
       }
       const vectorLiteral = `[${embedding.join(',')}]`;
@@ -539,6 +564,7 @@ export class KnowledgeIndexerService implements OnModuleInit {
         `Failed to index ${input.entityType}:${input.entityId}`,
         err instanceof Error ? err.stack : String(err),
       );
+      if (input.throwOnError) throw err;
     }
   }
 }

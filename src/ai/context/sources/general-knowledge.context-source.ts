@@ -23,10 +23,10 @@ export class GeneralKnowledgeContextSource implements AIContextSource {
     return `[General Medical Knowledge]
 You may use your general medical education to answer health education questions.
 Always append: "This is general medical information and not a diagnosis."
-Never diagnose with certainty. Never prescribe medication or dosages.`;
+Never diagnose with certainty. You may suggest medications and typical dosages when asked, but always say a licensed doctor must confirm before use or any dose change.`;
   }
 
   async getVersionKey(): Promise<string> {
-    return 'general:v1';
+    return 'general:v2';
   }
 }

@@ -103,9 +103,10 @@ export class VectorSearchService {
       WHERE metadata->>'scope' = $1
       ORDER BY
         CASE entity_type
-          WHEN 'doctor_directory' THEN 0
-          WHEN 'speciality_catalog' THEN 1
-          ELSE 2
+          WHEN 'admin_knowledge' THEN 0
+          WHEN 'doctor_directory' THEN 1
+          WHEN 'speciality_catalog' THEN 2
+          ELSE 3
         END,
         updated_at DESC
       LIMIT $2

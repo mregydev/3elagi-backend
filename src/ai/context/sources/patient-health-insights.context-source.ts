@@ -157,7 +157,7 @@ export class PatientHealthInsightsContextSource implements AIContextSource {
     }
     if (payload.currentMedications.length) {
       lines.push(
-        `Medications from saved prescriptions (for context only — do not prescribe or change doses): ${payload.currentMedications.join('; ')}`,
+        `Medications from saved prescriptions (for context — consider interactions when suggesting options): ${payload.currentMedications.join('; ')}`,
       );
     }
     if (payload.symptomTerms.length) {
@@ -177,7 +177,7 @@ export class PatientHealthInsightsContextSource implements AIContextSource {
     }
 
     lines.push(
-      'Use these patterns — including diagnoses, symptoms, lab/imaging themes, and prescription medications — to suggest things to avoid, healthy habits, and suitable foods. Never prescribe or change medications; remind the patient to confirm with their doctor.',
+      'Use these patterns — including diagnoses, symptoms, lab/imaging themes, and prescription medications — to suggest things to avoid, healthy habits, suitable foods, and (when relevant) possible medications. Medication suggestions are educational only and must always be confirmed by a licensed doctor before use or any dose change.',
     );
 
     return lines.join('\n');

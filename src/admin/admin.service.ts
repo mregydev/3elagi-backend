@@ -282,10 +282,24 @@ export class AdminService {
         created_by: actorUserId,
       }),
     );
-    await this.knowledgeIndexer.indexAdminKnowledge(source.id, source.title, source.content, {
-      kind: source.kind,
-      title: source.title,
-    });
+    try {
+      await this.knowledgeIndexer.indexAdminKnowledge(
+        source.id,
+        source.title,
+        source.content,
+        {
+          kind: source.kind,
+          title: source.title,
+        },
+      );
+    } catch (err) {
+      await this.ragSourceRepo.delete(source.id);
+      throw new BadRequestException(
+        err instanceof Error
+          ? err.message
+          : 'Failed to train AI on this text. Check embeddings configuration.',
+      );
+    }
     return this.mapRagSource(source);
   }
 
@@ -357,12 +371,26 @@ export class AdminService {
       }),
     );
 
-    await this.knowledgeIndexer.indexAdminKnowledge(source.id, source.title, source.content, {
-      kind: source.kind,
-      title: source.title,
-      fileName: source.file_name,
-      mimeType: source.mime_type,
-    });
+    try {
+      await this.knowledgeIndexer.indexAdminKnowledge(
+        source.id,
+        source.title,
+        source.content,
+        {
+          kind: source.kind,
+          title: source.title,
+          fileName: source.file_name,
+          mimeType: source.mime_type,
+        },
+      );
+    } catch (err) {
+      await this.ragSourceRepo.delete(source.id);
+      throw new BadRequestException(
+        err instanceof Error
+          ? err.message
+          : 'Failed to train AI on this document. Check embeddings configuration.',
+      );
+    }
     return this.mapRagSource(source);
   }
 

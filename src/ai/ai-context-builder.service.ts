@@ -11,7 +11,7 @@ import type {
   AiContextUser,
 } from './context/ai-context.types';
 
-export const AI_PROMPT_VERSION = 'v10';
+export const AI_PROMPT_VERSION = 'v11';
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -74,14 +74,16 @@ export class AiContextBuilderService {
     }
 
     let chunks: RetrievedChunk[] = [];
+    // Include general_medical_question so admin-trained platform knowledge can surface.
     if (
       !shouldSkipRetrieval(question) &&
-      (      intent === 'medical_record_question' ||
+      (intent === 'medical_record_question' ||
         intent === 'doctor_practice_question' ||
         intent === 'health_recommendation_question' ||
         intent === 'doctor_coaching_question' ||
         intent === 'mixed_question' ||
-        intent === 'doctor_recommendation_question')
+        intent === 'doctor_recommendation_question' ||
+        intent === 'general_medical_question')
     ) {
       const search = await this.vectorSearch.search(question, {
         userId: user.id,
@@ -92,8 +94,11 @@ export class AiContextBuilderService {
       chunks = search.chunks;
       this.collectLinksFromChunks(chunks, links);
       if (chunks.length) {
+        const hasAdmin = chunks.some((c) => c.entityType === 'admin_knowledge');
         sections.push(
-          '[Vector search — authorized records]\n' +
+          (hasAdmin
+            ? '[Vector search — authorized records and platform knowledge]\n'
+            : '[Vector search — authorized records]\n') +
             chunks
               .map((c, i) => {
                 const link = this.linkPathForChunk(c);

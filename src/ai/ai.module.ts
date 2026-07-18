@@ -34,6 +34,7 @@ import { DoctorPatientsContextSource } from './context/sources/doctor-patients.c
 import { DoctorPracticeInsightsContextSource } from './context/sources/doctor-practice-insights.context-source';
 import { DoctorProfileContextSource } from './context/sources/doctor-profile.context-source';
 import { DoctorsContextSource } from './context/sources/doctors.context-source';
+import { AdminKnowledgeContextSource } from './context/sources/admin-knowledge.context-source';
 import { GeneralKnowledgeContextSource } from './context/sources/general-knowledge.context-source';
 import { AppointmentsContextSource } from './context/sources/appointments.context-source';
 import { ConsultationsContextSource } from './context/sources/consultations.context-source';
@@ -92,6 +93,7 @@ import { UploadsModule } from '../uploads/uploads.module';
     PatientHealthInsightsContextSource,
     MedicalRecordsContextSource,
     DoctorsContextSource,
+    AdminKnowledgeContextSource,
     GeneralKnowledgeContextSource,
     AppointmentsContextSource,
     ConsultationsContextSource,

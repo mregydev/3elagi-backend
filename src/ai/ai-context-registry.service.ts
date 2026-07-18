@@ -10,6 +10,7 @@ import { PatientHealthInsightsContextSource } from './context/sources/patient-he
 import { PatientProfileContextSource } from './context/sources/patient-profile.context-source';
 import { AppointmentsContextSource } from './context/sources/appointments.context-source';
 import { ConsultationsContextSource } from './context/sources/consultations.context-source';
+import { AdminKnowledgeContextSource } from './context/sources/admin-knowledge.context-source';
 
 /** Register context sources here — core AI logic stays unchanged when adding entities. */
 @Injectable()
@@ -24,6 +25,7 @@ export class AiContextRegistryService implements OnModuleInit {
     patientHealthInsights: PatientHealthInsightsContextSource,
     medicalRecords: MedicalRecordsContextSource,
     doctors: DoctorsContextSource,
+    adminKnowledge: AdminKnowledgeContextSource,
     generalKnowledge: GeneralKnowledgeContextSource,
     appointments: AppointmentsContextSource,
     consultations: ConsultationsContextSource,
@@ -36,6 +38,7 @@ export class AiContextRegistryService implements OnModuleInit {
       patientHealthInsights,
       medicalRecords,
       doctors,
+      adminKnowledge,
       generalKnowledge,
       appointments,
       consultations,
