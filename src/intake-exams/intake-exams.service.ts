@@ -381,14 +381,23 @@ export class IntakeExamsService {
       instance.status = 'completed';
       instance.completed_at = new Date();
     } else {
+      // Draft / partial save: update THIS instance only — never spawn another.
       instance.status = Object.keys(cleaned).length ? 'in_progress' : 'pending';
       instance.completed_at = null;
     }
 
     const saved = await this.instanceRepo.save(instance);
 
-    if (requireAll && assignment.is_active && assignment.recurrence_type !== 'none') {
-      await this.ensureNextInstance(assignment);
+    if (requireAll) {
+      if (assignment.recurrence_type === 'none') {
+        // One-shot assignment: close it so nothing creates another instance later.
+        if (assignment.is_active) {
+          assignment.is_active = false;
+          await this.assignmentRepo.save(assignment);
+        }
+      } else if (assignment.is_active) {
+        await this.ensureNextInstance(assignment);
+      }
     }
 
     const doctorName = await this.doctorNameFor(saved.doctor_id);
@@ -454,19 +463,23 @@ export class IntakeExamsService {
       return null;
     }
 
-    const last = await this.instanceRepo.findOne({
-      where: { assignment_id: assignment.id },
-      order: { instance_number: 'DESC' },
-    });
-    if (!last) return null;
-
-    const pending = await this.instanceRepo.findOne({
+    // Never create a follow-up while any open instance still exists.
+    const open = await this.instanceRepo.findOne({
       where: {
         assignment_id: assignment.id,
         status: Not('completed'),
       },
     });
-    if (pending && pending.id !== last.id) return null;
+    if (open) return null;
+
+    const lastCompleted = await this.instanceRepo.findOne({
+      where: {
+        assignment_id: assignment.id,
+        status: 'completed',
+      },
+      order: { instance_number: 'DESC' },
+    });
+    if (!lastCompleted) return null;
 
     const test = await this.testRepo.findOne({
       where: { id: assignment.intake_test_id },
@@ -474,7 +487,7 @@ export class IntakeExamsService {
     if (!test) return null;
 
     const nextDeadline = addRecurrence(
-      last.deadline_at,
+      lastCompleted.deadline_at,
       assignment.recurrence_type,
       assignment.recurrence_interval,
     );
@@ -483,7 +496,7 @@ export class IntakeExamsService {
       assignment,
       test,
       nextDeadline,
-      last.instance_number + 1,
+      lastCompleted.instance_number + 1,
     );
   }
 
