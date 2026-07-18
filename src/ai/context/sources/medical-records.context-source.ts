@@ -4,7 +4,10 @@ import { In, Repository } from 'typeorm';
 import { Diagnosis } from '../../../entities/diagnosis.entity';
 import { DoctorPatientAccess } from '../../../entities/doctor-patient-access.entity';
 import { Doctor } from '../../../entities/doctor.entity';
-import { MedicalDocument } from '../../../entities/medical-document.entity';
+import {
+  DocumentType,
+  MedicalDocument,
+} from '../../../entities/medical-document.entity';
 import { PatientProfile } from '../../../entities/patient-profile.entity';
 import { Prescription } from '../../../entities/prescription.entity';
 import { Symptom } from '../../../entities/symptom.entity';
@@ -164,7 +167,9 @@ export class MedicalRecordsContextSource implements AIContextSource {
           sections.push(`Patient: ${row.patientName}`);
         }
         sections.push(buildDiagnosisText(row.diagnosis, row.symptoms));
-        sections.push(`Link: /medical/${row.diagnosis.id} | ${row.diagnosis.desc}`);
+        sections.push(
+          `Link: /medical/${row.diagnosis.id} | ${row.diagnosis.desc} | recordType=diagnosis`,
+        );
       }
     } else {
       sections.push('[Diagnoses]\nNo diagnoses recorded.');
@@ -180,7 +185,17 @@ export class MedicalRecordsContextSource implements AIContextSource {
           buildMedicalDocumentText(row.document, documentTypeLabel(row.document.type)),
         );
         const title = row.document.title?.trim() || row.document.file_name || 'Medical document';
-        sections.push(`Link: /medical/${row.document.id} | ${title}`);
+        const recordType =
+          row.document.type === DocumentType.LAB
+            ? 'lab'
+            : row.document.type === DocumentType.XRAY
+              ? 'xray'
+              : null;
+        sections.push(
+          recordType
+            ? `Link: /medical/${row.document.id} | ${title} | recordType=${recordType}`
+            : `Link: /medical/${row.document.id} | ${title}`,
+        );
       }
     } else {
       sections.push('\n[Medical Documents]\nNo lab results or imaging reports recorded.');
