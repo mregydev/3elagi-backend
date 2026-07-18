@@ -17,7 +17,7 @@ const MEDICAL =
 const HEALTH_RECOMMENDATION =
   /\b(recommend|advice|advise|tips?|habits?|healthy food|foods? to (eat|avoid)|things to avoid|lifestyle|wellness|what should i (eat|avoid|do)|prevent|prevention|نصيحة|نصائح|عادات|طعام|أكل|تجنب|توصية|توصيات|نصحني|ماذا (آكل|أتجنب|أفعل))\b/i;
 const DOCTOR =
-  /\b(doctor|dr\.|specialist|neurolog|cardiolog|dermatolog|pediatr|psychiatr|recommend|best rated|highest rating|rating|review|which doctor|see a doctor|message price|pts\/message|book|booking|appointment|reserve|schedule|طبيب|دكتور|أخصائي|احجز|حجز|موعد|ميعاد)\b/i;
+  /\b(doctor|dr\.|specialist|neurolog|cardiolog|dermatolog|pediatr|psychiatr|recommend|best rated|highest rating|rating|review|which doctor|see a doctor|message price|pts\/message|book|booking|appointment|reserve|schedule|consult|consultation|start (a )?consult|chat (with|to) (a )?doctor|talk to (a )?doctor|طبيب|دكتور|أخصائي|احجز|حجز|موعد|ميعاد|استشار|استشارة|بدء استشارة|كلم (ال)?دكتور)\b/i;
 const GENERAL =
   /\b(what is|what are|what causes|how to prevent|how to treat|define|explain|tell me about|foods that|benefits of|symptoms of|ما هو|ما هي|اشرح|علاج|أعراض)\b/i;
 
