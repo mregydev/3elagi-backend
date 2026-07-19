@@ -265,12 +265,11 @@ export class IntakeExamsService {
         viewerUserId,
         patientUserId,
       );
-      // Doctors only see submitted (completed) exams — not pending / in-progress drafts.
+      // Assigning doctor can see all of their instances (pending / in progress / completed).
       const instances = await this.instanceRepo.find({
         where: {
           patient_user_id: patientUserId,
           doctor_id: doctor.id,
-          status: 'completed',
         },
         order: { deadline_at: 'DESC' },
       });
@@ -340,11 +339,7 @@ export class IntakeExamsService {
         viewerUserId,
         instance.patient_user_id,
       );
-      if (instance.status !== 'completed') {
-        throw new ForbiddenException(
-          'Only completed intake exams are visible to doctors',
-        );
-      }
+      // Allow opening shared/pending exams the doctor assigned (not only completed).
     } else if (viewerUserId !== instance.patient_user_id) {
       throw new ForbiddenException('You can only access your own intake exams');
     }
