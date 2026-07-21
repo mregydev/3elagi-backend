@@ -26,12 +26,21 @@ export const PATIENT_COUNTRY_CODES = [
 
 export type PatientCountryCode = (typeof PATIENT_COUNTRY_CODES)[number];
 
-export const DEFAULT_PATIENT_COUNTRY: PatientCountryCode = 'EG';
+/** Live markets for signup, browse, and currency (Egypt & Jordan). */
+export const MARKET_COUNTRY_CODES = ['EG', 'JO'] as const;
+export type MarketCountryCode = (typeof MARKET_COUNTRY_CODES)[number];
+
+export const DEFAULT_PATIENT_COUNTRY: MarketCountryCode = 'EG';
 
 const COUNTRY_SET = new Set<string>(PATIENT_COUNTRY_CODES);
+const MARKET_SET = new Set<string>(MARKET_COUNTRY_CODES);
 
 export function isPatientCountryCode(value: string): value is PatientCountryCode {
   return COUNTRY_SET.has(value.trim().toUpperCase());
+}
+
+export function isMarketCountryCode(value: string): value is MarketCountryCode {
+  return MARKET_SET.has(value.trim().toUpperCase());
 }
 
 /** Normalize free-text / DTO country to a supported code; default Egypt. */
@@ -41,6 +50,15 @@ export function normalizePatientCountry(
   if (!value?.trim()) return DEFAULT_PATIENT_COUNTRY;
   const code = value.trim().toUpperCase();
   return isPatientCountryCode(code) ? code : DEFAULT_PATIENT_COUNTRY;
+}
+
+/** Clamp to a live market (EG | JO); default Egypt. */
+export function normalizeMarketCountry(
+  value?: string | null,
+): MarketCountryCode {
+  if (!value?.trim()) return DEFAULT_PATIENT_COUNTRY;
+  const code = value.trim().toUpperCase();
+  return isMarketCountryCode(code) ? code : DEFAULT_PATIENT_COUNTRY;
 }
 
 export const PATIENT_COUNTRY_LABELS: Record<

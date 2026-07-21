@@ -18,9 +18,20 @@ export class PaymentIntention {
   @Column()
   user_id: string;
 
-  /** EGP credits to grant on success (1 EGP = 1 credit). */
+  /**
+   * Credits to grant on success.
+   * Cash charged is `amount_money` in `currency` (see market pricing).
+   */
   @Column({ type: 'int' })
   amount_egp: number;
+
+  /** ISO currency charged via Paymob (EGP | JOD). */
+  @Column({ type: 'varchar', length: 3, default: 'EGP' })
+  currency: string;
+
+  /** Major-unit cash amount charged (e.g. 100 EGP or 5 JOD). */
+  @Column({ type: 'int' })
+  amount_money: number;
 
   @Index({ unique: true })
   @Column()

@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { MarketCurrency } from '../points/market-pricing.constants';
 
 export interface PaymobCheckoutCustomer {
   email: string;
@@ -9,7 +10,12 @@ export interface PaymobCheckoutCustomer {
 }
 
 export interface CreatePaymobIntentionInput {
-  amountEgp: number;
+  /** Cash amount in major units (EGP or JOD). */
+  amountMoney: number;
+  currency: MarketCurrency;
+  billingCountry: string;
+  billingCity: string;
+  points: number;
   specialReference: string;
   notificationUrl: string;
   redirectionUrl: string;
@@ -69,17 +75,24 @@ export class PaymobService {
   }
 
   /**
-   * Card (VPC/online) integration ID for Intention API.
-   * Prefer PAYMOB_CARD_INTEGRATION_ID. If PAYMOB_PAYMENT_METHODS is a comma list,
-   * the first numeric ID is used. UIG IDs alone are rejected by Intention API —
-   * use the sibling VPC/online integration instead.
+   * Card integration ID for Intention API.
+   * Jordan can use PAYMOB_CARD_INTEGRATION_ID_JO when the merchant has a
+   * separate JOD integration; otherwise the default EG integration is used.
    */
-  private cardIntegrationId(): number {
-    const raw = this.readEnv(
-      'PAYMOB_CARD_INTEGRATION_ID',
-      'PAYMOB_INTEGRATION_ID',
-      'PAYMOB_PAYMENT_METHODS',
-    );
+  private cardIntegrationId(currency: MarketCurrency): number {
+    const raw =
+      currency === 'JOD'
+        ? this.readEnv(
+            'PAYMOB_CARD_INTEGRATION_ID_JO',
+            'PAYMOB_CARD_INTEGRATION_ID',
+            'PAYMOB_INTEGRATION_ID',
+            'PAYMOB_PAYMENT_METHODS',
+          )
+        : this.readEnv(
+            'PAYMOB_CARD_INTEGRATION_ID',
+            'PAYMOB_INTEGRATION_ID',
+            'PAYMOB_PAYMENT_METHODS',
+          );
     const id = Number(raw?.split(',')[0]?.trim());
     if (!raw || !Number.isFinite(id) || id < 1) {
       throw new BadRequestException(
@@ -118,6 +131,8 @@ export class PaymobService {
         'PAYMOB_CARD_INTEGRATION_ID',
         'PAYMOB_INTEGRATION_ID',
       ) || 'MISSING',
+      integration_id_jo:
+        this.readEnv('PAYMOB_CARD_INTEGRATION_ID_JO') || 'same as default',
       public_key: mask(this.readEnv('PAYMENT_PUBLIC_KEY', 'PAYMOB_PUBLIC_KEY')),
       secret_key: mask(
         this.readEnv('PAYMENT_SECRET_KEY', 'PAYMOB_SECRET_KEY', 'PAYMENT_SECRENT_KEY'),
@@ -129,22 +144,27 @@ export class PaymobService {
   async createCardIntention(
     input: CreatePaymobIntentionInput,
   ): Promise<PaymobIntentionResult> {
-    const amountCents = Math.round(input.amountEgp * 100);
+    // EGP (piastres) and JOD (fils) both use 2 decimal minor units.
+    const amountCents = Math.round(input.amountMoney * 100);
     if (amountCents < 100) {
-      throw new BadRequestException('Minimum payment is 1 EGP');
+      throw new BadRequestException(
+        `Minimum payment is 1 ${input.currency}`,
+      );
     }
 
-    const integrationId = this.cardIntegrationId();
-    const phone = input.customer.phone?.trim() || '+201000000000';
+    const integrationId = this.cardIntegrationId(input.currency);
+    const defaultPhone =
+      input.billingCountry === 'JO' ? '+962700000000' : '+201000000000';
+    const phone = input.customer.phone?.trim() || defaultPhone;
     const body = {
       amount: amountCents,
-      currency: 'EGP',
+      currency: input.currency,
       payment_methods: [integrationId],
       items: [
         {
           name: 'Message credits',
           amount: amountCents,
-          description: `${input.amountEgp} EGP message credits`,
+          description: `${input.points} credits (${input.amountMoney} ${input.currency})`,
           quantity: 1,
         },
       ],
@@ -155,8 +175,8 @@ export class PaymobService {
         building: 'NA',
         shipping_method: 'NA',
         postal_code: 'NA',
-        city: 'Cairo',
-        country: 'EG',
+        city: input.billingCity,
+        country: input.billingCountry,
         state: 'NA',
         first_name: input.customer.firstName,
         last_name: input.customer.lastName,
@@ -196,7 +216,7 @@ export class PaymobService {
         data.message ||
         `Paymob intention failed (${res.status})`;
       this.logger.warn(
-        `Paymob intention error (integration=${integrationId}): ${msg}`,
+        `Paymob intention error (integration=${integrationId}, currency=${input.currency}): ${msg}`,
       );
       throw new BadRequestException(msg);
     }

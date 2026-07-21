@@ -8,9 +8,14 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { Repository } from 'typeorm';
+import { Doctor } from '../entities/doctor.entity';
 import { PaymentIntention } from '../entities/payment-intention.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
-import { User } from '../entities/user.entity';
+import { User, UserRole } from '../entities/user.entity';
+import {
+  moneyForPoints,
+  resolveMarketPricing,
+} from '../points/market-pricing.constants';
 import { PointsService } from '../points/points.service';
 import { validatePaymobTransactionHmac } from './paymob-hmac.util';
 import { PaymobService } from './paymob.service';
@@ -29,6 +34,8 @@ export class PaymentsService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(PatientProfile)
     private readonly patientProfileRepo: Repository<PatientProfile>,
+    @InjectRepository(Doctor)
+    private readonly doctorRepo: Repository<Doctor>,
   ) {}
 
   private apiPublicBase(): string {
@@ -76,24 +83,56 @@ export class PaymentsService {
     return this.paymob.debugConfig();
   }
 
-  async createCardCheckout(userId: string, amountEgp: number) {
+  private async resolvePayerCountry(user: User): Promise<string> {
+    if (user.role === UserRole.DOCTOR) {
+      const doctor = await this.doctorRepo.findOne({
+        where: { user_id: user.id },
+      });
+      return doctor?.country ?? 'EG';
+    }
+    const profile = await this.patientProfileRepo.findOne({
+      where: { user_id: user.id },
+    });
+    return profile?.country ?? 'EG';
+  }
+
+  /**
+   * @param points Number of credits to purchase (not cash).
+   * Cash = points × market price (EG 100 EGP, JO 5 JOD).
+   */
+  async createCardCheckout(userId: string, points: number) {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
-    if (!Number.isFinite(amountEgp) || amountEgp < 1) {
-      throw new BadRequestException('Minimum payment is 1 EGP');
+    if (!Number.isFinite(points) || points < 1) {
+      throw new BadRequestException('Minimum purchase is 1 point');
     }
 
     const profile = await this.patientProfileRepo.findOne({
       where: { user_id: userId },
     });
-    const displayName = profile?.name?.trim() || user.email.split('@')[0];
+    const doctor =
+      user.role === UserRole.DOCTOR
+        ? await this.doctorRepo.findOne({ where: { user_id: userId } })
+        : null;
+
+    const country = await this.resolvePayerCountry(user);
+    const pricing = resolveMarketPricing(country);
+    const amountMoney = moneyForPoints(points, country);
+
+    const displayName =
+      profile?.name?.trim() ||
+      doctor?.name?.trim() ||
+      user.email.split('@')[0];
     const { firstName, lastName } = this.splitName(displayName);
+    const phone = profile?.phone ?? doctor?.phone ?? undefined;
 
     const specialReference = `credits-${userId.slice(0, 8)}-${randomUUID()}`;
     const intention = await this.intentionRepo.save(
       this.intentionRepo.create({
         user_id: userId,
-        amount_egp: amountEgp,
+        amount_egp: points,
+        amount_money: amountMoney,
+        currency: pricing.currency,
         special_reference: specialReference,
         status: 'pending',
       }),
@@ -101,7 +140,11 @@ export class PaymentsService {
 
     const { notificationUrl, redirectionUrl } = this.paymobCallbackUrls();
     const paymob = await this.paymob.createCardIntention({
-      amountEgp,
+      amountMoney,
+      currency: pricing.currency,
+      billingCountry: pricing.billingCountry,
+      billingCity: pricing.billingCity,
+      points,
       specialReference,
       notificationUrl,
       redirectionUrl,
@@ -109,7 +152,7 @@ export class PaymentsService {
         email: user.email,
         firstName,
         lastName,
-        phone: profile?.phone,
+        phone,
       },
     });
 
@@ -118,6 +161,11 @@ export class PaymentsService {
       special_reference: specialReference,
       checkout_url: paymob.checkoutUrl,
       client_secret: paymob.clientSecret,
+      points,
+      amount_money: amountMoney,
+      currency: pricing.currency,
+      price_per_point: pricing.pricePerPoint,
+      market: pricing.market,
     };
   }
 
@@ -183,19 +231,21 @@ export class PaymentsService {
       return;
     }
 
+    const chargedMoney = intention.amount_money ?? intention.amount_egp;
     const amountCents = Number(obj.amount_cents);
-    const expectedCents = intention.amount_egp * 100;
+    const expectedCents = chargedMoney * 100;
     if (
       Number.isFinite(amountCents) &&
       amountCents > 0 &&
       amountCents !== expectedCents
     ) {
       this.logger.error(
-        `Paymob amount mismatch for ${reference}: got ${amountCents}, expected ${expectedCents}`,
+        `Paymob amount mismatch for ${reference}: got ${amountCents}, expected ${expectedCents} (${chargedMoney} ${intention.currency ?? 'EGP'})`,
       );
       throw new BadRequestException('Amount mismatch');
     }
 
+    // amount_egp stores credits to grant (not cash).
     await this.points.addPoints(intention.user_id, intention.amount_egp);
     intention.status = 'paid';
     intention.paymob_transaction_id = String(obj.id ?? '');

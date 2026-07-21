@@ -3,6 +3,7 @@ import {
   Get,
   NotFoundException,
   Param,
+  Query,
   Res,
 } from '@nestjs/common';
 import { Response } from 'express';
@@ -44,7 +45,10 @@ export class SpecialitiesController {
 
   @Get(':id/doctors')
   @Public()
-  findDoctors(@Param('id') id: string) {
-    return this.service.findDoctorsBySpeciality(id);
+  findDoctors(
+    @Param('id') id: string,
+    @Query('country') country?: string,
+  ) {
+    return this.service.findDoctorsBySpeciality(id, country);
   }
 }

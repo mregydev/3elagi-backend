@@ -33,7 +33,7 @@ export class SpecialitiesService {
     }));
   }
 
-  async findDoctorsBySpeciality(specialityId: string) {
+  async findDoctorsBySpeciality(specialityId: string, country?: string) {
     const requestedSpec = await this.specialityRepo.findOne({
       where: { id: specialityId },
     });
@@ -41,16 +41,24 @@ export class SpecialitiesService {
       throw new NotFoundException('Speciality not found');
     }
 
-    const doctors = await this.doctorRepo
+    const qb = this.doctorRepo
       .createQueryBuilder('d')
       .leftJoinAndSelect('d.speciality', 'speciality')
       .where('d.approval_status = :approved', { approved: 'approved' })
       .andWhere(
         '(d.speciality_id = :specialityId OR EXISTS (SELECT 1 FROM doctor_speciality_links dsl WHERE dsl.doctor_id = d.id AND dsl.speciality_id = :specialityId))',
         { specialityId },
-      )
-      .orderBy('d.name', 'ASC')
-      .getMany();
+      );
+
+    const market = country?.trim().toUpperCase();
+    if (market === 'EG' || market === 'JO') {
+      qb.andWhere('UPPER(COALESCE(d.country, :defaultCountry)) = :market', {
+        market,
+        defaultCountry: 'EG',
+      });
+    }
+
+    const doctors = await qb.orderBy('d.name', 'ASC').getMany();
 
     if (doctors.length === 0) return [];
 

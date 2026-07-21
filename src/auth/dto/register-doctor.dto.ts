@@ -10,7 +10,7 @@ import {
   IsIn,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
-import { PATIENT_COUNTRY_CODES } from '../../common/patient-countries';
+import { MARKET_COUNTRY_CODES } from '../../common/patient-countries';
 
 export class RegisterDoctorDto {
   @IsEmail()
@@ -35,8 +35,8 @@ export class RegisterDoctorDto {
     typeof value === 'string' ? value.trim().toUpperCase() : value,
   )
   @IsString()
-  @IsIn([...PATIENT_COUNTRY_CODES], {
-    message: `country must be one of: ${PATIENT_COUNTRY_CODES.join(', ')}`,
+  @IsIn([...MARKET_COUNTRY_CODES], {
+    message: `country must be one of: ${MARKET_COUNTRY_CODES.join(', ')}`,
   })
   country: string;
 

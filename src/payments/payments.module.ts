@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { Doctor } from '../entities/doctor.entity';
 import { PaymentIntention } from '../entities/payment-intention.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
 import { User } from '../entities/user.entity';
@@ -11,7 +12,7 @@ import { PaymentsService } from './payments.service';
 @Module({
   imports: [
     PointsModule,
-    TypeOrmModule.forFeature([PaymentIntention, User, PatientProfile]),
+    TypeOrmModule.forFeature([PaymentIntention, User, PatientProfile, Doctor]),
   ],
   controllers: [PaymentsController],
   providers: [PaymentsService, PaymobService],
