@@ -25,11 +25,11 @@ export class PaymentIntention {
   @Column({ type: 'int' })
   amount_egp: number;
 
-  /** ISO currency charged via Paymob (EGP | JOD). */
+  /** ISO currency charged via Paymob (always EGP after JOD conversion). */
   @Column({ type: 'varchar', length: 3, default: 'EGP' })
   currency: string;
 
-  /** Major-unit cash amount charged (e.g. 100 EGP or 5 JOD). */
+  /** Major-unit cash amount charged on Paymob (EGP). */
   @Column({ type: 'int' })
   amount_money: number;
 

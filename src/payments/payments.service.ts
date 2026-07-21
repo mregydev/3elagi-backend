@@ -13,7 +13,9 @@ import { PaymentIntention } from '../entities/payment-intention.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
 import { User, UserRole } from '../entities/user.entity';
 import {
+  DEFAULT_JOD_TO_EGP_RATE,
   moneyForPoints,
+  paymobChargeForMarket,
   resolveMarketPricing,
 } from '../points/market-pricing.constants';
 import { PointsService } from '../points/points.service';
@@ -80,7 +82,18 @@ export class PaymentsService {
   }
 
   paymentConfigCheck(): Record<string, unknown> {
-    return this.paymob.debugConfig();
+    return {
+      ...this.paymob.debugConfig(),
+      jod_to_egp_rate: this.jodToEgpRate(),
+    };
+  }
+
+  private jodToEgpRate(): number {
+    const raw = this.config.get<string>('JOD_TO_EGP_RATE')?.trim();
+    const parsed = raw ? Number(raw) : NaN;
+    return Number.isFinite(parsed) && parsed > 0
+      ? parsed
+      : DEFAULT_JOD_TO_EGP_RATE;
   }
 
   private async resolvePayerCountry(user: User): Promise<string> {
@@ -98,7 +111,8 @@ export class PaymentsService {
 
   /**
    * @param points Number of credits to purchase (not cash).
-   * Cash = points × market price (EG 100 EGP, JO 5 JOD).
+   * Display cash = points × market price (EG 100 EGP, JO 5 JOD).
+   * Paymob always charges EGP (JOD converted just before intention).
    */
   async createCardCheckout(userId: string, points: number) {
     const user = await this.userRepo.findOne({ where: { id: userId } });
@@ -117,7 +131,19 @@ export class PaymentsService {
 
     const country = await this.resolvePayerCountry(user);
     const pricing = resolveMarketPricing(country);
-    const amountMoney = moneyForPoints(points, country);
+    const displayMoney = moneyForPoints(points, country);
+    const rate = this.jodToEgpRate();
+    const { amountEgp: paymobAmountEgp } = paymobChargeForMarket(
+      displayMoney,
+      pricing.currency,
+      rate,
+    );
+
+    if (pricing.currency === 'JOD') {
+      this.logger.log(
+        `JO checkout: ${points} pts → ${displayMoney} JOD → ${paymobAmountEgp} EGP (rate=${rate})`,
+      );
+    }
 
     const displayName =
       profile?.name?.trim() ||
@@ -127,12 +153,13 @@ export class PaymentsService {
     const phone = profile?.phone ?? doctor?.phone ?? undefined;
 
     const specialReference = `credits-${userId.slice(0, 8)}-${randomUUID()}`;
+    // amount_money / currency = what Paymob actually charges (always EGP).
     const intention = await this.intentionRepo.save(
       this.intentionRepo.create({
         user_id: userId,
         amount_egp: points,
-        amount_money: amountMoney,
-        currency: pricing.currency,
+        amount_money: paymobAmountEgp,
+        currency: 'EGP',
         special_reference: specialReference,
         status: 'pending',
       }),
@@ -140,10 +167,10 @@ export class PaymentsService {
 
     const { notificationUrl, redirectionUrl } = this.paymobCallbackUrls();
     const paymob = await this.paymob.createCardIntention({
-      amountMoney,
-      currency: pricing.currency,
-      billingCountry: pricing.billingCountry,
-      billingCity: pricing.billingCity,
+      amountMoney: paymobAmountEgp,
+      currency: 'EGP',
+      billingCountry: 'EG',
+      billingCity: 'Cairo',
       points,
       specialReference,
       notificationUrl,
@@ -162,8 +189,11 @@ export class PaymentsService {
       checkout_url: paymob.checkoutUrl,
       client_secret: paymob.clientSecret,
       points,
-      amount_money: amountMoney,
+      /** Display amount in the patient's market currency. */
+      amount_money: displayMoney,
       currency: pricing.currency,
+      /** Amount actually sent to Paymob (always EGP). */
+      paymob_amount_egp: paymobAmountEgp,
       price_per_point: pricing.pricePerPoint,
       market: pricing.market,
     };
