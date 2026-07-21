@@ -139,6 +139,7 @@ import { MedicalDocumentRequests1778410000000 } from './migrations/1778410000000
 import { DiagnosisPrescriptionIntakeLinks1778420000000 } from './migrations/1778420000000-DiagnosisPrescriptionIntakeLinks';
 import { PatientProfileCountry1778430000000 } from './migrations/1778430000000-PatientProfileCountry';
 import { DoctorCountry1778440000000 } from './migrations/1778440000000-DoctorCountry';
+import { PaymentIntentionMarketPricing1778450000000 } from './migrations/1778450000000-PaymentIntentionMarketPricing';
 import { MedicalDocumentRequestsModule } from './medical-document-requests/medical-document-requests.module';
 
 @Module({
@@ -254,6 +255,7 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
           DiagnosisPrescriptionIntakeLinks1778420000000,
           PatientProfileCountry1778430000000,
           DoctorCountry1778440000000,
+          PaymentIntentionMarketPricing1778450000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
