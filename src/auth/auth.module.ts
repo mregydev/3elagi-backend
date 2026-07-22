@@ -13,12 +13,14 @@ import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
 import { PresenceModule } from '../presence/presence.module';
 import { SpecialitiesModule } from '../specialities/specialities.module';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, Clinic, Doctor, DoctorSpeciality, PatientProfile]),
     PresenceModule,
     SpecialitiesModule,
+    MailModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

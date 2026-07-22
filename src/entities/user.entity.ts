@@ -57,6 +57,21 @@ export class User {
   @Column({ type: 'varchar', length: 2, nullable: true })
   preferred_locale: 'ar' | 'en' | 'de' | 'es' | null;
 
+  @Column({ type: 'timestamptz', nullable: true })
+  email_verified_at: Date | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  email_verification_code_hash: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  email_verification_expires_at: Date | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  password_reset_token_hash: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  password_reset_expires_at: Date | null;
+
   @ManyToOne(() => Doctor, { nullable: true, eager: false })
   @JoinColumn({ name: 'doctor_info_id' })
   doctor_info: Doctor | null;

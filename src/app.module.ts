@@ -52,6 +52,7 @@ import { DoctorSpeciality } from './entities/doctor-speciality.entity';
 import { Advertisement } from './entities/advertisement.entity';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
+import { ContactModule } from './contact/contact.module';
 import { ClinicsModule } from './clinics/clinics.module';
 import { DoctorsModule } from './doctors/doctors.module';
 import { JoinRequestsModule } from './join-requests/join-requests.module';
@@ -140,6 +141,7 @@ import { DiagnosisPrescriptionIntakeLinks1778420000000 } from './migrations/1778
 import { PatientProfileCountry1778430000000 } from './migrations/1778430000000-PatientProfileCountry';
 import { DoctorCountry1778440000000 } from './migrations/1778440000000-DoctorCountry';
 import { PaymentIntentionMarketPricing1778450000000 } from './migrations/1778450000000-PaymentIntentionMarketPricing';
+import { UserEmailVerificationAndPasswordReset1778460000000 } from './migrations/1778460000000-UserEmailVerificationAndPasswordReset';
 import { MedicalDocumentRequestsModule } from './medical-document-requests/medical-document-requests.module';
 
 @Module({
@@ -256,6 +258,7 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
           PatientProfileCountry1778430000000,
           DoctorCountry1778440000000,
           PaymentIntentionMarketPricing1778450000000,
+          UserEmailVerificationAndPasswordReset1778460000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
@@ -267,6 +270,7 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
       inject: [ConfigService],
     }),
     AuthModule,
+    ContactModule,
     ClinicsModule,
     DoctorsModule,
     JoinRequestsModule,
