@@ -19,16 +19,21 @@ export class MailService {
     this.emailUser = user;
 
     if (user && pass) {
+      // 587 = STARTTLS (default), 465 = SSL
+      const port = Number(this.config.get<string>('SMTP_PORT') ?? '587');
+      const useSsl = port === 465;
       this.transporter = nodemailer.createTransport({
-        host: 'smtp.office365.com',
-        port: 587,
-        secure: false,
+        host: 'smtp.gmail.com',
+        port: useSsl ? 465 : 587,
+        secure: useSsl,
         auth: {
           user,
           pass,
         },
       });
-      this.logger.log(`Nodemailer ready (smtp.office365.com as ${user})`);
+      this.logger.log(
+        `Nodemailer ready (smtp.gmail.com:${useSsl ? 465 : 587} as ${user})`,
+      );
     } else {
       this.logger.warn(
         'EMAIL_USER / EMAIL_PASSWORD not set. Emails will be logged only.',
@@ -37,7 +42,7 @@ export class MailService {
   }
 
   private fromAddress(): string {
-    // Office 365 requires From to match the authenticated mailbox.
+    // Gmail requires From to match the authenticated account (or an alias).
     return (
       this.config.get<string>('MAIL_FROM')?.trim() ||
       this.emailUser ||
