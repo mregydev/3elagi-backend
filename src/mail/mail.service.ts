@@ -3,38 +3,49 @@ import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import type Transporter from 'nodemailer/lib/mailer';
 
+/**
+ * Single nodemailer transporter for all transactional mail
+ * (verification, password reset, contact us).
+ */
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
   private transporter: Transporter | null = null;
+  private readonly emailUser: string | null;
 
   constructor(private readonly config: ConfigService) {
-    const host = this.config.get<string>('SMTP_HOST')?.trim();
-    const port = Number(this.config.get<string>('SMTP_PORT') ?? '587');
-    const user = this.config.get<string>('SMTP_USER')?.trim();
-    const pass = this.config.get<string>('SMTP_PASS')?.trim();
-    if (host && user && pass) {
+    const user = this.config.get<string>('EMAIL_USER')?.trim() || null;
+    const pass = this.config.get<string>('EMAIL_PASSWORD')?.trim() || null;
+    this.emailUser = user;
+
+    if (user && pass) {
       this.transporter = nodemailer.createTransport({
-        host,
-        port: Number.isFinite(port) ? port : 587,
-        secure: port === 465,
-        auth: { user, pass },
+        host: 'smtp.office365.com',
+        port: 587,
+        secure: false,
+        auth: {
+          user,
+          pass,
+        },
       });
+      this.logger.log(`Nodemailer ready (smtp.office365.com as ${user})`);
     } else {
       this.logger.warn(
-        'SMTP not configured (SMTP_HOST/SMTP_USER/SMTP_PASS). Emails will be logged only.',
+        'EMAIL_USER / EMAIL_PASSWORD not set. Emails will be logged only.',
       );
     }
   }
 
   private fromAddress(): string {
+    // Office 365 requires From to match the authenticated mailbox.
     return (
       this.config.get<string>('MAIL_FROM')?.trim() ||
-      this.config.get<string>('SMTP_USER')?.trim() ||
+      this.emailUser ||
       'noreply@3elagi.com'
     );
   }
 
+  /** Shared send path — used by verification, reset, and contact. */
   async sendMail(options: {
     to: string;
     subject: string;
@@ -56,19 +67,31 @@ export class MailService {
       );
       return;
     }
-    await this.transporter.sendMail({
-      from: this.fromAddress(),
-      to: options.to,
-      replyTo: options.replyTo,
-      subject: options.subject,
-      text: options.text,
-      html: options.html ?? options.text.replace(/\n/g, '<br/>'),
-      attachments: options.attachments?.map((a) => ({
-        filename: a.filename,
-        content: a.content,
-        contentType: a.contentType,
-      })),
-    });
+
+    try {
+      const info = await this.transporter.sendMail({
+        from: this.fromAddress(),
+        to: options.to,
+        replyTo: options.replyTo,
+        subject: options.subject,
+        text: options.text,
+        html: options.html ?? options.text.replace(/\n/g, '<br/>'),
+        attachments: options.attachments?.map((a) => ({
+          filename: a.filename,
+          content: a.content,
+          contentType: a.contentType,
+        })),
+      });
+      this.logger.log(
+        `Email sent via nodemailer to=${options.to} subject="${options.subject}" id=${info.messageId}`,
+      );
+    } catch (err) {
+      this.logger.error(
+        `Nodemailer send failed to=${options.to} subject="${options.subject}"`,
+        err instanceof Error ? err.stack : String(err),
+      );
+      throw err;
+    }
   }
 
   async sendContactMessage(input: {
@@ -84,7 +107,9 @@ export class MailService {
       contentType?: string;
     }>;
   }): Promise<void> {
-    const subject = `3elagi contact: ${input.fromName || input.fromEmail}`;
+    const subject = input.fromEmail
+      ? `3elagi contact: ${input.fromName || 'User'} <${input.fromEmail}>`
+      : `3elagi contact: ${input.fromName || 'User'}`;
     const text = [
       'New contact message from the 3elagi app.',
       '',

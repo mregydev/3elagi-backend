@@ -1,6 +1,6 @@
-import { IsString, IsOptional, IsNumber, IsIn } from 'class-validator';
+import { IsString, IsOptional, IsNumber, Validate } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
-import { PATIENT_COUNTRY_CODES } from '../../common/patient-countries';
+import { IsPatientCountryConstraint } from '../../common/is-patient-country.constraint';
 
 export class UpdatePatientDto {
   @IsString()
@@ -20,9 +20,7 @@ export class UpdatePatientDto {
     typeof value === 'string' ? value.trim().toUpperCase() : value,
   )
   @IsString()
-  @IsIn([...PATIENT_COUNTRY_CODES], {
-    message: `country must be one of: ${PATIENT_COUNTRY_CODES.join(', ')}`,
-  })
+  @Validate(IsPatientCountryConstraint)
   country?: string;
 
   @IsNumber()

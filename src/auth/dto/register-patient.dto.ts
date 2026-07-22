@@ -3,11 +3,11 @@ import {
   Equals,
   IsBoolean,
   IsEmail,
-  IsIn,
   IsOptional,
   IsString,
+  Validate,
 } from 'class-validator';
-import { PATIENT_COUNTRY_CODES } from '../../common/patient-countries';
+import { IsPatientCountryConstraint } from '../../common/is-patient-country.constraint';
 
 export class RegisterPatientDto {
   @IsEmail()
@@ -26,9 +26,7 @@ export class RegisterPatientDto {
     typeof value === 'string' ? value.trim().toUpperCase() : value,
   )
   @IsString()
-  @IsIn([...PATIENT_COUNTRY_CODES], {
-    message: `country must be one of: ${PATIENT_COUNTRY_CODES.join(', ')}`,
-  })
+  @Validate(IsPatientCountryConstraint)
   country: string;
 
   @IsOptional()
