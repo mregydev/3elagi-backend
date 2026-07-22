@@ -69,13 +69,15 @@ export class AiCacheService implements OnModuleDestroy {
     contextVersion: string,
     promptVersion: string = AI_PROMPT_VERSION,
     userRole?: string,
+    replyLocale?: string,
   ): string {
     const hash = createHash('sha256')
       .update(normalizeQuestion(question))
       .digest('hex')
       .slice(0, 24);
     const rolePart = userRole ?? 'unknown';
-    return `ai:answer:${patientId}:${rolePart}:${hash}:${contextVersion}:${promptVersion}`;
+    const localePart = replyLocale ?? 'en';
+    return `ai:answer:${patientId}:${rolePart}:${localePart}:${hash}:${contextVersion}:${promptVersion}`;
   }
 
   async get<T>(key: string): Promise<T | null> {

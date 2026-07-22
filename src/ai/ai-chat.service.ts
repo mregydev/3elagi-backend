@@ -28,9 +28,8 @@ import {
 import type { AiContextUser } from './context/ai-context.types';
 import type { LlmMessage, LlmMessageAttachment } from './llm/llm.types';
 import {
-  localeMismatchReply,
-  messageLocaleMismatch,
   resolvePreferredLocale,
+  resolveReplyLocale,
   userMessageDisplayContent,
 } from './utils/ai-locale';
 import {
@@ -206,11 +205,13 @@ export class AiChatService {
         select: ['id', 'preferred_locale'],
       });
       const preferredLocale = resolvePreferredLocale(dbUser?.preferred_locale);
+      // Answer in the language of this question; fall back to profile language.
+      const replyLocale = resolveReplyLocale(message, preferredLocale);
       const contextUser: AiContextUser = {
         id: user.id,
         role: user.role,
         patientContextId: patientScope,
-        preferredLocale,
+        preferredLocale: replyLocale,
       };
 
       let conversation: AiConversation;
@@ -242,28 +243,6 @@ export class AiChatService {
         conversationId: conversation.id,
         userMessageId: userRow.id,
       };
-
-      if (messageLocaleMismatch(preferredLocale, message)) {
-        const mismatchText = localeMismatchReply(preferredLocale);
-        const assistantMessage = await this.messageRepo.save(
-          this.messageRepo.create({
-            conversation_id: conversation.id,
-            role: 'assistant',
-            content: mismatchText,
-          }),
-        );
-        conversation.updated_at = new Date();
-        await this.conversationRepo.save(conversation);
-        yield { type: 'token', content: mismatchText };
-        yield {
-          type: 'done',
-          conversationId: conversation.id,
-          messageId: assistantMessage.id,
-          cacheHit: false,
-          finalContent: mismatchText,
-        };
-        return;
-      }
 
       const built = await this.contextBuilder.build(contextUser, message);
 
@@ -306,6 +285,7 @@ export class AiChatService {
         built.contextVersion,
         built.promptVersion,
         user.role,
+        replyLocale,
       );
 
       // Answers that depend on an uploaded file or prior thread context must not be cached.
@@ -327,7 +307,7 @@ export class AiChatService {
           built.intent,
           history,
           user.role,
-          preferredLocale,
+          replyLocale,
           Boolean(attachment),
         );
         if (attachment?.data) {

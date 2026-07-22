@@ -39,26 +39,17 @@ export function resolvePreferredLocale(
   return 'en';
 }
 
-export function messageLocaleMismatch(
-  preferred: AppLocale,
+/**
+ * Reply language for this turn: match the user's message when detectable,
+ * otherwise fall back to their profile / app language.
+ */
+export function resolveReplyLocale(
   message: string,
-): boolean {
+  preferredLocale: AppLocale,
+): AppLocale {
   const detected = detectMessageLocale(message);
-  if (detected === 'unknown') return false;
-  return detected !== preferred;
-}
-
-export function localeMismatchReply(preferred: AppLocale): string {
-  switch (preferred) {
-    case 'ar':
-      return 'لغة التطبيق مضبوطة على العربية. من فضلك اكتب رسالتك بالعربية، أو غيّر لغة التطبيق من الإعدادات في ملفك الشخصي ثم أعد الإرسال.';
-    case 'de':
-      return 'Die App-Sprache ist auf Deutsch eingestellt. Bitte schreiben Sie auf Deutsch oder ändern Sie die Sprache unter Profil → Einstellungen und versuchen Sie es erneut.';
-    case 'es':
-      return 'El idioma de la app está en español. Escribe en español o cambia el idioma en Perfil → Ajustes e inténtalo de nuevo.';
-    default:
-      return 'Your app language is set to English. Please write your message in English, or change your language in Profile → Settings and try again.';
-  }
+  if (detected === 'unknown') return preferredLocale;
+  return detected;
 }
 
 export function localeLabel(preferred: AppLocale): string {
