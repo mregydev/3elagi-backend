@@ -26,7 +26,7 @@ export const PATIENT_COUNTRY_CODES = [
 
 export type PatientCountryCode = (typeof PATIENT_COUNTRY_CODES)[number];
 
-/** Live markets for signup, browse, and currency (Egypt & Jordan). */
+/** Live markets for doctor signup, browse, and currency (Egypt & Jordan). */
 export const MARKET_COUNTRY_CODES = ['EG', 'JO'] as const;
 export type MarketCountryCode = (typeof MARKET_COUNTRY_CODES)[number];
 
