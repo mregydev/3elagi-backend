@@ -3,7 +3,6 @@ import {
   UnauthorizedException,
   ConflictException,
   BadRequestException,
-  ForbiddenException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -110,15 +109,6 @@ export class AuthService {
     };
   }
 
-  private assertEmailVerifiedOrThrow(user: User): void {
-    if (this.isEmailVerified(user)) return;
-    throw new ForbiddenException({
-      message: 'Email not verified',
-      code: 'EMAIL_NOT_VERIFIED',
-      email: user.email,
-    });
-  }
-
   private appWebUrl(): string {
     return (
       this.config.get<string>('APP_WEB_URL')?.trim().replace(/\/$/, '') ||
@@ -134,7 +124,6 @@ export class AuthService {
     const valid = await bcrypt.compare(dto.password, user.password_hash);
     if (!valid) throw new UnauthorizedException('Invalid credentials');
 
-    this.assertEmailVerifiedOrThrow(user);
     return this.buildAuthResponse(user);
   }
 
@@ -173,7 +162,7 @@ export class AuthService {
       message_points: DEFAULT_MESSAGE_POINTS,
       points_spent_total: 0,
       points_purchased_total: 0,
-      email_verified_at: null,
+      email_verified_at: new Date(),
     });
     await this.userRepo.save(user);
 
@@ -188,7 +177,6 @@ export class AuthService {
     });
     await this.patientProfileRepo.save(profile);
 
-    await this.issueVerificationCode(user);
     return this.buildAuthResponse(user);
   }
 
@@ -203,7 +191,7 @@ export class AuthService {
       password_hash: hash,
       role: UserRole.CLINIC_ADMIN,
       photo_url: dto.photo_url ?? null,
-      email_verified_at: null,
+      email_verified_at: new Date(),
     });
     await this.userRepo.save(user);
 
@@ -216,7 +204,6 @@ export class AuthService {
     });
     await this.clinicRepo.save(clinic);
 
-    await this.issueVerificationCode(user);
     return this.buildAuthResponse(user);
   }
 
@@ -234,7 +221,7 @@ export class AuthService {
       message_points: DEFAULT_MESSAGE_POINTS,
       points_spent_total: 0,
       points_purchased_total: 0,
-      email_verified_at: null,
+      email_verified_at: new Date(),
     });
     await this.userRepo.save(user);
 
@@ -277,7 +264,6 @@ export class AuthService {
 
     void this.broadcastDoctorListed(doctor.id);
 
-    await this.issueVerificationCode(user);
     return this.buildAuthResponse(user);
   }
 
@@ -323,7 +309,7 @@ export class AuthService {
   async forgotPassword(dto: ForgotPasswordDto) {
     const email = this.normalizeEmail(dto.email);
     const user = await this.userRepo.findOne({ where: { email } });
-    // Always succeed to avoid enumeration.
+    // Always succeed to avoid enumeration when the account does not exist.
     if (!user) {
       return { ok: true };
     }
@@ -333,8 +319,15 @@ export class AuthService {
     user.password_reset_expires_at = new Date(Date.now() + RESET_TTL_MS);
     await this.userRepo.save(user);
 
-    const resetUrl = `${this.appWebUrl()}/auth/reset-password?token=${rawToken}`;
-    await this.mailService.sendPasswordResetLink(user.email, resetUrl);
+    const resetUrl = `${this.appWebUrl()}/auth/reset-password?token=${encodeURIComponent(rawToken)}`;
+    try {
+      await this.mailService.sendPasswordResetLink(user.email, resetUrl);
+    } catch (err) {
+      // Keep the token so a retry / resent link still works; surface a clear error.
+      throw new BadRequestException(
+        'Could not send the reset email. Please try again in a moment.',
+      );
+    }
     return { ok: true };
   }
 

@@ -157,17 +157,21 @@ export class MailService {
     const text = [
       'We received a request to reset your 3elagi password.',
       '',
-      `Open this link to choose a new password:`,
+      'Open this link to choose a new password:',
       resetUrl,
       '',
       'This link expires in 1 hour.',
       'If you did not request a reset, you can ignore this email.',
     ].join('\n');
+    const safeUrl = resetUrl.replace(/"/g, '&quot;');
     const html = [
+      '<div style="font-family:sans-serif;line-height:1.5;color:#111">',
       '<p>We received a request to reset your 3elagi password.</p>',
-      `<p><a href="${resetUrl}">Reset your password</a></p>`,
+      `<p><a href="${safeUrl}" style="display:inline-block;padding:12px 18px;background:#0B6E99;color:#fff;text-decoration:none;border-radius:8px;font-weight:700">Reset your password</a></p>`,
+      `<p style="word-break:break-all;font-size:13px;color:#555">Or copy this link:<br/>${safeUrl}</p>`,
       '<p>This link expires in 1 hour.</p>',
       '<p>If you did not request a reset, you can ignore this email.</p>',
+      '</div>',
     ].join('');
     await this.sendMail({ to: email, subject, text, html });
   }
