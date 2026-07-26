@@ -240,6 +240,34 @@ export class MessagesService {
     return { ok: true };
   }
 
+  /** Recipient marks one inbound message as read. */
+  async markMessageRead(userId: string, messageId: string) {
+    const row = await this.messageRepo.findOne({ where: { id: messageId } });
+    if (!row) throw new NotFoundException('Message not found');
+    if (row.recipient !== userId) {
+      throw new ForbiddenException('Only the recipient can mark a message as read');
+    }
+    if (!row.read_at) {
+      row.read_at = new Date();
+      await this.messageRepo.save(row);
+    }
+    return this.mapMessage(row);
+  }
+
+  /** Recipient marks one inbound message as unread. */
+  async markMessageUnread(userId: string, messageId: string) {
+    const row = await this.messageRepo.findOne({ where: { id: messageId } });
+    if (!row) throw new NotFoundException('Message not found');
+    if (row.recipient !== userId) {
+      throw new ForbiddenException('Only the recipient can mark a message as unread');
+    }
+    if (row.read_at) {
+      row.read_at = null;
+      await this.messageRepo.save(row);
+    }
+    return this.mapMessage(row);
+  }
+
   async create(userId: string, dto: CreateMessageDto) {
     const type: MessageType = dto.type ?? 'text';
     const content = this.resolveContent(dto, type);

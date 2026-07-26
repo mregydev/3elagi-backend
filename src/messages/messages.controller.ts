@@ -51,6 +51,22 @@ export class MessagesController {
     return this.messagesService.markRead(req.user.id, peerId);
   }
 
+  @Post(':messageId/read')
+  markMessageRead(
+    @Request() req: { user: { id: string } },
+    @Param('messageId') messageId: string,
+  ) {
+    return this.messagesService.markMessageRead(req.user.id, messageId);
+  }
+
+  @Post(':messageId/unread')
+  markMessageUnread(
+    @Request() req: { user: { id: string } },
+    @Param('messageId') messageId: string,
+  ) {
+    return this.messagesService.markMessageUnread(req.user.id, messageId);
+  }
+
   @Patch(':messageId')
   update(
     @Request() req: { user: { id: string } },
