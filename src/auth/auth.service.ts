@@ -247,7 +247,7 @@ export class AuthService {
       name: dto.name,
       age: dto.age,
       phone: dto.phone,
-      country: dto.country?.trim().toUpperCase() || 'EG',
+      country: dto.country.trim().toUpperCase(),
       photo_url: dto.photo_url,
       graduation_cert_url: dto.graduation_cert_url,
       work_permit_url: dto.work_permit_url,

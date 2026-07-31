@@ -8,6 +8,7 @@ import {
   Min,
   Max,
   IsIn,
+  IsNotEmpty,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { MARKET_COUNTRY_CODES } from '../../common/patient-countries';
@@ -31,7 +32,7 @@ export class RegisterDoctorDto {
   @IsOptional()
   phone?: string;
 
-  @IsOptional()
+  @IsNotEmpty()
   @Transform(({ value }) =>
     typeof value === 'string' ? value.trim().toUpperCase() : value,
   )
@@ -39,7 +40,7 @@ export class RegisterDoctorDto {
   @IsIn([...MARKET_COUNTRY_CODES], {
     message: `country must be one of: ${MARKET_COUNTRY_CODES.join(', ')}`,
   })
-  country?: string;
+  country: string;
 
   @IsString()
   @IsOptional()
