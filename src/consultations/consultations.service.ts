@@ -20,6 +20,7 @@ import {
 import { Doctor } from '../entities/doctor.entity';
 import { User, UserRole } from '../entities/user.entity';
 import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
+import { DoctorPatientAccessService } from '../doctor-patient-access/doctor-patient-access.service';
 import { PointsService } from '../points/points.service';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { DiagnosisService } from '../diagnosis/diagnosis.service';
@@ -47,6 +48,7 @@ export class ConsultationsService {
     private diagnosis: DiagnosisService,
     private users: UsersService,
     private knowledgeIndexer: KnowledgeIndexerService,
+    private doctorPatientAccess: DoctorPatientAccessService,
   ) {}
 
   private scheduleIndexConsultation(consultationId: string): void {
@@ -244,6 +246,25 @@ export class ConsultationsService {
         reserved_points: price,
       },
     );
+
+    // Starting a consultation implies the doctor may view the patient's records.
+    try {
+      const accessStatus = await this.doctorPatientAccess.applyAccessAction(
+        patientUserId,
+        dto.doctor_id,
+        'grant_records',
+      );
+      this.presence.emitToUser(dto.doctor_id, 'access:updated', {
+        status: accessStatus,
+        peer_id: patientUserId,
+      });
+      this.presence.emitToUser(patientUserId, 'access:updated', {
+        status: accessStatus,
+        peer_id: dto.doctor_id,
+      });
+    } catch {
+      // Already granted or chat blocked — consultation still stands.
+    }
 
     this.scheduleIndexConsultation(saved.id);
 
