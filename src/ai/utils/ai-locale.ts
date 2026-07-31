@@ -40,8 +40,8 @@ export function resolvePreferredLocale(
 }
 
 /**
- * Reply language for this turn: match the user's message when detectable,
- * otherwise fall back to their profile / app language.
+ * Reply language for this turn: always follow the question language when
+ * detectable. Profile / app language is only a fallback for unknown text.
  */
 export function resolveReplyLocale(
   message: string,
@@ -49,6 +49,7 @@ export function resolveReplyLocale(
 ): AppLocale {
   const detected = detectMessageLocale(message);
   if (detected === 'unknown') return preferredLocale;
+  // Question language wins even when it differs from profile settings.
   return detected;
 }
 
