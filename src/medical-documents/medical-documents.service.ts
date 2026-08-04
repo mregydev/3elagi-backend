@@ -225,7 +225,7 @@ export class MedicalDocumentsService {
     buffer: Buffer,
     mimeType: string,
     outputLang: ApiLocale = 'en',
-    options?: { includeInsight?: boolean },
+    options?: { includeInsight?: boolean; titleHint?: string },
   ): Promise<AnalyzedMedicalRecordImage> {
     return this.imageAnalyzer.analyzeImage(
       buffer.toString('base64'),

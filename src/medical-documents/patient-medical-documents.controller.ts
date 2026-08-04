@@ -77,6 +77,7 @@ export class PatientMedicalDocumentsController {
   )
   analyzeImage(
     @UploadedFile() file: Express.Multer.File,
+    @Body('title') title: string | undefined,
     @Query('lang') lang: 'ar' | 'en' | undefined,
     @Request() req,
   ) {
@@ -88,6 +89,7 @@ export class PatientMedicalDocumentsController {
       file.buffer,
       file.mimetype || 'image/jpeg',
       outputLang,
+      { titleHint: typeof title === 'string' ? title : undefined },
     );
   }
 
@@ -107,6 +109,7 @@ export class PatientMedicalDocumentsController {
   )
   async createFromImage(
     @UploadedFile() file: Express.Multer.File,
+    @Body('title') title: string | undefined,
     @Query('lang') lang: 'ar' | 'en' | undefined,
     @Query('generate_insight') generateInsight: string | undefined,
     @Request() req,
@@ -120,7 +123,10 @@ export class PatientMedicalDocumentsController {
       file.buffer,
       file.mimetype || 'image/jpeg',
       outputLang,
-      { includeInsight },
+      {
+        includeInsight,
+        titleHint: typeof title === 'string' ? title : undefined,
+      },
     );
     const uploaded = await this.uploads.uploadFile(file);
     const fileUrl = uploaded.url || uploaded.objectPath;

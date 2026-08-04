@@ -28,9 +28,28 @@ export interface AnalyzedMedicalRecordImage {
 
 const DEFAULT_CHAT_MODEL = 'gemini-3-flash-preview';
 
-function buildAnalysisPrompt(outputLang: ApiLocale): string {
+function buildAnalysisPrompt(
+  outputLang: ApiLocale,
+  titleHint?: string,
+): string {
   const langLabel = outputLanguageLabel(outputLang);
   const bodyParts = MEDICAL_BODY_PARTS.join(', ');
+  const hint = titleHint?.trim();
+  const titleHintBlock = hint
+    ? `
+Patient-provided title (use this with the attachment):
+"${hint}"
+
+Title rules when a patient title is provided:
+- Set "title" to the patient-provided title (you may lightly fix spelling/punctuation only).
+- Use that title together with what you see in the attachment when writing notes and ai_insight.
+- Prefer aligning the insight with the patient's title (what they believe this record is about) while staying factual about the image.
+`
+    : `
+Title rules when no patient title is provided:
+- Invent a short clear "title" from what the image shows.
+`;
+
   return `You analyze medical images for a patient health app (lab reports, prescriptions, X-rays, CT, MRI, ultrasound).
 
 Classify the image as one of:
@@ -49,13 +68,13 @@ Return ONLY valid JSON (no markdown) shaped like:
     "possible_diseases": "One short sentence listing possible conditions or findings to discuss with a doctor — use cautious language (may suggest, could indicate), never a definitive diagnosis, in ${langLabel}"
   }
 }
-
+${titleHintBlock}
 Rules:
-- Base everything only on what is visible in the image.
+- Base factual content on what is visible in the image (and the patient title when provided).
 - Pick the single most relevant body_part; use "general" if unclear.
 - body_part MUST be an exact English key from the list above (e.g. "head", "lungs", "left_arm"). Never translate body_part into ${langLabel} or any other language.
 - title, notes, and ai_insight text SHOULD be in ${langLabel}.
-- Do not invent values not shown.
+- Do not invent lab values or findings not shown.
 - Never prescribe treatment.
 - possible_diseases must stay non-diagnostic and encourage seeing a doctor.
 - If unreadable, still return best-effort JSON with type "lab", body_part "general", and note uncertainty in notes.`;
@@ -75,7 +94,7 @@ export class MedicalRecordImageAnalyzerService {
     imageBase64: string,
     mimeType: string,
     outputLang: ApiLocale = 'en',
-    options?: { includeInsight?: boolean },
+    options?: { includeInsight?: boolean; titleHint?: string },
   ): Promise<AnalyzedMedicalRecordImage> {
     const apiKey = this.config.get<string>('GEMINI_API_KEY');
     if (!apiKey) {
@@ -86,12 +105,13 @@ export class MedicalRecordImageAnalyzerService {
     }
 
     const normalizedMime = mimeType?.trim() || 'image/jpeg';
+    const titleHint = options?.titleHint?.trim() || undefined;
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: this.modelName });
 
     try {
       const genResult = await model.generateContent([
-        { text: buildAnalysisPrompt(outputLang) },
+        { text: buildAnalysisPrompt(outputLang, titleHint) },
         {
           inlineData: {
             mimeType: normalizedMime,
@@ -103,7 +123,7 @@ export class MedicalRecordImageAnalyzerService {
       const raw = genResult.response.text().trim();
       const jsonText = this.extractJsonObject(raw);
       const parsed = JSON.parse(jsonText) as Record<string, unknown>;
-      const analyzed = this.normalizeResult(parsed);
+      const analyzed = this.normalizeResult(parsed, titleHint);
       if (options?.includeInsight === false) {
         return {
           ...analyzed,
@@ -328,7 +348,10 @@ Rules:
     return text;
   }
 
-  private normalizeResult(parsed: Record<string, unknown>): AnalyzedMedicalRecordImage {
+  private normalizeResult(
+    parsed: Record<string, unknown>,
+    titleHint?: string,
+  ): AnalyzedMedicalRecordImage {
     const typeRaw = String(parsed.type ?? 'lab').toLowerCase();
     let type: AnalyzedDocumentType = DocumentType.LAB;
     if (
@@ -344,7 +367,11 @@ Rules:
     ) {
       type = DocumentType.PRESCRIPTION;
     }
-    const title = String(parsed.title ?? '').trim() || 'Medical record';
+    const hint = titleHint?.trim();
+    const title =
+      hint ||
+      String(parsed.title ?? '').trim() ||
+      'Medical record';
     const notes = String(parsed.notes ?? parsed.description ?? '').trim() || title;
     const body_part =
       normalizeBodyPart(parsed.body_part ?? parsed.bodyPart) ?? 'general';

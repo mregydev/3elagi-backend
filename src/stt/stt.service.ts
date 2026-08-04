@@ -31,16 +31,24 @@ export class SttService {
       throw new InternalServerErrorException('Speech recognition is not configured');
     }
 
-    const langHint =
-      languageCode === 'ar'
-        ? 'The speaker is likely using Arabic.'
-        : languageCode === 'de'
+    const normalizedLang = (languageCode ?? '').trim().toLowerCase();
+    const autoDetect =
+      !normalizedLang ||
+      normalizedLang === 'auto' ||
+      normalizedLang === 'und' ||
+      normalizedLang === 'multi';
+
+    const langHint = autoDetect
+      ? `Detect the spoken language automatically among Arabic, English, German, and Spanish (the speaker may switch or mix them). Transcribe in the same language(s) spoken — keep Arabic script for Arabic, Latin script for English/German/Spanish.`
+      : normalizedLang === 'ar' || normalizedLang.startsWith('ar-')
+        ? 'The speaker is likely using Arabic. Prefer Arabic script.'
+        : normalizedLang === 'de' || normalizedLang.startsWith('de-')
           ? 'The speaker is likely using German.'
-          : languageCode === 'es'
+          : normalizedLang === 'es' || normalizedLang.startsWith('es-')
             ? 'The speaker is likely using Spanish.'
-            : languageCode === 'en'
+            : normalizedLang === 'en' || normalizedLang.startsWith('en-')
               ? 'The speaker is likely using English.'
-              : 'The speaker may use Arabic, English, German, or Spanish.';
+              : `Detect the spoken language automatically among Arabic, English, German, and Spanish. Transcribe in the same language spoken.`;
 
     try {
       const genAI = new GoogleGenerativeAI(apiKey);
@@ -53,7 +61,10 @@ export class SttService {
           },
         },
         {
-          text: `${langHint} Transcribe the spoken words in this audio. Reply with only the transcript — no labels, quotes, or commentary.`,
+          text: `${langHint}
+
+Transcribe the spoken words in this audio accurately.
+Reply with only the transcript — no labels, quotes, language names, or commentary.`,
         },
       ]);
 
