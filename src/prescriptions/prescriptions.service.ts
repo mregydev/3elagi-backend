@@ -328,24 +328,26 @@ export class PrescriptionsService {
   }
 
   async listForPatient(patientId: string, userId: string, role: string) {
-    const patient = await this.patientRepo.findOne({ where: { id: patientId } });
-    if (!patient) throw new NotFoundException('Patient not found');
-
-    if (role === 'doctor') {
-      const doctor = await this.getDoctor(userId);
-      if (doctor.default_clinic_id !== patient.clinic_id) {
-        const own = await this.repo.find({
-          where: { patient_id: patientId, doctor_id: doctor.id },
-          order: { created_at: 'DESC' },
-        });
-        return own;
+    // Prefer clinic patients.id; if missing, treat id as registered users.id
+    // (mobile always uses users.id).
+    const clinicPatient = await this.patientRepo.findOne({ where: { id: patientId } });
+    if (clinicPatient) {
+      if (role === 'doctor') {
+        const doctor = await this.getDoctor(userId);
+        if (doctor.default_clinic_id !== clinicPatient.clinic_id) {
+          return this.repo.find({
+            where: { patient_id: patientId, doctor_id: doctor.id },
+            order: { created_at: 'DESC' },
+          });
+        }
       }
+      return this.repo.find({
+        where: { patient_id: patientId },
+        order: { created_at: 'DESC' },
+      });
     }
 
-    return this.repo.find({
-      where: { patient_id: patientId },
-      order: { created_at: 'DESC' },
-    });
+    return this.listForPatientUser(patientId, userId, role);
   }
 
   async searchDiseases(q: string, userId: string): Promise<string[]> {
@@ -725,7 +727,28 @@ export class PrescriptionsService {
   async create(dto: CreatePrescriptionDto, userId: string): Promise<Prescription> {
     const doctor = await this.getDoctor(userId);
     const patient = await this.patientRepo.findOne({ where: { id: dto.patient_id } });
-    if (!patient) throw new NotFoundException('Patient not found');
+    // Mobile may send users.id; prefer patient-user create path instead of failing.
+    if (!patient) {
+      const items = Array.isArray(dto.items)
+        ? dto.items.filter((i) => i && i.name?.trim())
+        : [];
+      return this.createForPatientUser(
+        {
+          patient_user_id: dto.patient_id,
+          title: dto.title,
+          symptoms: dto.symptoms,
+          medications: items.map((i) => ({
+            medication_name: i.name,
+            dose: i.dose,
+            interval: i.frequency,
+            notes: i.notes,
+          })),
+          body_part: null,
+        },
+        userId,
+        UserRole.DOCTOR,
+      );
+    }
 
     // Authorization: the doctor must be allowed to write for this patient.
     // Allow when (a) patient belongs to the doctor's default clinic, or

@@ -536,8 +536,11 @@ export class DiagnosisService {
       row.patient_id,
     );
     if (dto.patient_id) {
-      const patient = await this.patientRepo.findOne({ where: { id: dto.patient_id } });
-      if (!patient) throw new NotFoundException('Patient not found');
+      // Diagnoses store the registered patient user's id (users.id), not clinic patients.id.
+      const patientUser = await this.userRepo.findOne({ where: { id: dto.patient_id } });
+      if (!patientUser || patientUser.role !== UserRole.PATIENT) {
+        throw new NotFoundException('Patient user not found');
+      }
     }
     if (dto.doctor_id && dto.doctor_id !== doctor.id) {
       throw new ForbiddenException('You cannot reassign diagnosis to another doctor');
