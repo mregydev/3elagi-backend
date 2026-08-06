@@ -7,6 +7,37 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+/** Map client/container MIME types to ones Google AI Gemini accepts. */
+function normalizeGeminiAudioMime(mimeType: string): string {
+  const raw = (mimeType || '').trim().toLowerCase();
+  if (
+    raw === 'audio/mp4' ||
+    raw === 'audio/m4a' ||
+    raw === 'audio/x-m4a' ||
+    raw === 'audio/aac' ||
+    raw === 'audio/x-aac' ||
+    raw === 'audio/3gpp' ||
+    raw === 'audio/3gp'
+  ) {
+    return 'audio/aac';
+  }
+  if (raw === 'audio/mpeg' || raw === 'audio/mp3' || raw === 'audio/mpga') {
+    return 'audio/mp3';
+  }
+  if (raw === 'audio/wave') return 'audio/wav';
+  if (raw === 'audio/ogg' || raw === 'audio/opus') return 'audio/ogg';
+  if (
+    raw === 'audio/wav' ||
+    raw === 'audio/webm' ||
+    raw === 'audio/flac' ||
+    raw === 'audio/aiff'
+  ) {
+    return raw;
+  }
+  // Unknown — try AAC (native mobile default) rather than failing on mp4.
+  return raw || 'audio/aac';
+}
+
 @Injectable()
 export class SttService {
   private readonly logger = new Logger(SttService.name);
@@ -30,6 +61,8 @@ export class SttService {
     if (!apiKey) {
       throw new InternalServerErrorException('Speech recognition is not configured');
     }
+
+    const normalizedMime = normalizeGeminiAudioMime(mimeType);
 
     const normalizedLang = (languageCode ?? '').trim().toLowerCase();
     const autoDetect =
@@ -56,7 +89,7 @@ export class SttService {
       const result = await model.generateContent([
         {
           inlineData: {
-            mimeType,
+            mimeType: normalizedMime,
             data: audio.toString('base64'),
           },
         },
@@ -75,7 +108,10 @@ Reply with only the transcript — no labels, quotes, language names, or comment
       return text;
     } catch (err) {
       if (err instanceof BadRequestException) throw err;
-      this.logger.error('STT failed', err);
+      this.logger.error(
+        `STT failed (mime=${mimeType} → ${normalizedMime})`,
+        err,
+      );
       throw new InternalServerErrorException('Speech-to-text failed');
     }
   }
