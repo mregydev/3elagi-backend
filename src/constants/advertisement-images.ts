@@ -6,18 +6,10 @@ export const ADVERTISEMENT_IMAGE_FILES: Record<string, string> = {
   'Book. Chat. Heal.': 'banner-book-chat-heal.png',
 };
 
-/** Locale-suffixed variants for each English base filename. */
-export const ADVERTISEMENT_LOCALE_SUFFIXES = ['ar', 'de', 'es'] as const;
-
-/** All files that may be served (English + localized). */
-export const ADVERTISEMENT_ALLOWED_FILES: string[] = [
-  ...Object.values(ADVERTISEMENT_IMAGE_FILES),
-  ...Object.values(ADVERTISEMENT_IMAGE_FILES).flatMap((file) =>
-    ADVERTISEMENT_LOCALE_SUFFIXES.map((locale) =>
-      file.replace(/\.png$/i, `-${locale}.png`),
-    ),
-  ),
-];
+/** All files that may be served (visual-only art; copy/logo rendered in the client). */
+export const ADVERTISEMENT_ALLOWED_FILES: string[] = Object.values(
+  ADVERTISEMENT_IMAGE_FILES,
+);
 
 /** Stored in advertisements.banner_image_url (relative to API prefix). */
 export const ADVERTISEMENT_IMAGES: Record<string, string> = Object.fromEntries(
