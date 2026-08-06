@@ -106,7 +106,6 @@ import { UserPreferredLocale1778220000000 } from './migrations/1778220000000-Use
 import { DeviceToken } from './entities/device-token.entity';
 import { DiagnosisDocument } from './entities/diagnosis-document.entity';
 import { PushNotificationsModule } from './push-notifications/push-notifications.module';
-import { SentryModule } from './sentry/sentry.module';
 import { TtsModule } from './tts/tts.module';
 import { SttModule } from './stt/stt.module';
 import { WherebyModule } from './whereby/whereby.module';
@@ -301,7 +300,6 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
     AiModule,
     MessageEmotionsModule,
     PushNotificationsModule,
-    SentryModule,
     TtsModule,
     SttModule,
     WherebyModule,
