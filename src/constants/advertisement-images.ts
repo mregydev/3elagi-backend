@@ -6,7 +6,7 @@ export const ADVERTISEMENT_IMAGE_FILES: Record<string, string> = {
   'Book. Chat. Heal.': 'banner-book-chat-heal.png',
 };
 
-/** All files that may be served (visual-only art; copy/logo rendered in the client). */
+/** All files that may be served (visual-only art; copy rendered in the client). */
 export const ADVERTISEMENT_ALLOWED_FILES: string[] = Object.values(
   ADVERTISEMENT_IMAGE_FILES,
 );
