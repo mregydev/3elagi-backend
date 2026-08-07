@@ -245,7 +245,7 @@ export class AiPromptService {
     intent: AiIntent,
     history: LlmMessage[] = [],
     userRole?: string,
-    preferredLocale: 'ar' | 'en' | 'de' | 'es' = 'en',
+    preferredLocale: 'ar' | 'en' | 'de' | 'es' = 'ar',
     hasUserAttachment = false,
   ): Promise<LlmMessage[]> {
     const template =

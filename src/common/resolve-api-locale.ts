@@ -3,7 +3,7 @@ export type ApiLocale = 'ar' | 'en' | 'de' | 'es';
 export function resolveApiLocale(lang?: string | null): ApiLocale {
   const v = lang?.trim().toLowerCase();
   if (v === 'ar' || v === 'en' || v === 'de' || v === 'es') return v;
-  return 'en';
+  return 'ar';
 }
 
 export function outputLanguageLabel(lang: ApiLocale): string {

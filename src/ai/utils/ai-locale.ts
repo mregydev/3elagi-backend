@@ -36,7 +36,7 @@ export function resolvePreferredLocale(
 ): AppLocale {
   const v = value?.trim().toLowerCase();
   if (v === 'ar' || v === 'en' || v === 'de' || v === 'es') return v;
-  return 'en';
+  return 'ar';
 }
 
 /**

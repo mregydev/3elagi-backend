@@ -159,6 +159,7 @@ export class AuthService {
       password_hash: hash,
       role: UserRole.PATIENT,
       photo_url: dto.photo_url ?? null,
+      preferred_locale: 'ar',
       message_points: DEFAULT_MESSAGE_POINTS,
       points_spent_total: 0,
       points_purchased_total: 0,
@@ -191,6 +192,7 @@ export class AuthService {
       password_hash: hash,
       role: UserRole.CLINIC_ADMIN,
       photo_url: dto.photo_url ?? null,
+      preferred_locale: 'ar',
       email_verified_at: new Date(),
     });
     await this.userRepo.save(user);
@@ -218,6 +220,7 @@ export class AuthService {
       password_hash: hash,
       role: UserRole.DOCTOR,
       photo_url: dto.photo_url ?? null,
+      preferred_locale: 'ar',
       message_points: DEFAULT_MESSAGE_POINTS,
       points_spent_total: 0,
       points_purchased_total: 0,

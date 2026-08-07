@@ -30,7 +30,7 @@ export class AiIntentClassifierService {
     return URGENT.test(question);
   }
 
-  urgentResponse(preferredLocale: AppLocale = 'en'): string {
+  urgentResponse(preferredLocale: AppLocale = 'ar'): string {
     switch (preferredLocale) {
       case 'ar':
         return 'قد تحتاج هذه الحالة إلى رعاية طبية عاجلة. يرجى التواصل مع خدمات الطوارئ أو أحد مقدمي الرعاية الصحية فوراً.';
