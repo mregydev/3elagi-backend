@@ -10,8 +10,9 @@ import type {
   AiContextBuildResult,
   AiContextUser,
 } from './context/ai-context.types';
+import { UserRole } from '../entities/user.entity';
 
-export const AI_PROMPT_VERSION = 'v13';
+export const AI_PROMPT_VERSION = 'v14';
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -47,6 +48,25 @@ export class AiContextBuilderService {
         promptVersion: AI_PROMPT_VERSION,
         urgent: true,
         urgentMessage: this.intentClassifier.urgentResponse(user.preferredLocale),
+      };
+    }
+
+    // Medication Q&A is doctor-only — short-circuit patients before the LLM.
+    if (
+      user.role !== UserRole.DOCTOR &&
+      this.intentClassifier.detectMedicationQuestion(question)
+    ) {
+      return {
+        intent: 'mixed_question',
+        contextText: '',
+        chunks: [],
+        links: [],
+        contextVersion: 'patient_medication_blocked',
+        promptVersion: AI_PROMPT_VERSION,
+        urgent: true,
+        urgentMessage: this.intentClassifier.patientMedicationRefusalResponse(
+          user.preferredLocale,
+        ),
       };
     }
 

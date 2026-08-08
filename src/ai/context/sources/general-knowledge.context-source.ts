@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { AIContextSource } from '../ai-context-source.interface';
 import type { AiContextUser, AiIntent } from '../ai-context.types';
+import { UserRole } from '../../../entities/user.entity';
 
 @Injectable()
 export class GeneralKnowledgeContextSource implements AIContextSource {
@@ -15,18 +16,21 @@ export class GeneralKnowledgeContextSource implements AIContextSource {
     );
   }
 
-  async fetchContext(): Promise<{ enabled: true }> {
-    return { enabled: true };
+  async fetchContext(user: AiContextUser): Promise<{ isDoctor: boolean }> {
+    return { isDoctor: user.role === UserRole.DOCTOR };
   }
 
-  buildContextText(): string {
+  buildContextText(data: { isDoctor: boolean }): string {
+    const medications = data.isDoctor
+      ? 'You may suggest medications and typical dosages as clinical reference, but the doctor confirms and prescribes.'
+      : 'Medication Q&A is doctor-only. For patients: do NOT answer questions about medications, drugs, doses, side effects, or drug classes — refuse and direct them to a licensed doctor (booking or chat consultation).';
     return `[General Medical Knowledge]
 You may use your general medical education to answer health education questions.
 Always append: "This is general medical information and not a diagnosis."
-Never diagnose with certainty. You may suggest medications and typical dosages when asked, but always say a licensed doctor must confirm before use or any dose change.`;
+Never diagnose with certainty. ${medications}`;
   }
 
-  async getVersionKey(): Promise<string> {
-    return 'general:v2';
+  async getVersionKey(user: AiContextUser): Promise<string> {
+    return `general:v4:${user.role === UserRole.DOCTOR ? 'doctor' : 'patient'}`;
   }
 }

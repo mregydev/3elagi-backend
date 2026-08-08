@@ -177,7 +177,7 @@ export class PatientHealthInsightsContextSource implements AIContextSource {
     }
 
     lines.push(
-      'Use these patterns — including diagnoses, symptoms, lab/imaging themes, and prescription medications — to suggest things to avoid, healthy habits, suitable foods, and (when relevant) possible medications. Medication suggestions are educational only and must always be confirmed by a licensed doctor before use or any dose change.',
+      'Use these patterns — diagnoses, symptoms, and lab/imaging themes — to suggest things to avoid, healthy habits, and suitable foods. Do NOT discuss, name, dose, or suggest medications for the patient; medication guidance is doctor-only on this platform.',
     );
 
     return lines.join('\n');

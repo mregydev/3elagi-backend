@@ -24,10 +24,18 @@ const GENERAL =
 const URGENT =
   /\b(chest pain|heart attack|can't breathe|cannot breathe|difficulty breathing|severe breathing|stroke|face drooping|sudden numbness|loss of consciousness|passed out|unconscious|severe bleeding|heavy bleeding|suicidal|kill myself|end my life|want to die|ألم صدر|نوبة قلب|لا أستطيع التنفس|صعوبة التنفس|سكتة|نزيف شديد|انتحار)\b/i;
 
+/** Medication Q&A is doctor-only — patients get a fixed refusal. */
+const MEDICATION =
+  /\b(medication|medications|medicine|medicines|meds?|drug|drugs|dosage|dose|doses|pill|pills|tablet|tablets|capsule|capsules|antibiotic|antibiotics|ibuprofen|paracetamol|acetaminophen|panadol|aspirin|amoxicillin|pharmac(?:y|ist)|prescribe|prescription|rx|what (?:should|can|do) i take|should i (?:take|stop|start)|can i take|side ?effects?|drug class|دواء|أدوية|دوا|جرعة|جرعات|حبوب|قرص|أقراص|كبسولة|مضاد حيوي|صيدلية|روشتة|وصفة|أأخذ|آخذ|أتناول|Medikament|Arzneimittel|Dosis|Tablette|Kapsel|Antibiotikum|Rezept|medicamento|medicamentos|dosis|pastilla|cápsula|antibiótico|receta)\b/i;
+
 @Injectable()
 export class AiIntentClassifierService {
   detectUrgent(question: string): boolean {
     return URGENT.test(question);
+  }
+
+  detectMedicationQuestion(question: string): boolean {
+    return MEDICATION.test(question.trim());
   }
 
   urgentResponse(preferredLocale: AppLocale = 'ar'): string {
@@ -40,6 +48,20 @@ export class AiIntentClassifierService {
         return 'Esto puede requerir atención médica urgente. Contacta de inmediato con los servicios de emergencia o un profesional de la salud.';
       default:
         return 'This may require urgent medical attention. Please contact emergency services or a healthcare professional immediately.';
+    }
+  }
+
+  /** Fixed reply when a patient asks about medications (doctors may still get answers). */
+  patientMedicationRefusalResponse(preferredLocale: AppLocale = 'ar'): string {
+    switch (preferredLocale) {
+      case 'ar':
+        return 'لا يمكنني الإجابة عن أسئلة الأدوية للمرضى. وصف الأدوية أو مناقشتها متاح فقط للأطباء المرخصين. احجز موعداً أو ابدأ استشارة محادثة مع طبيب على 3elagi.';
+      case 'de':
+        return 'Ich kann Patienten keine Fragen zu Medikamenten beantworten. Medikamentenberatung ist nur für zugelassene Ärztinnen und Ärzte verfügbar. Bitte buchen Sie einen Termin oder starten Sie eine Chat-Konsultation mit einer Ärztin/einem Arzt auf 3elagi.';
+      case 'es':
+        return 'No puedo responder preguntas sobre medicamentos a pacientes. La orientación sobre medicamentos solo está disponible para médicos licenciados. Reserva una cita o inicia una consulta por chat con un médico en 3elagi.';
+      default:
+        return 'I cannot answer medication questions for patients. Medication guidance is available only to licensed doctors. Please book an appointment or start a chat consultation with a doctor on 3elagi.';
     }
   }
 

@@ -83,36 +83,50 @@ export class SttService {
               ? 'The speaker is likely using English.'
               : `Detect the spoken language automatically among Arabic, English, German, and Spanish. Transcribe in the same language spoken.`;
 
-    try {
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: this.modelName });
-      const result = await model.generateContent([
-        {
-          inlineData: {
-            mimeType: normalizedMime,
-            data: audio.toString('base64'),
-          },
-        },
-        {
-          text: `${langHint}
+    const prompt = `${langHint}
 
 Transcribe the spoken words in this audio accurately.
-Reply with only the transcript — no labels, quotes, language names, or commentary.`,
-        },
-      ]);
+Reply with only the transcript — no labels, quotes, language names, or commentary.`;
 
-      const text = result.response.text()?.trim();
-      if (!text) {
-        throw new BadRequestException('No speech detected');
+    // Native recordings are AAC inside an MP4/3GP container; Gemini rejects one
+    // label or the other depending on the file, so try the plausible ones.
+    const candidates = [
+      ...new Set([normalizedMime, mimeType.trim().toLowerCase(), 'audio/mp4']),
+    ].filter(Boolean);
+
+    let lastErr: unknown;
+    for (const candidate of candidates) {
+      try {
+        const text = await this.runGemini(apiKey, audio, candidate, prompt);
+        if (!text) throw new BadRequestException('No speech detected');
+        return text;
+      } catch (err) {
+        if (err instanceof BadRequestException) throw err;
+        lastErr = err;
+        this.logger.warn(
+          `STT attempt failed (mime=${mimeType} → ${candidate}): ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
       }
-      return text;
-    } catch (err) {
-      if (err instanceof BadRequestException) throw err;
-      this.logger.error(
-        `STT failed (mime=${mimeType} → ${normalizedMime})`,
-        err,
-      );
-      throw new InternalServerErrorException('Speech-to-text failed');
     }
+
+    this.logger.error(`STT failed (mime=${mimeType})`, lastErr);
+    throw new InternalServerErrorException('Speech-to-text failed');
+  }
+
+  private async runGemini(
+    apiKey: string,
+    audio: Buffer,
+    mimeType: string,
+    prompt: string,
+  ): Promise<string> {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: this.modelName });
+    const result = await model.generateContent([
+      { inlineData: { mimeType, data: audio.toString('base64') } },
+      { text: prompt },
+    ]);
+    return result.response.text()?.trim() ?? '';
   }
 }
