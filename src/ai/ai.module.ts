@@ -48,6 +48,7 @@ import { LLM_PROVIDER } from './llm/llm.tokens';
 import { VectorSearchService } from './vector-search.service';
 import { MessageEmotionsModule } from '../message-emotions/message-emotions.module';
 import { MessageEmotionsService } from '../message-emotions/message-emotions.service';
+import { PushNotificationsModule } from '../push-notifications/push-notifications.module';
 import { UploadsModule } from '../uploads/uploads.module';
 
 @Module({
@@ -56,6 +57,7 @@ import { UploadsModule } from '../uploads/uploads.module';
     PointsModule,
     UploadsModule,
     MessageEmotionsModule,
+    PushNotificationsModule,
     TypeOrmModule.forFeature([
       AiConversation,
       AiMessage,

@@ -20,6 +20,7 @@ import { AiResponseService } from './ai-response.service';
 import { UploadsService } from '../uploads/uploads.service';
 import { MessageEmotionsService } from '../message-emotions/message-emotions.service';
 import { PointsService } from '../points/points.service';
+import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 import { AiStreamService } from './ai-stream.service';
 import {
   AI_RATE_LIMIT_CODE,
@@ -81,6 +82,7 @@ export class AiChatService {
     private readonly pointsService: PointsService,
     private readonly cache: AiCacheService,
     private readonly uploads: UploadsService,
+    private readonly pushNotifications: PushNotificationsService,
     @InjectRepository(AiConversation)
     private readonly conversationRepo: Repository<AiConversation>,
     @InjectRepository(AiMessage)
@@ -397,12 +399,18 @@ export class AiChatService {
   }
 
   private notifyAssistantPush(
-    _recipientId: string,
-    _conversationId: string,
-    _messageId: string,
-    _content: string,
+    recipientId: string,
+    conversationId: string,
+    messageId: string,
+    content: string,
   ): void {
-    // AI assistant push is disabled on mobile; web uses live socket updates instead.
+    // Remote AI push stays disabled; still persist an in-app inbox row.
+    void this.pushNotifications.recordAiMessage({
+      recipientId,
+      chatId: conversationId,
+      messageId,
+      body: content,
+    });
   }
 
   private async finalizeAnswer(
