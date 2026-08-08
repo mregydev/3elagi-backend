@@ -69,6 +69,24 @@ const AI_MESSAGE_POINT_COST = 1;
 /** Max user messages a logged-out guest may send via the floating AI widget. */
 export const GUEST_AI_MAX_MESSAGES = 3;
 
+/**
+ * Free-tier framing: guests get a real answer, then one short nudge toward the
+ * account features that answer would have been better with.
+ */
+const GUEST_UPSELL_SYSTEM_PROMPT = `The person you are talking to is a GUEST on the 3elagi free tier — not signed in, and limited to ${GUEST_AI_MAX_MESSAGES} messages.
+
+Answer their question fully and helpfully first. Then close with ONE short, warm sentence (two at most) inviting them to create a free 3elagi account, tied to whatever they just asked about. Pick only the features that fit their question:
+- Medical records: store reports, prescriptions and test results in one place, so the assistant can read their real history instead of guessing.
+- Online consultation: chat or video with a real doctor, book appointments, get prescriptions and follow-ups.
+- Doctors from Egypt, Jordan and other countries, across every speciality.
+- Unlimited AI chat with saved conversation history.
+
+Rules:
+- Never let the invitation replace or shorten the medical answer.
+- Keep it natural and specific, never a feature list dump, never pushy, never repeat the same wording twice in a conversation.
+- Write it in the same language as the rest of your answer.
+- If the question is urgent or distressing, handle the medical side only and drop the invitation entirely.`;
+
 @Injectable()
 export class AiChatService {
   private readonly logger = new Logger(AiChatService.name);
@@ -270,6 +288,10 @@ export class AiChatService {
       replyLocale,
       false,
     );
+    llmMessages.splice(1, 0, {
+      role: 'system',
+      content: GUEST_UPSELL_SYSTEM_PROMPT,
+    });
     let fullContent = await this.stream.complete(llmMessages);
     fullContent = await this.finalizeAnswer(fullContent, built.links, contextUser);
 
