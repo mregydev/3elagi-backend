@@ -11,6 +11,7 @@ export const SPECIALITY_IMAGE_FILES: Record<string, string> = {
   Surgery: 'surgery.png',
   Emergency: 'emergency.png',
   Gynaecology: 'gynaecology.png',
+  Nutritionist: 'nutritionist.png',
 };
 
 export function specialityImagePath(nameEn: string): string {
