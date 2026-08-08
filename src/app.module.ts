@@ -143,6 +143,7 @@ import { PaymentIntentionMarketPricing1778450000000 } from './migrations/1778450
 import { UserEmailVerificationAndPasswordReset1778460000000 } from './migrations/1778460000000-UserEmailVerificationAndPasswordReset';
 import { EmergencyAndGynaecologySpecialities1778470000000 } from './migrations/1778470000000-EmergencyAndGynaecologySpecialities';
 import { ThreelagiCampaignBanners1778480000000 } from './migrations/1778480000000-ThreelagiCampaignBanners';
+import { SpecialityMarketVisibility1778490000000 } from './migrations/1778490000000-SpecialityMarketVisibility';
 import { MedicalDocumentRequestsModule } from './medical-document-requests/medical-document-requests.module';
 
 @Module({
@@ -262,6 +263,7 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
           UserEmailVerificationAndPasswordReset1778460000000,
           EmergencyAndGynaecologySpecialities1778470000000,
           ThreelagiCampaignBanners1778480000000,
+          SpecialityMarketVisibility1778490000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',

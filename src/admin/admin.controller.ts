@@ -35,6 +35,19 @@ export class AdminController {
     return this.service.stats();
   }
 
+  // Specialities (market visibility)
+  @Get('specialities')
+  listSpecialities() {
+    return this.service.listSpecialities();
+  }
+  @Patch('specialities/:id/visibility')
+  updateSpecialityVisibility(
+    @Param('id') id: string,
+    @Body() body: { visible_eg?: boolean; visible_jo?: boolean },
+  ) {
+    return this.service.updateSpecialityVisibility(id, body ?? {});
+  }
+
   // Doctors
   @Get('doctors')
   listDoctors() {

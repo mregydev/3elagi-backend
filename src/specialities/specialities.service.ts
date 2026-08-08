@@ -21,7 +21,29 @@ export class SpecialitiesService {
     private reviewRepo: Repository<DoctorReview>,
   ) {}
 
-  async findAll() {
+  async findAll(country?: string) {
+    const market = country?.trim().toUpperCase();
+    const qb = this.specialityRepo
+      .createQueryBuilder('s')
+      .orderBy('s.name_en', 'ASC');
+
+    if (market === 'EG') {
+      qb.andWhere('s.visible_eg = true');
+    } else if (market === 'JO') {
+      qb.andWhere('s.visible_jo = true');
+    }
+
+    const rows = await qb.getMany();
+    return rows.map((s) => ({
+      id: s.id,
+      name_en: s.name_en,
+      name_ar: s.name_ar,
+      image_url: resolveSpecialityPublicUrl(s.image_url),
+    }));
+  }
+
+  /** Admin: full list with per-market visibility flags. */
+  async findAllForAdmin() {
     const rows = await this.specialityRepo.find({
       order: { name_en: 'ASC' },
     });
@@ -30,7 +52,30 @@ export class SpecialitiesService {
       name_en: s.name_en,
       name_ar: s.name_ar,
       image_url: resolveSpecialityPublicUrl(s.image_url),
+      visible_eg: s.visible_eg !== false,
+      visible_jo: s.visible_jo !== false,
     }));
+  }
+
+  async updateVisibility(
+    id: string,
+    patch: { visible_eg?: boolean; visible_jo?: boolean },
+  ) {
+    const row = await this.specialityRepo.findOne({ where: { id } });
+    if (!row) throw new NotFoundException('Speciality not found');
+
+    if (typeof patch.visible_eg === 'boolean') row.visible_eg = patch.visible_eg;
+    if (typeof patch.visible_jo === 'boolean') row.visible_jo = patch.visible_jo;
+
+    const saved = await this.specialityRepo.save(row);
+    return {
+      id: saved.id,
+      name_en: saved.name_en,
+      name_ar: saved.name_ar,
+      image_url: resolveSpecialityPublicUrl(saved.image_url),
+      visible_eg: saved.visible_eg !== false,
+      visible_jo: saved.visible_jo !== false,
+    };
   }
 
   async findDoctorsBySpeciality(specialityId: string, country?: string) {

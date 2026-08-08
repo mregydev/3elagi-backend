@@ -74,6 +74,18 @@ export class AdminService {
     private uploadsService: UploadsService,
   ) {}
 
+  // ----- Specialities (market visibility) -----
+  listSpecialities() {
+    return this.specialitiesService.findAllForAdmin();
+  }
+
+  updateSpecialityVisibility(
+    id: string,
+    patch: { visible_eg?: boolean; visible_jo?: boolean },
+  ) {
+    return this.specialitiesService.updateVisibility(id, patch);
+  }
+
   // ----- Doctors -----
   listDoctors() {
     return this.doctorRepo.find({

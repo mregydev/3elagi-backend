@@ -20,6 +20,14 @@ export class DoctorSpeciality {
   @Column({ type: 'text' })
   image_url: string;
 
+  /** Shown on Egypt market browse (home / our doctors). */
+  @Column({ type: 'boolean', default: true })
+  visible_eg: boolean;
+
+  /** Shown on Jordan market browse (home / our doctors). */
+  @Column({ type: 'boolean', default: true })
+  visible_jo: boolean;
+
   @CreateDateColumn()
   created_at: Date;
 
