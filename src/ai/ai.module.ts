@@ -23,6 +23,7 @@ import { AiChatService } from './ai-chat.service';
 import { AiContextBuilderService } from './ai-context-builder.service';
 import { AiContextRegistryService } from './ai-context-registry.service';
 import { AiController } from './ai.controller';
+import { AiGuestController } from './ai-guest.controller';
 import { AiGateway } from './ai.gateway';
 import { AiIntentClassifierService } from './ai-intent-classifier.service';
 import { AiPromptService } from './ai-prompt.service';
@@ -77,7 +78,7 @@ import { UploadsModule } from '../uploads/uploads.module';
       Consultation,
     ]),
   ],
-  controllers: [AiController],
+  controllers: [AiController, AiGuestController],
   providers: [
     AiService,
     AiChatService,

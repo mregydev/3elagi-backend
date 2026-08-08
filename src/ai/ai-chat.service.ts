@@ -66,11 +66,15 @@ const RATE_LIMIT_MAX = 20;
 /** Set false to allow AI messages without deducting message points. */
 const AI_POINTS_DEDUCTION_ENABLED = false;
 const AI_MESSAGE_POINT_COST = 1;
+/** Max user messages a logged-out guest may send via the floating AI widget. */
+export const GUEST_AI_MAX_MESSAGES = 3;
 
 @Injectable()
 export class AiChatService {
   private readonly logger = new Logger(AiChatService.name);
   private readonly rateBuckets = new Map<string, number[]>();
+  /** guestId → number of user messages already accepted. */
+  private readonly guestMessageCounts = new Map<string, number>();
 
   constructor(
     private readonly contextBuilder: AiContextBuilderService,
@@ -185,6 +189,95 @@ export class AiChatService {
     });
     if (!conversation) throw new NotFoundException('Conversation not found');
     await this.conversationRepo.remove(conversation);
+  }
+
+  /**
+   * Logged-out floating widget chat: general answers only, capped at
+   * {@link GUEST_AI_MAX_MESSAGES} user turns per guestId (in-memory).
+   */
+  async guestChat(input: {
+    guestId: string;
+    message: string;
+    history?: Array<{ role: 'user' | 'assistant'; content: string }>;
+    locale?: string;
+  }): Promise<{ content: string; used: number; remaining: number }> {
+    const guestId = input.guestId?.trim();
+    if (!guestId || guestId.length < 8 || guestId.length > 80) {
+      throw new ForbiddenException('Invalid guest session');
+    }
+    const message = input.message?.trim() ?? '';
+    if (!message) {
+      throw new ForbiddenException('Message is required');
+    }
+
+    const used = this.guestMessageCounts.get(guestId) ?? 0;
+    if (used >= GUEST_AI_MAX_MESSAGES) {
+      throw new HttpException(
+        {
+          message:
+            'Guest AI limit reached. Please log in or sign up to continue.',
+          code: 'guest_limit',
+        },
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    this.assertRateLimit(`guest:${guestId}`);
+    this.guestMessageCounts.set(guestId, used + 1);
+
+    const preferredLocale = resolvePreferredLocale(input.locale);
+    const replyLocale = resolveReplyLocale(message, preferredLocale);
+    const contextUser: AiContextUser = {
+      id: `guest:${guestId}`,
+      role: UserRole.PATIENT,
+      patientContextId: null,
+      preferredLocale: replyLocale,
+    };
+
+    const built = await this.contextBuilder.build(contextUser, message);
+    if (built.urgent && built.urgentMessage) {
+      const urgentText = await this.finalizeAnswer(
+        built.urgentMessage,
+        built.links,
+        contextUser,
+      );
+      return {
+        content: urgentText,
+        used: used + 1,
+        remaining: Math.max(0, GUEST_AI_MAX_MESSAGES - used - 1),
+      };
+    }
+
+    const history: LlmMessage[] = (input.history ?? [])
+      .filter(
+        (row) =>
+          (row.role === 'user' || row.role === 'assistant') &&
+          typeof row.content === 'string' &&
+          row.content.trim(),
+      )
+      .slice(-8)
+      .map((row) => ({
+        role: row.role,
+        content: row.content.trim().slice(0, 4000),
+      }));
+
+    const llmMessages = await this.prompt.buildMessages(
+      message,
+      built.contextText,
+      built.intent,
+      history,
+      UserRole.PATIENT,
+      replyLocale,
+      false,
+    );
+    let fullContent = await this.stream.complete(llmMessages);
+    fullContent = await this.finalizeAnswer(fullContent, built.links, contextUser);
+
+    return {
+      content: fullContent,
+      used: used + 1,
+      remaining: Math.max(0, GUEST_AI_MAX_MESSAGES - used - 1),
+    };
   }
 
   async *streamMessage(
