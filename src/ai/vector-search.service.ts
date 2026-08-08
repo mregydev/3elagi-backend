@@ -12,6 +12,8 @@ export interface VectorSearchOptions {
   userId: string;
   userRole: string;
   patientUserId?: string;
+  /** Guests: search platform knowledge only — `userId` is not a user UUID. */
+  platformOnly?: boolean;
   limit?: number;
 }
 
@@ -131,6 +133,9 @@ export class VectorSearchService {
     options: VectorSearchOptions,
   ): Promise<string[]> {
     const { userId, userRole, patientUserId } = options;
+
+    // Empty list → the SQL falls through to `metadata->>'scope' = 'platform'`.
+    if (options.platformOnly) return [];
 
     if (userRole === UserRole.PATIENT) {
       if (patientUserId && patientUserId !== userId) {

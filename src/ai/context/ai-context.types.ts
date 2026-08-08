@@ -17,6 +17,11 @@ export interface AiContextUser {
   /** Authenticated patient scope (always set for patients; optional for doctors). */
   patientContextId: string | null;
   preferredLocale: 'ar' | 'en' | 'de' | 'es';
+  /**
+   * Logged-out free-tier visitor. `id` is a `guest:<session>` string, not a
+   * user UUID, so every personal-data lookup must be skipped for them.
+   */
+  isGuest?: boolean;
 }
 
 export interface AiContextBuildResult {

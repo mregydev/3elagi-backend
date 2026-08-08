@@ -250,6 +250,7 @@ export class AiChatService {
       role: UserRole.PATIENT,
       patientContextId: null,
       preferredLocale: replyLocale,
+      isGuest: true,
     };
 
     const built = await this.contextBuilder.build(contextUser, message);

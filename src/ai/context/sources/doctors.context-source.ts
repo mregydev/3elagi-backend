@@ -18,6 +18,7 @@ interface DoctorRow {
 @Injectable()
 export class DoctorsContextSource implements AIContextSource {
   readonly name = 'doctors';
+  readonly guestSafe = true;
 
   constructor(
     @InjectRepository(Doctor)

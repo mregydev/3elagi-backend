@@ -4,6 +4,12 @@ import type { AiContextUser, AiIntent } from './ai-context.types';
 export interface AIContextSource {
   readonly name: string;
 
+  /**
+   * Safe for logged-out guests: reads nothing keyed by the user id (which is a
+   * `guest:<session>` string, not a UUID). Defaults to false.
+   */
+  readonly guestSafe?: boolean;
+
   /** Whether this source should contribute for the given intent/question. */
   canHandle(question: string, intent: AiIntent): boolean;
 

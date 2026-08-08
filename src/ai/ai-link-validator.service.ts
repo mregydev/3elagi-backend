@@ -131,6 +131,9 @@ export class AiLinkValidatorService {
   }
 
   private async resolveAccessiblePatientIds(user: AiContextUser): Promise<string[]> {
+    // Guests own no records, and their id is not a UUID to query with.
+    if (user.isGuest) return [];
+
     if (user.role === UserRole.PATIENT) {
       const scope = user.patientContextId ?? user.id;
       return scope ? [scope] : [];

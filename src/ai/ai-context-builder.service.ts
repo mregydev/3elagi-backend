@@ -77,7 +77,13 @@ export class AiContextBuilderService {
     const versionParts: string[] = [AI_PROMPT_VERSION, intent];
     const links: AiLinkEntry[] = [];
 
-    for (const source of this.registry.getSources()) {
+    // Guests have no user row, so sources that read personal data keyed by a
+    // user UUID are skipped rather than queried with `guest:<session>`.
+    const sources = this.registry
+      .getSources()
+      .filter((source) => !user.isGuest || source.guestSafe);
+
+    for (const source of sources) {
       if (!source.canHandle(question, intent)) continue;
       if (
         !allowedIntents.some((i) => source.canHandle(question, i)) &&
@@ -109,6 +115,7 @@ export class AiContextBuilderService {
         userId: user.id,
         userRole: user.role,
         patientUserId: user.patientContextId ?? undefined,
+        platformOnly: user.isGuest === true,
         limit: 8,
       });
       chunks = search.chunks;

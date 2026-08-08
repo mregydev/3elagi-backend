@@ -6,6 +6,7 @@ import { UserRole } from '../../../entities/user.entity';
 @Injectable()
 export class GeneralKnowledgeContextSource implements AIContextSource {
   readonly name = 'general_knowledge';
+  readonly guestSafe = true;
 
   canHandle(_question: string, intent: AiIntent): boolean {
     return (

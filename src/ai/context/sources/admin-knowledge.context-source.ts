@@ -18,6 +18,7 @@ type AdminKnowledgePayload = {
 @Injectable()
 export class AdminKnowledgeContextSource implements AIContextSource {
   readonly name = 'admin_knowledge';
+  readonly guestSafe = true;
   private readonly logger = new Logger(AdminKnowledgeContextSource.name);
 
   constructor(
