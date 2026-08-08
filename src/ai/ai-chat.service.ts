@@ -289,10 +289,19 @@ export class AiChatService {
       replyLocale,
       false,
     );
-    llmMessages.splice(1, 0, {
-      role: 'system',
-      content: GUEST_UPSELL_SYSTEM_PROMPT,
-    });
+    // Appended to the leading system message, not inserted as a second one:
+    // Gemini rejects a system message that is not the first.
+    if (llmMessages[0]?.role === 'system') {
+      llmMessages[0] = {
+        ...llmMessages[0],
+        content: `${llmMessages[0].content}\n\n${GUEST_UPSELL_SYSTEM_PROMPT}`,
+      };
+    } else {
+      llmMessages.unshift({
+        role: 'system',
+        content: GUEST_UPSELL_SYSTEM_PROMPT,
+      });
+    }
     let fullContent = await this.stream.complete(llmMessages);
     fullContent = await this.finalizeAnswer(fullContent, built.links, contextUser);
 
