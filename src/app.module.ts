@@ -146,6 +146,7 @@ import { ThreelagiCampaignBanners1778480000000 } from './migrations/177848000000
 import { SpecialityMarketVisibility1778490000000 } from './migrations/1778490000000-SpecialityMarketVisibility';
 import { NutritionistSpeciality1778500000000 } from './migrations/1778500000000-NutritionistSpeciality';
 import { UserNotifications1778510000000 } from './migrations/1778510000000-UserNotifications';
+import { DoctorImmediateCalls1778520000000 } from './migrations/1778520000000-DoctorImmediateCalls';
 import { UserNotification } from './entities/user-notification.entity';
 import { NotificationsModule } from './notifications/notifications.module';
 import { MedicalDocumentRequestsModule } from './medical-document-requests/medical-document-requests.module';
@@ -271,6 +272,7 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
           SpecialityMarketVisibility1778490000000,
           NutritionistSpeciality1778500000000,
           UserNotifications1778510000000,
+          DoctorImmediateCalls1778520000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',

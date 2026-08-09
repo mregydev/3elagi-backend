@@ -70,10 +70,29 @@ export class VideoCallsService {
     'ringing',
     'accepted',
   ];
+  private static readonly RING_TIMEOUT_SEC = 60;
 
   private async findLiveSessionForDoctor(
     doctorUserId: string,
   ): Promise<VideoCallSession | null> {
+    // Clean up stale ringing sessions (no answer in 60s = caller hung up or network failed).
+    const staleThreshold = new Date(
+      Date.now() - VideoCallsService.RING_TIMEOUT_SEC * 1000,
+    );
+    const stale = await this.sessionRepo.find({
+      where: {
+        doctor_user_id: doctorUserId,
+        status: 'ringing',
+      },
+    });
+    for (const session of stale) {
+      if (new Date(session.created_at) < staleThreshold) {
+        await this.refundReservation(session);
+        session.status = 'missed';
+        await this.sessionRepo.save(session);
+      }
+    }
+
     return this.sessionRepo.findOne({
       where: {
         doctor_user_id: doctorUserId,
