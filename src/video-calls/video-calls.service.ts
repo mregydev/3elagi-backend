@@ -1,12 +1,13 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { User, UserRole } from '../entities/user.entity';
 import { Doctor } from '../entities/doctor.entity';
 import {
@@ -14,6 +15,8 @@ import {
   type VideoCallStatus,
 } from '../entities/video-call-session.entity';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
+import { PointsService } from '../points/points.service';
+import { clampConsultationPrice } from '../points/message-price.constants';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { UsersService } from '../users/users.service';
 import { DailyService } from '../daily/daily.service';
@@ -28,6 +31,8 @@ export interface VideoCallSessionView {
   patientName: string;
   doctorName: string;
   durationMinutes: number;
+  /** Credits held from the patient for this call. */
+  reservedPoints: number;
 }
 
 @Injectable()
@@ -40,6 +45,7 @@ export class VideoCallsService {
     @InjectRepository(User) private readonly userRepo: Repository<User>,
     @InjectRepository(Doctor) private readonly doctorRepo: Repository<Doctor>,
     private readonly daily: DailyService,
+    private readonly points: PointsService,
     private readonly push: PushNotificationsService,
     private readonly presenceGateway: PresenceGateway,
     private readonly users: UsersService,
@@ -55,7 +61,61 @@ export class VideoCallsService {
       patientName: session.patient_name,
       doctorName: session.doctor_name,
       durationMinutes: session.duration_minutes ?? 30,
+      reservedPoints: session.reserved_points ?? 0,
     };
+  }
+
+  /** Live = the doctor's line is busy (someone is ringing them or talking). */
+  private static readonly LIVE_STATUSES: VideoCallStatus[] = [
+    'ringing',
+    'accepted',
+  ];
+
+  private async findLiveSessionForDoctor(
+    doctorUserId: string,
+  ): Promise<VideoCallSession | null> {
+    return this.sessionRepo.findOne({
+      where: {
+        doctor_user_id: doctorUserId,
+        status: In(VideoCallsService.LIVE_STATUSES),
+      },
+    });
+  }
+
+  /** Release the patient's held credits — declined, missed, or never answered. */
+  private async refundReservation(session: VideoCallSession): Promise<void> {
+    const held = session.reserved_points ?? 0;
+    if (held <= 0) return;
+    session.reserved_points = 0;
+    await this.sessionRepo.save(session);
+    try {
+      await this.points.refundReserved(session.patient_user_id, held);
+    } catch (err) {
+      this.logger.error(
+        `Failed to refund ${held} credits for call ${session.id}`,
+        err,
+      );
+    }
+  }
+
+  /** Answered call: the held credits go to the doctor. */
+  private async settleReservation(session: VideoCallSession): Promise<void> {
+    const held = session.reserved_points ?? 0;
+    if (held <= 0) return;
+    session.reserved_points = 0;
+    await this.sessionRepo.save(session);
+    try {
+      await this.points.settleReservedToDoctor(
+        session.patient_user_id,
+        session.doctor_user_id,
+        held,
+      );
+    } catch (err) {
+      this.logger.error(
+        `Failed to settle ${held} credits for call ${session.id}`,
+        err,
+      );
+    }
   }
 
   private async assertDoctorUser(doctorUserId: string): Promise<User> {
@@ -88,15 +148,44 @@ export class VideoCallsService {
 
     const doctor = await this.doctorRepo.findOne({
       where: { user_id: dto.doctor_user_id },
-      select: ['video_consultation_minutes'],
+      select: [
+        'video_consultation_minutes',
+        'video_consultation_price',
+        'immediate_call_enabled',
+      ],
     });
-    const durationMinutes = doctor?.video_consultation_minutes ?? 30;
+    if (!doctor?.immediate_call_enabled) {
+      throw new ForbiddenException('This doctor is not accepting calls');
+    }
 
-    const [patientName, doctorName, { roomUrl }] = await Promise.all([
-      this.users.getDisplayName(patientUserId),
-      this.users.getDisplayName(dto.doctor_user_id),
-      this.daily.createRoom({ durationMinutes }),
-    ]);
+    // One line per doctor: whoever is already ringing or talking holds it.
+    const live = await this.findLiveSessionForDoctor(dto.doctor_user_id);
+    if (live) {
+      throw new ConflictException({
+        message: 'This doctor is on another call right now',
+        code: 'doctor_busy',
+      });
+    }
+
+    const durationMinutes = doctor?.video_consultation_minutes ?? 30;
+    const cost = clampConsultationPrice(doctor?.video_consultation_price ?? 1);
+
+    // Hold the credits before ringing — throws if the patient cannot afford it.
+    await this.points.reservePoints(patientUserId, cost, 'Starting a call');
+
+    let patientName: string;
+    let doctorName: string;
+    let roomUrl: string;
+    try {
+      [patientName, doctorName, { roomUrl }] = await Promise.all([
+        this.users.getDisplayName(patientUserId),
+        this.users.getDisplayName(dto.doctor_user_id),
+        this.daily.createRoom({ durationMinutes }),
+      ]);
+    } catch (err) {
+      await this.points.refundReserved(patientUserId, cost);
+      throw err;
+    }
 
     const session = this.sessionRepo.create({
       patient_user_id: patientUserId,
@@ -106,8 +195,18 @@ export class VideoCallsService {
       patient_name: patientName,
       doctor_name: doctorName,
       duration_minutes: durationMinutes,
+      reserved_points: cost,
     });
-    await this.sessionRepo.save(session);
+    try {
+      await this.sessionRepo.save(session);
+    } catch (err) {
+      // Partial unique index lost the race — another patient is already ringing.
+      await this.points.refundReserved(patientUserId, cost);
+      throw new ConflictException({
+        message: 'This doctor is on another call right now',
+        code: 'doctor_busy',
+      });
+    }
 
     this.presenceGateway.emitToUser(dto.doctor_user_id, 'video-call:incoming', {
       session_id: session.id,
@@ -160,6 +259,7 @@ export class VideoCallsService {
       session.status = 'accepted';
       await this.sessionRepo.save(session);
     }
+    this.notifyCaller(session, 'accepted');
     return this.toView(session);
   }
 
@@ -173,6 +273,8 @@ export class VideoCallsService {
     }
     session.status = 'declined';
     await this.sessionRepo.save(session);
+    await this.refundReservation(session);
+    this.notifyCaller(session, 'declined');
     return this.toView(session);
   }
 
@@ -183,9 +285,40 @@ export class VideoCallsService {
     if (!session) throw new NotFoundException('Call session not found');
     this.assertParticipant(session, userId);
     if (session.status !== 'ended') {
+      // Answered → the doctor earned it. Hung up while ringing → give it back.
+      const wasAnswered = session.status === 'accepted';
       session.status = 'ended';
       await this.sessionRepo.save(session);
+      if (wasAnswered) await this.settleReservation(session);
+      else await this.refundReservation(session);
+
+      const peerId =
+        userId === session.patient_user_id
+          ? session.doctor_user_id
+          : session.patient_user_id;
+      this.presenceGateway.emitToUser(peerId, 'video-call:status', {
+        session_id: session.id,
+        status: 'ended' as VideoCallStatus,
+      });
     }
     return this.toView(session);
+  }
+
+  /** Tell the patient who is staring at the dialing screen what happened. */
+  private notifyCaller(
+    session: VideoCallSession,
+    status: VideoCallStatus,
+  ): void {
+    this.presenceGateway.emitToUser(
+      session.patient_user_id,
+      'video-call:status',
+      {
+        session_id: session.id,
+        status,
+        room_url: session.room_url,
+        doctor_name: session.doctor_name,
+        duration_minutes: session.duration_minutes ?? 30,
+      },
+    );
   }
 }

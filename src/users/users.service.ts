@@ -151,6 +151,7 @@ export class UsersService {
       let doctor_id: string | null = null;
       let consultation_price: number | null = null;
       let video_consultation_price: number | null = null;
+      let immediate_call_enabled = false;
       let rating_average: number | null = null;
       let rating_total: number | null = null;
       let country: string | null = null;
@@ -163,6 +164,7 @@ export class UsersService {
         doctor_id = doctor.id;
         consultation_price = doctor.consultation_price ?? 1;
         video_consultation_price = doctor.video_consultation_price ?? 1;
+        immediate_call_enabled = !!doctor.immediate_call_enabled;
         country = doctor.country?.trim().toUpperCase() || 'EG';
         const rating = ratingByDoctorId.get(doctor.id);
         rating_average = rating?.average ?? 0;
@@ -188,6 +190,7 @@ export class UsersService {
           doctor_id,
           consultation_price,
           video_consultation_price,
+          immediate_call_enabled,
           rating_average,
           rating_total,
           country,
@@ -252,6 +255,7 @@ export class UsersService {
     let doctor_id: string | null = null;
     let consultation_price: number | null = null;
     let video_consultation_price: number | null = null;
+    let immediate_call_enabled = false;
     let rating_average: number | null = null;
     let rating_total: number | null = null;
     let country: string | null = null;
@@ -264,6 +268,7 @@ export class UsersService {
       doctor_id = doctor.id;
       consultation_price = doctor.consultation_price ?? 1;
       video_consultation_price = doctor.video_consultation_price ?? 1;
+      immediate_call_enabled = !!doctor.immediate_call_enabled;
       country = doctor.country?.trim().toUpperCase() || 'EG';
       const rating = await this.reviewRepo
         .createQueryBuilder('r')
@@ -293,6 +298,7 @@ export class UsersService {
       doctor_id,
       consultation_price,
       video_consultation_price,
+      immediate_call_enabled,
       rating_average,
       rating_total,
       country,

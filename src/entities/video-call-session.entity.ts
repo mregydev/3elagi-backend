@@ -40,6 +40,10 @@ export class VideoCallSession {
   @Column({ type: 'int', nullable: true })
   duration_minutes: number | null;
 
+  /** Credits held from the patient while the call is live (0 = nothing held). */
+  @Column({ type: 'int', default: 0 })
+  reserved_points: number;
+
   @CreateDateColumn({ type: 'timestamptz' })
   created_at: Date;
 

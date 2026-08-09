@@ -5,6 +5,7 @@ import { User } from '../entities/user.entity';
 import { Doctor } from '../entities/doctor.entity';
 import { VideoCallSession } from '../entities/video-call-session.entity';
 import { PushNotificationsModule } from '../push-notifications/push-notifications.module';
+import { PointsModule } from '../points/points.module';
 import { PresenceModule } from '../presence/presence.module';
 import { UsersModule } from '../users/users.module';
 import { DailyModule } from '../daily/daily.module';
@@ -17,6 +18,7 @@ import { VideoCallsService } from './video-calls.service';
     DailyModule,
     UsersModule,
     PushNotificationsModule,
+    PointsModule,
     PresenceModule,
     TypeOrmModule.forFeature([VideoCallSession, User, Doctor]),
   ],

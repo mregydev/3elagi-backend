@@ -91,6 +91,10 @@ export class Doctor {
   @Column({ type: 'int', default: 30 })
   video_consultation_minutes: number;
 
+  /** Doctor accepts immediate (unscheduled) calls straight from the chat. */
+  @Column({ type: 'boolean', default: false })
+  immediate_call_enabled: boolean;
+
   @Column({ type: 'varchar', length: 16, default: 'pending' })
   approval_status: ApprovalStatus;
 

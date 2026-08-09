@@ -103,6 +103,7 @@ export class DoctorsService {
       professional_title, description, experience_years, consultation_fee_egp,
       faqs, tags, certification_urls, speciality_id,
       consultation_price, video_consultation_price, video_consultation_minutes,
+      immediate_call_enabled,
       iban, account_holder_full_name, national_id,
     } = updates as Partial<Doctor>;
     const safeUpdates: Partial<Doctor> = {};
@@ -182,6 +183,9 @@ export class DoctorsService {
       safeUpdates.video_consultation_minutes = clampVideoConsultationMinutes(
         video_consultation_minutes,
       );
+    }
+    if (immediate_call_enabled !== undefined) {
+      safeUpdates.immediate_call_enabled = !!immediate_call_enabled;
     }
     if (iban !== undefined) {
       const cleaned =
