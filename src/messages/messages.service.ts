@@ -42,6 +42,15 @@ const APPOINTMENT_ACTIONS: AppointmentActionType[] = [
   'cancel',
 ];
 
+/** Record kinds that may be linked into a chat message. */
+const MEDICAL_LINK_RECORD_TYPES: string[] = [
+  'lab',
+  'xray',
+  'diagnosis',
+  'intake',
+  'prescription',
+];
+
 const MESSAGE_EDIT_WINDOW_MS = 15 * 60 * 1000;
 
 @Injectable()
@@ -288,7 +297,7 @@ export class MessagesService {
       if (
         !meta?.record_id ||
         !meta?.title ||
-        !['lab', 'xray', 'diagnosis', 'intake'].includes(meta.record_type ?? '')
+        !MEDICAL_LINK_RECORD_TYPES.includes(meta.record_type ?? '')
       ) {
         throw new BadRequestException('invalid medical link metadata');
       }
@@ -501,7 +510,7 @@ export class MessagesService {
       if (
         !meta?.record_id ||
         !meta?.title ||
-        !['lab', 'xray', 'diagnosis', 'intake'].includes(meta.record_type)
+        !MEDICAL_LINK_RECORD_TYPES.includes(meta.record_type)
       ) {
         throw new BadRequestException('invalid medical link metadata');
       }

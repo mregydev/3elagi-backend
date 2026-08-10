@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -127,6 +128,8 @@ export class MedicalDocumentRequestsService {
     private imageAnalyzer: MedicalRecordImageAnalyzerService,
     private presence: PresenceGateway,
   ) {}
+
+  private readonly logger = new Logger(MedicalDocumentRequestsService.name);
 
   private async getDoctor(userId: string): Promise<Doctor> {
     const doctor = await this.doctorRepo.findOne({ where: { user_id: userId } });
@@ -409,12 +412,75 @@ export class MedicalDocumentRequestsService {
     }
     const snapshot = { ...row };
     await this.markChatRequestStatus(row.id, 'fulfilled', doc.id);
+    await this.notifyDoctorOfUpload(row, doc, userId);
     await this.repo.remove(row);
     return {
       ...snapshot,
       fulfilled_document_id: doc.id,
       status: MedicalDocumentRequestStatus.FULFILLED,
     } as MedicalDocumentRequest;
+  }
+
+  /**
+   * Post the uploaded result into the chat as a message from the patient.
+   * Flipping the old request bubble to "fulfilled" is easy for the doctor to
+   * miss — this gives them an unread message and a push like any other.
+   */
+  private async notifyDoctorOfUpload(
+    request: MedicalDocumentRequest,
+    doc: MedicalDocument,
+    patientUserId: string,
+  ): Promise<void> {
+    const doctor = await this.doctorRepo.findOne({
+      where: { id: request.doctor_id },
+    });
+    if (!doctor?.user_id) return;
+
+    const doctorUserId = doctor.user_id;
+    const title = request.title?.trim() || doc.title?.trim() || 'Result';
+    const isXray = request.type === MedicalDocumentRequestType.XRAY;
+
+    try {
+      // Written straight to the repo, like postRequestChatMessage above: results
+      // usually arrive days later, long after the consultation closed, and
+      // MessagesService would reject it for having no open consultation.
+      const created = this.messageRepo.create({
+        type: 'medical_link' as const,
+        content: `${isXray ? 'X-ray' : 'Lab'} result uploaded: ${title}`,
+        creator: patientUserId,
+        recipient: doctorUserId,
+        attachment_url: null,
+        attachment_meta: {
+          record_type: isXray ? ('xray' as const) : ('lab' as const),
+          record_id: doc.id,
+          title,
+        },
+      });
+      const saved = await this.messageRepo.save(created);
+      const mapped = {
+        id: saved.id,
+        type: saved.type,
+        content: saved.content,
+        creator: saved.creator,
+        recipient: saved.recipient,
+        datetime: saved.datetime,
+        attachment_url: saved.attachment_url,
+        attachment_meta: saved.attachment_meta,
+        read_at: saved.read_at,
+        edited_at: saved.edited_at,
+      };
+      this.presence.emitToUser(doctorUserId, 'message:new', {
+        message: mapped,
+        peer_id: patientUserId,
+      });
+      this.presence.emitToUser(patientUserId, 'message:new', {
+        message: mapped,
+        peer_id: doctorUserId,
+      });
+    } catch (err) {
+      // The upload itself succeeded — never fail it over a chat notification.
+      this.logger.error('Failed to post uploaded result to chat', err);
+    }
   }
 
   private async markChatRequestStatus(
