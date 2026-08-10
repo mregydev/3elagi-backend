@@ -21,6 +21,7 @@ import { Doctor } from '../entities/doctor.entity';
 import { User, UserRole } from '../entities/user.entity';
 import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
 import { DoctorPatientAccessService } from '../doctor-patient-access/doctor-patient-access.service';
+import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 import { PointsService } from '../points/points.service';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { DiagnosisService } from '../diagnosis/diagnosis.service';
@@ -49,6 +50,7 @@ export class ConsultationsService {
     private users: UsersService,
     private knowledgeIndexer: KnowledgeIndexerService,
     private doctorPatientAccess: DoctorPatientAccessService,
+    private pushNotifications: PushNotificationsService,
   ) {}
 
   private scheduleIndexConsultation(consultationId: string): void {
@@ -97,7 +99,32 @@ export class ConsultationsService {
       message: mapped,
       peer_id: recipient,
     });
+
+    // Socket only reaches an open app. This also files the in-app notification
+    // and pushes to the device when the recipient is away.
+    void this.notifyRecipient(creator, recipient, mapped.id, content).catch(
+      () => undefined,
+    );
+
     return mapped;
+  }
+
+  private async notifyRecipient(
+    senderId: string,
+    recipientId: string,
+    messageId: string,
+    body: string,
+  ): Promise<void> {
+    if (senderId === recipientId) return;
+    const senderName = await this.users.getDisplayName(senderId);
+    await this.pushNotifications.sendChatMessage({
+      recipientId,
+      chatId: senderId,
+      messageId,
+      senderId,
+      senderName,
+      body,
+    });
   }
 
   private mapConsultation(c: Consultation) {

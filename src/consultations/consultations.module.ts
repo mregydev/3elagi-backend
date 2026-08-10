@@ -11,6 +11,7 @@ import { PointsModule } from '../points/points.module';
 import { PresenceModule } from '../presence/presence.module';
 import { DiagnosisModule } from '../diagnosis/diagnosis.module';
 import { UsersModule } from '../users/users.module';
+import { PushNotificationsModule } from '../push-notifications/push-notifications.module';
 import { ConsultationsController } from './consultations.controller';
 import { ConsultationsService } from './consultations.service';
 
@@ -29,6 +30,7 @@ import { ConsultationsService } from './consultations.service';
     PresenceModule,
     DiagnosisModule,
     UsersModule,
+    PushNotificationsModule,
   ],
   controllers: [ConsultationsController],
   providers: [ConsultationsService],
