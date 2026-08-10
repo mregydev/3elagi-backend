@@ -28,11 +28,20 @@ export class NotificationsService {
     return saved;
   }
 
-  async listForUser(userId: string, limit = 50, offset = 0) {
+  /** `unreadOnly` keeps the inbox to notifications the user has not handled yet. */
+  async listForUser(
+    userId: string,
+    limit = 50,
+    offset = 0,
+    unreadOnly = false,
+  ) {
     const take = Math.min(Math.max(limit, 1), 100);
     const skip = Math.max(offset, 0);
     const rows = await this.repo.find({
-      where: { user_id: userId },
+      where: {
+        user_id: userId,
+        ...(unreadOnly ? { read_at: IsNull() } : {}),
+      },
       order: { created_at: 'DESC' },
       take,
       skip,

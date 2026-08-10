@@ -21,11 +21,13 @@ export class NotificationsController {
     @Request() req: { user: { id: string } },
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
+    @Query('unread') unread?: string,
   ) {
     return this.service.listForUser(
       req.user.id,
       limit ? Number(limit) : 50,
       offset ? Number(offset) : 0,
+      unread === '1' || unread === 'true',
     );
   }
 
