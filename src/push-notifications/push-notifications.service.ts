@@ -26,15 +26,15 @@ import type {
 /**
  * "Ahmed: see you tomorrow" — the name has to sit next to the text, because a
  * collapsed, grouped or lock-screen notification often shows the body alone.
- * Skipped when the body already leads with the name (nothing reads "Ahmed:
- * Ahmed: ...").
+ * Skipped when the body already opens with the name, with or without a colon
+ * ("Ahmed uploaded a new X-ray document" reads fine on its own).
  */
 export function withSenderName(senderName: string, body: string): string {
   const name = senderName?.trim();
   const text = body?.trim();
   if (!name) return text;
   if (!text) return name;
-  if (text.toLowerCase().startsWith(`${name.toLowerCase()}:`)) return text;
+  if (text.toLowerCase().startsWith(name.toLowerCase())) return text;
   return `${name}: ${text}`;
 }
 

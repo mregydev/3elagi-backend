@@ -443,6 +443,12 @@ export class MedicalDocumentRequestsService {
     const doctorUserId = doctor.user_id;
     const title = request.title?.trim() || doc.title?.trim() || 'Result';
     const isXray = request.type === MedicalDocumentRequestType.XRAY;
+    const patientName = await this.users.getDisplayName(patientUserId);
+    // Names the patient and the kind of document, so the notification stands on
+    // its own in a push banner or the inbox list.
+    const summary = `${patientName} uploaded a new ${
+      isXray ? 'X-ray' : 'lab'
+    } document`;
 
     try {
       // Written straight to the repo, like postRequestChatMessage above: results
@@ -450,7 +456,7 @@ export class MedicalDocumentRequestsService {
       // MessagesService would reject it for having no open consultation.
       const created = this.messageRepo.create({
         type: 'medical_link' as const,
-        content: `${isXray ? 'X-ray' : 'Lab'} result uploaded: ${title}`,
+        content: summary,
         creator: patientUserId,
         recipient: doctorUserId,
         attachment_url: null,
@@ -484,14 +490,13 @@ export class MedicalDocumentRequestsService {
 
       // The result may land days after the consultation closed, so the socket
       // usually has nobody listening — push it like any other chat message.
-      const patientName = await this.users.getDisplayName(patientUserId);
       await this.pushNotifications.sendChatMessage({
         recipientId: doctorUserId,
         chatId: patientUserId,
         messageId: saved.id,
         senderId: patientUserId,
         senderName: patientName,
-        body: mapped.content,
+        body: summary,
       });
     } catch (err) {
       // The upload itself succeeded — never fail it over a chat notification.
