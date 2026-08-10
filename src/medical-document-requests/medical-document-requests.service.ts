@@ -29,6 +29,8 @@ import { PatientConsentService } from '../patients/patient-consent.service';
 import { UploadsService } from '../uploads/uploads.service';
 import { MedicalRecordImageAnalyzerService } from '../medical-documents/medical-record-image-analyzer.service';
 import { PresenceGateway } from '../presence/presence.gateway';
+import { PushNotificationsService } from '../push-notifications/push-notifications.service';
+import { UsersService } from '../users/users.service';
 import { CreateMedicalDocumentRequestDto } from './dto/create-medical-document-request.dto';
 import { AiDraftRequestDescriptionDto } from './dto/ai-draft-request-description.dto';
 
@@ -127,6 +129,8 @@ export class MedicalDocumentRequestsService {
     private uploads: UploadsService,
     private imageAnalyzer: MedicalRecordImageAnalyzerService,
     private presence: PresenceGateway,
+    private pushNotifications: PushNotificationsService,
+    private users: UsersService,
   ) {}
 
   private readonly logger = new Logger(MedicalDocumentRequestsService.name);
@@ -476,6 +480,18 @@ export class MedicalDocumentRequestsService {
       this.presence.emitToUser(patientUserId, 'message:new', {
         message: mapped,
         peer_id: doctorUserId,
+      });
+
+      // The result may land days after the consultation closed, so the socket
+      // usually has nobody listening — push it like any other chat message.
+      const patientName = await this.users.getDisplayName(patientUserId);
+      await this.pushNotifications.sendChatMessage({
+        recipientId: doctorUserId,
+        chatId: patientUserId,
+        messageId: saved.id,
+        senderId: patientUserId,
+        senderName: patientName,
+        body: mapped.content,
       });
     } catch (err) {
       // The upload itself succeeded — never fail it over a chat notification.

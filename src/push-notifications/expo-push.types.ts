@@ -8,6 +8,8 @@ export interface ExpoPushMessage {
   sound: 'default';
   channelId: string;
   priority: 'high' | 'default';
+  /** iOS 15+: 'timeSensitive' cuts through Focus modes — calls only. */
+  interruptionLevel?: 'active' | 'timeSensitive' | 'critical';
 }
 
 export interface ExpoPushTicket {

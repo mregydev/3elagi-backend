@@ -92,6 +92,7 @@ export class ExpoPushProvider implements PushProvider {
       sound: 'default',
       channelId: VIDEO_CALL_CHANNEL_ID,
       priority: 'high',
+      interruptionLevel: 'timeSensitive',
     }));
   }
 

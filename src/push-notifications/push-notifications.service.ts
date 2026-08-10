@@ -23,6 +23,21 @@ import type {
   SystemNotificationPushInput,
 } from './push.types';
 
+/**
+ * "Ahmed: see you tomorrow" — the name has to sit next to the text, because a
+ * collapsed, grouped or lock-screen notification often shows the body alone.
+ * Skipped when the body already leads with the name (nothing reads "Ahmed:
+ * Ahmed: ...").
+ */
+export function withSenderName(senderName: string, body: string): string {
+  const name = senderName?.trim();
+  const text = body?.trim();
+  if (!name) return text;
+  if (!text) return name;
+  if (text.toLowerCase().startsWith(`${name.toLowerCase()}:`)) return text;
+  return `${name}: ${text}`;
+}
+
 @Injectable()
 export class PushNotificationsService {
   private readonly logger = new Logger(PushNotificationsService.name);
@@ -34,6 +49,7 @@ export class PushNotificationsService {
   ) {}
 
   async sendChatMessage(input: ChatPushInput): Promise<void> {
+    // In-app rows keep the plain body — the sender is already their title.
     await this.safePersist(draftFromChat(input));
     if (this.presence.isUserOnline(input.recipientId)) {
       this.logger.debug(
@@ -41,7 +57,10 @@ export class PushNotificationsService {
       );
       return;
     }
-    await this.factory.getActive().sendChatMessage(input);
+    await this.factory.getActive().sendChatMessage({
+      ...input,
+      body: withSenderName(input.senderName, input.body),
+    });
   }
 
   /** Persist in-app AI notification; remote push stays off (mobile policy). */
@@ -60,14 +79,15 @@ export class PushNotificationsService {
     await this.factory.getActive().sendAiMessage(input);
   }
 
+  /**
+   * Always pushed, unlike every other kind. A ringing call cannot rely on the
+   * socket: "online" only means a socket exists, and the callee's app may be
+   * backgrounded or the socket stale — either way they would never hear it.
+   * (Calls are also only placed to doctors we already know are connected, so
+   * suppressing on presence meant this push effectively never fired.)
+   */
   async sendIncomingVideoCall(input: IncomingVideoCallPushInput): Promise<void> {
     await this.safePersist(draftFromIncomingVideoCall(input));
-    if (this.presence.isUserOnline(input.recipientId)) {
-      this.logger.debug(
-        `Incoming call push skipped — recipient ${input.recipientId} is online`,
-      );
-      return;
-    }
     await this.factory.getActive().sendIncomingVideoCall(input);
   }
 
