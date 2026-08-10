@@ -21,6 +21,7 @@ import { PresenceGateway } from '../presence/presence.gateway';
 import { UsersService } from '../users/users.service';
 import { DailyService } from '../daily/daily.service';
 import { CreateVideoCallDto } from './dto/create-video-call.dto';
+import { isLiveSession } from './live-session';
 
 export interface VideoCallSessionView {
   id: string;
@@ -70,35 +71,36 @@ export class VideoCallsService {
     'ringing',
     'accepted',
   ];
-  private static readonly RING_TIMEOUT_SEC = 60;
 
   private async findLiveSessionForDoctor(
     doctorUserId: string,
   ): Promise<VideoCallSession | null> {
-    // Clean up stale ringing sessions (no answer in 60s = caller hung up or network failed).
-    const staleThreshold = new Date(
-      Date.now() - VideoCallsService.RING_TIMEOUT_SEC * 1000,
-    );
-    const stale = await this.sessionRepo.find({
-      where: {
-        doctor_user_id: doctorUserId,
-        status: 'ringing',
-      },
-    });
-    for (const session of stale) {
-      if (new Date(session.created_at) < staleThreshold) {
-        await this.refundReservation(session);
-        session.status = 'missed';
-        await this.sessionRepo.save(session);
-      }
-    }
-
-    return this.sessionRepo.findOne({
+    // Anything ringing/accepted but past its window is dead: the app crashed or
+    // the user force-quit without hanging up. Close it out so the line frees up.
+    const rows = await this.sessionRepo.find({
       where: {
         doctor_user_id: doctorUserId,
         status: In(VideoCallsService.LIVE_STATUSES),
       },
     });
+    let live: VideoCallSession | null = null;
+    for (const session of rows) {
+      if (isLiveSession(session)) {
+        live ??= session;
+        continue;
+      }
+      const wasAnswered = session.status === 'accepted';
+      session.status = wasAnswered ? 'ended' : 'missed';
+      await this.sessionRepo.save(session);
+      if (wasAnswered) await this.settleReservation(session);
+      else await this.refundReservation(session);
+    }
+    return live;
+  }
+
+  /** Tell every client to repaint this doctor's busy flag. */
+  private announceLineState(doctorUserId: string, busy: boolean): void {
+    this.presenceGateway.broadcastDoctorCallState(doctorUserId, busy);
   }
 
   /** Release the patient's held credits — declined, missed, or never answered. */
@@ -227,6 +229,8 @@ export class VideoCallsService {
       });
     }
 
+    this.announceLineState(dto.doctor_user_id, true);
+
     this.presenceGateway.emitToUser(dto.doctor_user_id, 'video-call:incoming', {
       session_id: session.id,
       caller_id: patientUserId,
@@ -293,6 +297,7 @@ export class VideoCallsService {
     session.status = 'declined';
     await this.sessionRepo.save(session);
     await this.refundReservation(session);
+    this.announceLineState(session.doctor_user_id, false);
     this.notifyCaller(session, 'declined');
     return this.toView(session);
   }
@@ -310,6 +315,7 @@ export class VideoCallsService {
       await this.sessionRepo.save(session);
       if (wasAnswered) await this.settleReservation(session);
       else await this.refundReservation(session);
+      this.announceLineState(session.doctor_user_id, false);
 
       const peerId =
         userId === session.patient_user_id

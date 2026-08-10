@@ -14,5 +14,9 @@ export interface DoctorRosterPayload {
   consultation_price?: number | null;
   rating_average?: number;
   rating_total?: number;
+  /** Doctor accepts immediate video calls. */
+  immediate_call_enabled?: boolean;
+  /** Doctor's call line is occupied right now. */
+  on_call?: boolean;
   role: 'doctor';
 }

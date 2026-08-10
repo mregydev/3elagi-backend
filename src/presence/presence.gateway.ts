@@ -105,6 +105,14 @@ export class PresenceGateway implements OnGatewayDisconnect {
     this.server.emit('doctor:registered', payload);
   }
 
+  /** Notify all connected clients that a doctor's call line went busy / free. */
+  broadcastDoctorCallState(doctorUserId: string, busy: boolean): void {
+    this.server.emit('doctor:call-state', {
+      doctor_user_id: doctorUserId,
+      busy,
+    });
+  }
+
   private userRoom(userId: string): string {
     return `user:${userId}`;
   }

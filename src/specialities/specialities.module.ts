@@ -6,9 +6,18 @@ import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
 import { Doctor } from '../entities/doctor.entity';
 import { User } from '../entities/user.entity';
 import { DoctorReview } from '../entities/review.entity';
+import { VideoCallSession } from '../entities/video-call-session.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([DoctorSpeciality, Doctor, User, DoctorReview])],
+  imports: [
+    TypeOrmModule.forFeature([
+      DoctorSpeciality,
+      Doctor,
+      User,
+      DoctorReview,
+      VideoCallSession,
+    ]),
+  ],
   controllers: [SpecialitiesController],
   providers: [SpecialitiesService],
   exports: [SpecialitiesService],

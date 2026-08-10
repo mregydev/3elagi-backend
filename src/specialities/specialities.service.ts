@@ -6,6 +6,8 @@ import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
 import { Doctor } from '../entities/doctor.entity';
 import { DoctorReview } from '../entities/review.entity';
 import { User, UserRole } from '../entities/user.entity';
+import { VideoCallSession } from '../entities/video-call-session.entity';
+import { busyDoctorUserIds } from '../video-calls/live-session';
 import type { DoctorRosterPayload } from './doctor-roster.types';
 
 export { DoctorRosterPayload };
@@ -19,6 +21,8 @@ export class SpecialitiesService {
     @InjectRepository(User) private userRepo: Repository<User>,
     @InjectRepository(DoctorReview)
     private reviewRepo: Repository<DoctorReview>,
+    @InjectRepository(VideoCallSession)
+    private sessionRepo: Repository<VideoCallSession>,
   ) {}
 
   async findAll(country?: string) {
@@ -135,7 +139,17 @@ export class SpecialitiesService {
       ]),
     );
 
-    return doctors.map((d) => this.mapDoctorRow(d, userById.get(d.user_id), requestedSpec, ratingByDoctorId.get(d.id)));
+    const busy = await busyDoctorUserIds(this.sessionRepo, userIds);
+
+    return doctors.map((d) =>
+      this.mapDoctorRow(
+        d,
+        userById.get(d.user_id),
+        requestedSpec,
+        ratingByDoctorId.get(d.id),
+        busy.has(d.user_id),
+      ),
+    );
   }
 
   /** Build a realtime roster payload for an approved doctor. */
@@ -173,6 +187,7 @@ export class SpecialitiesService {
     user: User | undefined,
     requestedSpec: DoctorSpeciality | null | undefined,
     rating?: { average: number; total: number },
+    onCall = false,
   ): DoctorRosterPayload {
     let name = d.name;
     if (!name.startsWith('Dr.')) name = `Dr. ${name}`;
@@ -194,6 +209,8 @@ export class SpecialitiesService {
       consultation_price: d.consultation_price ?? 1,
       rating_average: rating?.average ?? 0,
       rating_total: rating?.total ?? 0,
+      immediate_call_enabled: !!d.immediate_call_enabled,
+      on_call: onCall,
       role: UserRole.DOCTOR,
     };
   }
