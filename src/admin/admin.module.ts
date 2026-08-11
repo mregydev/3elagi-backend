@@ -14,6 +14,7 @@ import { IntakeTestsModule } from '../intake-tests/intake-tests.module';
 import { AiModule } from '../ai/ai.module';
 import { PresenceModule } from '../presence/presence.module';
 import { PushNotificationsModule } from '../push-notifications/push-notifications.module';
+import { PointsModule } from '../points/points.module';
 import { SpecialitiesModule } from '../specialities/specialities.module';
 import { UploadsModule } from '../uploads/uploads.module';
 
@@ -35,6 +36,7 @@ import { UploadsModule } from '../uploads/uploads.module';
     AiModule,
     PresenceModule,
     PushNotificationsModule,
+    PointsModule,
     SpecialitiesModule,
     UploadsModule,
   ],

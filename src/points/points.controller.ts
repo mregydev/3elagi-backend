@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Post, Request, UseGuards } from '@nestjs/common';
 import { Public } from '../auth/public.decorator';
 import { countryFromRequest } from '../common/request-country';
-import { resolveMarketPricing } from './market-pricing.constants';
+import { PointPricingService } from './point-pricing.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -12,7 +12,10 @@ import { PointsService } from './points.service';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('doctor', 'patient')
 export class PointsController {
-  constructor(private readonly pointsService: PointsService) {}
+  constructor(
+    private readonly pointsService: PointsService,
+    private readonly pointPricing: PointPricingService,
+  ) {}
 
   @Get()
   getBalance(@Request() req: { user: { id: string } }) {
@@ -26,9 +29,11 @@ export class PointsController {
    */
   @Get('pricing')
   @Public()
-  pricing(@Request() req: { headers: Record<string, string | string[] | undefined> }) {
+  async pricing(
+    @Request() req: { headers: Record<string, string | string[] | undefined> },
+  ) {
     const country = countryFromRequest(req.headers);
-    const pricing = resolveMarketPricing(country);
+    const pricing = await this.pointPricing.resolve(country);
     return {
       market: pricing.market,
       currency: pricing.currency,

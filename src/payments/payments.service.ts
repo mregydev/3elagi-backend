@@ -18,6 +18,7 @@ import {
   paymobChargeForMarket,
   resolveMarketPricing,
 } from '../points/market-pricing.constants';
+import { PointPricingService } from '../points/point-pricing.service';
 import { PointsService } from '../points/points.service';
 import { validatePaymobTransactionHmac } from './paymob-hmac.util';
 import { PaymobService } from './paymob.service';
@@ -38,6 +39,7 @@ export class PaymentsService {
     private readonly patientProfileRepo: Repository<PatientProfile>,
     @InjectRepository(Doctor)
     private readonly doctorRepo: Repository<Doctor>,
+    private readonly pointPricing: PointPricingService,
   ) {}
 
   private apiPublicBase(): string {
@@ -136,8 +138,8 @@ export class PaymentsService {
     // IP wins: it is where the card is being used. Profile country is the
     // fallback for direct hits with no edge geo header.
     const country = ipCountry ?? (await this.resolvePayerCountry(user));
-    const pricing = resolveMarketPricing(country);
-    const displayMoney = moneyForPoints(points, country);
+    const pricing = await this.pointPricing.resolve(country);
+    const displayMoney = Math.round(points) * pricing.pricePerPoint;
     const rate = this.jodToEgpRate();
     const { amountEgp: paymobAmountEgp } = paymobChargeForMarket(
       displayMoney,

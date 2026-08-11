@@ -146,7 +146,9 @@ import { ThreelagiCampaignBanners1778480000000 } from './migrations/177848000000
 import { SpecialityMarketVisibility1778490000000 } from './migrations/1778490000000-SpecialityMarketVisibility';
 import { NutritionistSpeciality1778500000000 } from './migrations/1778500000000-NutritionistSpeciality';
 import { UserNotifications1778510000000 } from './migrations/1778510000000-UserNotifications';
+import { PointPricing } from './entities/point-pricing.entity';
 import { DoctorImmediateCalls1778520000000 } from './migrations/1778520000000-DoctorImmediateCalls';
+import { PointPricing1778530000000 } from './migrations/1778530000000-PointPricing';
 import { UserNotification } from './entities/user-notification.entity';
 import { NotificationsModule } from './notifications/notifications.module';
 import { MedicalDocumentRequestsModule } from './medical-document-requests/medical-document-requests.module';
@@ -160,6 +162,7 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
         type: 'postgres',
         url: configService.get<string>('DATABASE_URL'),
         entities: [
+          PointPricing,
           User,
           Clinic,
           Doctor,
@@ -273,6 +276,7 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
           NutritionistSpeciality1778500000000,
           UserNotifications1778510000000,
           DoctorImmediateCalls1778520000000,
+          PointPricing1778530000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',

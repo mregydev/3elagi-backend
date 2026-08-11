@@ -20,6 +20,8 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
 import { AdminService } from './admin.service';
+import { PointPricingService } from '../points/point-pricing.service';
+import type { PointMarket } from '../entities/point-pricing.entity';
 import { TrainRagDocumentChunkDto } from './dto/train-rag-document-chunk.dto';
 import { IntakeQuestion } from '../entities/intake-test.entity';
 import type { ApprovalStatus } from '../entities/doctor.entity';
@@ -28,7 +30,9 @@ import type { ApprovalStatus } from '../entities/doctor.entity';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
 export class AdminController {
-  constructor(private readonly service: AdminService) {}
+  constructor(private readonly service: AdminService,
+    private readonly pointPricing: PointPricingService,
+  ) {}
 
   @Get('stats')
   stats() {
@@ -206,5 +210,22 @@ export class AdminController {
   @Roles()
   sendNotf() {
     return this.service.sendNotf();
+  }
+
+  /** Cash price of one credit per market (Egypt, Jordan, rest of world). */
+  @Get('point-pricing')
+  listPointPricing() {
+    return this.pointPricing.list();
+  }
+
+  @Patch('point-pricing/:market')
+  setPointPricing(
+    @Param('market') market: string,
+    @Body() body: { price_per_point?: number },
+  ) {
+    return this.pointPricing.setPrice(
+      market.toUpperCase() as PointMarket,
+      Number(body?.price_per_point),
+    );
   }
 }
