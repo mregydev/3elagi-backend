@@ -17,9 +17,22 @@ const COUNTRY_HEADERS = [
   'x-geo-country', // generic / custom proxies
 ];
 
-/** `{ip}` is replaced with the client address. Override to change provider. */
-const LOOKUP_URL =
-  process.env.GEOIP_LOOKUP_URL?.trim() || 'https://ipapi.co/{ip}/country/';
+/**
+ * `{ip}` is replaced with the client address. Tried in order until one answers,
+ * because the free tiers rate-limit and a single provider going quiet would
+ * leave every caller undetected. `GEOIP_LOOKUP_URL` overrides the whole list.
+ */
+const LOOKUP_URLS = (
+  process.env.GEOIP_LOOKUP_URL?.trim() ||
+  [
+    'https://ipapi.co/{ip}/country/',
+    'https://ipwho.is/{ip}?fields=country_code',
+    'http://ip-api.com/json/{ip}?fields=countryCode',
+  ].join(',')
+)
+  .split(',')
+  .map((url) => url.trim())
+  .filter(Boolean);
 const LOOKUP_TIMEOUT_MS = 1500;
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 const CACHE_MAX = 5000;
@@ -77,35 +90,43 @@ function isPrivateIp(ip: string): boolean {
   return false;
 }
 
+async function askProvider(
+  template: string,
+  ip: string,
+): Promise<string | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), LOOKUP_TIMEOUT_MS);
+  try {
+    const res = await fetch(template.replace('{ip}', encodeURIComponent(ip)), {
+      signal: controller.signal,
+    });
+    if (!res.ok) return null;
+    const body = (await res.text()).trim();
+    // Providers answer with either a bare code or JSON carrying a country field.
+    let value: unknown = body;
+    if (body.startsWith('{')) {
+      const json = JSON.parse(body) as Record<string, unknown>;
+      value = json.countryCode ?? json.country_code ?? json.country;
+    }
+    const code = String(value ?? '').trim().toUpperCase();
+    return isUsableCode(code) ? code : null;
+  } catch (err) {
+    // Never let geolocation slow down or break a request.
+    logger.debug(`GeoIP lookup via ${template} failed for ${ip}: ${String(err)}`);
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function lookupCountry(ip: string): Promise<string | null> {
   const hit = cache.get(ip);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.code;
 
   let code: string | null = null;
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), LOOKUP_TIMEOUT_MS);
-    try {
-      const res = await fetch(LOOKUP_URL.replace('{ip}', encodeURIComponent(ip)), {
-        signal: controller.signal,
-      });
-      if (res.ok) {
-        const body = (await res.text()).trim();
-        // Providers return either a bare code or JSON with a country field.
-        const parsed = body.startsWith('{')
-          ? ((JSON.parse(body) as Record<string, unknown>).countryCode ??
-              (JSON.parse(body) as Record<string, unknown>).country_code ??
-              (JSON.parse(body) as Record<string, unknown>).country)
-          : body;
-        const upper = String(parsed ?? '').trim().toUpperCase();
-        if (isUsableCode(upper)) code = upper;
-      }
-    } finally {
-      clearTimeout(timer);
-    }
-  } catch (err) {
-    // Never let geolocation slow down or break a request — fall back to null.
-    logger.debug(`GeoIP lookup failed for ${ip}: ${String(err)}`);
+  for (const template of LOOKUP_URLS) {
+    code = await askProvider(template, ip);
+    if (code) break;
   }
 
   if (cache.size >= CACHE_MAX) cache.clear();

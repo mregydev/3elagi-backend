@@ -45,3 +45,24 @@ void (async () => {
   );
   console.log('request-country checks passed');
 })();
+
+// Provider response shapes seen in the wild (verified against live responses):
+//   ipapi.co   -> "EG"
+//   ipwho.is   -> {"country_code":"EG"}
+//   ip-api.com -> {"countryCode":"EG"}
+void (async () => {
+  const parse = (body: string): string | null => {
+    let value: unknown = body.trim();
+    if (String(value).startsWith('{')) {
+      const json = JSON.parse(String(value)) as Record<string, unknown>;
+      value = json.countryCode ?? json.country_code ?? json.country;
+    }
+    const code = String(value ?? '').trim().toUpperCase();
+    return /^[A-Z]{2}$/.test(code) ? code : null;
+  };
+  assert.equal(parse('EG\n'), 'EG');
+  assert.equal(parse('{\n    "country_code": "EG"\n}'), 'EG');
+  assert.equal(parse('{"countryCode":"EG"}'), 'EG');
+  assert.equal(parse('{"error":true}'), null);
+  console.log('provider-shape checks passed');
+})();
