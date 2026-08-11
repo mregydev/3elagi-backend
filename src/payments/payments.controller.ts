@@ -13,6 +13,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { CreateCardCheckoutDto } from './dto/create-card-checkout.dto';
+import { countryFromRequest } from '../common/request-country';
 import { PaymentsService } from './payments.service';
 
 @Controller('payments')
@@ -23,10 +24,19 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('doctor', 'patient')
   createVisaCheckout(
-    @Request() req: { user: { id: string } },
+    @Request()
+    req: {
+      user: { id: string };
+      headers: Record<string, string | string[] | undefined>;
+    },
     @Body() dto: CreateCardCheckoutDto,
   ) {
-    return this.payments.createCardCheckout(req.user.id, dto.amount);
+    // Price off where the payer actually is, falling back to their profile.
+    return this.payments.createCardCheckout(
+      req.user.id,
+      dto.amount,
+      countryFromRequest(req.headers),
+    );
   }
 
   @Get('config-check')

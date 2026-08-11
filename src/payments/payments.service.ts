@@ -114,7 +114,11 @@ export class PaymentsService {
    * Display cash = points × market price (EG 100 EGP, JO 5 JOD).
    * Paymob always charges EGP (JOD converted just before intention).
    */
-  async createCardCheckout(userId: string, points: number) {
+  async createCardCheckout(
+    userId: string,
+    points: number,
+    ipCountry?: string | null,
+  ) {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
     if (!Number.isFinite(points) || points < 1) {
@@ -129,7 +133,9 @@ export class PaymentsService {
         ? await this.doctorRepo.findOne({ where: { user_id: userId } })
         : null;
 
-    const country = await this.resolvePayerCountry(user);
+    // IP wins: it is where the card is being used. Profile country is the
+    // fallback for direct hits with no edge geo header.
+    const country = ipCountry ?? (await this.resolvePayerCountry(user));
     const pricing = resolveMarketPricing(country);
     const displayMoney = moneyForPoints(points, country);
     const rate = this.jodToEgpRate();
