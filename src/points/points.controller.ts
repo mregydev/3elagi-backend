@@ -33,12 +33,21 @@ export class PointsController {
     @Request() req: { headers: Record<string, string | string[] | undefined> },
   ) {
     const country = countryFromRequest(req.headers);
-    const pricing = await this.pointPricing.resolve(country);
+    const [pricing, all] = await Promise.all([
+      this.pointPricing.resolve(country),
+      this.pointPricing.list(),
+    ]);
     return {
       market: pricing.market,
       currency: pricing.currency,
       price_per_point: pricing.pricePerPoint,
       detected_country: country,
+      // Every market, so the public pricing page can show the full table.
+      markets: all.map((row) => ({
+        market: row.market,
+        currency: row.currency,
+        price_per_point: row.pricePerPoint,
+      })),
     };
   }
 
