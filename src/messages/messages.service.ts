@@ -238,7 +238,7 @@ export class MessagesService {
 
   async markRead(userId: string, peerId: string) {
     await this.assertDoctorPatientPair(userId, peerId);
-    await this.messageRepo
+    const result = await this.messageRepo
       .createQueryBuilder()
       .update(Message)
       .set({ read_at: () => 'NOW()' })
@@ -246,6 +246,15 @@ export class MessagesService {
       .andWhere('creator = :peerId', { peerId })
       .andWhere('read_at IS NULL')
       .execute();
+
+    // Tell the sender their ticks turned blue. Without this the receipt only
+    // showed up the next time they reloaded the thread.
+    if ((result.affected ?? 0) > 0) {
+      this.presenceGateway.emitToUser(peerId, 'messages:read', {
+        peer_id: userId,
+        read_at: new Date().toISOString(),
+      });
+    }
     return { ok: true };
   }
 
@@ -259,6 +268,7 @@ export class MessagesService {
     if (!row.read_at) {
       row.read_at = new Date();
       await this.messageRepo.save(row);
+      this.notifyReadStateChanged(row);
     }
     return this.mapMessage(row);
   }
@@ -273,8 +283,22 @@ export class MessagesService {
     if (row.read_at) {
       row.read_at = null;
       await this.messageRepo.save(row);
+      this.notifyReadStateChanged(row);
     }
     return this.mapMessage(row);
+  }
+
+  /** Push a single message's new read state to both sides of the thread. */
+  private notifyReadStateChanged(row: Message): void {
+    const mapped = this.mapMessage(row);
+    this.presenceGateway.emitToUser(row.creator, 'message:updated', {
+      message: mapped,
+      peer_id: row.recipient,
+    });
+    this.presenceGateway.emitToUser(row.recipient, 'message:updated', {
+      message: mapped,
+      peer_id: row.creator,
+    });
   }
 
   async create(userId: string, dto: CreateMessageDto) {

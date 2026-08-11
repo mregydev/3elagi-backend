@@ -224,6 +224,24 @@ export class MedicalDocumentRequestsService {
       message: mapped,
       peer_id: patientUserId,
     });
+
+    // Same reason as the upload notification: written straight to the repo, so
+    // nothing else would push it. The patient has to act on this request.
+    try {
+      const doctorName = await this.users.getDisplayName(doctorUserId);
+      const kind =
+        row.type === MedicalDocumentRequestType.XRAY ? 'an X-ray' : 'a lab test';
+      await this.pushNotifications.sendChatMessage({
+        recipientId: patientUserId,
+        chatId: doctorUserId,
+        messageId: saved.id,
+        senderId: doctorUserId,
+        senderName: doctorName,
+        body: `${doctorName} requested ${kind}: ${row.title}`,
+      });
+    } catch (err) {
+      this.logger.error('Failed to notify patient of document request', err);
+    }
   }
 
   async createForPatient(
