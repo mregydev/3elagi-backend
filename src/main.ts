@@ -16,6 +16,10 @@ async function bootstrap() {
   }
   app.useWebSocketAdapter(ioAdapter);
 
+  // Behind a load balancer/CDN: makes req.ip the real client address, which
+  // the GeoIP-based credit pricing depends on.
+  app.getHttpAdapter().getInstance().set('trust proxy', true);
+
   app.use(json({ limit: '12mb' }));
   app.use(urlencoded({ extended: true, limit: '12mb' }));
 
