@@ -80,7 +80,7 @@ export class ConsultationsService {
     recipient: string,
     content: string,
     meta: ConsultationActionMeta,
-    opts?: { alwaysPush?: boolean },
+    opts?: { alwaysPush?: boolean; notifyBody?: string },
   ) {
     const created = this.messageRepo.create({
       type: 'consultation_action',
@@ -107,7 +107,7 @@ export class ConsultationsService {
       creator,
       recipient,
       mapped.id,
-      content,
+      opts?.notifyBody ?? content,
       opts,
     ).catch(() => undefined);
 
@@ -295,6 +295,15 @@ export class ConsultationsService {
         action: 'start',
         status: 'pending',
         reserved_points: price,
+      },
+      // The doctor has to answer before anything happens, so this notifies like
+      // an incoming call: presence can still list a backgrounded or stale socket
+      // as online, and suppressing the push there left requests unanswered.
+      {
+        alwaysPush: true,
+        notifyBody: saved.description?.trim()
+          ? `New consultation request: ${saved.description.trim()}`
+          : 'New consultation request',
       },
     );
 

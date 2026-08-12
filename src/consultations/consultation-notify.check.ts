@@ -36,6 +36,23 @@ assert.ok(
   'notifyRecipient must push through PushNotificationsService',
 );
 
+// Same in the other direction: the request itself must reach the doctor, who
+// has to answer before the consultation exists at all.
+const startMethod = src.indexOf('async start(');
+assert.ok(startMethod > -1, 'start( missing');
+const startBody = src.slice(
+  startMethod,
+  src.indexOf('\n  private async ', startMethod + 1),
+);
+assert.ok(
+  startBody.includes('this.postActionMessage('),
+  'start must notify the doctor via postActionMessage',
+);
+assert.ok(
+  startBody.includes('alwaysPush: true'),
+  "start must push regardless of the doctor's presence",
+);
+
 // The doctor's answer must reach the patient even with the app open — the
 // generic chat push is suppressed for online recipients.
 for (const method of ['async accept(', 'async reject(']) {
