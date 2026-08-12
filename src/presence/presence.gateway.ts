@@ -2,10 +2,13 @@ import {
   WebSocketGateway,
   WebSocketServer,
   SubscribeMessage,
+  OnGatewayConnection,
   OnGatewayDisconnect,
   ConnectedSocket,
   MessageBody,
 } from '@nestjs/websockets';
+import { Logger } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { Server, Socket } from 'socket.io';
 import { PresenceService } from './presence.service';
 import type { LoggedInUser } from './presence.types';
@@ -13,11 +16,43 @@ import type { LoggedInUser } from './presence.types';
 @WebSocketGateway({
   cors: { origin: '*' },
 })
-export class PresenceGateway implements OnGatewayDisconnect {
+export class PresenceGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server!: Server;
 
-  constructor(private readonly presence: PresenceService) {}
+  private readonly logger = new Logger(PresenceGateway.name);
+
+  constructor(
+    private readonly presence: PresenceService,
+    private readonly jwt: JwtService,
+  ) {}
+
+  /**
+   * Join the user's delivery room straight from the handshake token.
+   *
+   * `emitToUser` targets that room, and previously the only way in was the
+   * client's `user:loggedIn` message — so anything sent between connecting and
+   * that round-trip was dropped, and a payload missing name/role never joined
+   * at all. Socket.IO does not buffer for absent rooms, so those messages were
+   * simply lost until the thread was reloaded.
+   */
+  handleConnection(client: Socket): void {
+    const raw =
+      (client.handshake.auth?.token as string | undefined) ??
+      (client.handshake.query?.token as string | undefined);
+    if (!raw) return;
+    try {
+      const payload = this.jwt.verify<{ sub?: string }>(
+        String(raw).replace(/^Bearer\s+/i, ''),
+      );
+      if (payload?.sub) void client.join(this.userRoom(payload.sub));
+    } catch {
+      // Unauthenticated sockets stay roomless; user:loggedIn can still join.
+      this.logger.debug('Socket connected without a valid token');
+    }
+  }
 
   private broadcastPresence(): void {
     this.server.emit('presence:sync', { users: this.presence.getAll() });

@@ -67,7 +67,12 @@ export interface AppointmentActionMeta {
   patient_insight?: string;
 }
 
-export type ConsultationActionType = 'start' | 'end' | 'cancel';
+export type ConsultationActionType =
+  | 'start'
+  | 'accept'
+  | 'reject'
+  | 'end'
+  | 'cancel';
 
 export interface ConsultationDiagnosisSummary {
   id: string;
@@ -83,7 +88,7 @@ export interface ConsultationDiagnosisSummary {
 export interface ConsultationActionMeta {
   consultation_id: string;
   action: ConsultationActionType;
-  status: 'open' | 'ended' | 'cancelled';
+  status: 'pending' | 'open' | 'ended' | 'cancelled' | 'rejected';
   reserved_points?: number;
   cancel_reason_type?: 'video_consultation' | 'onsite_visit' | 'other';
   cancel_reason?: string;

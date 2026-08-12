@@ -6,7 +6,13 @@ import {
   CreateDateColumn,
 } from 'typeorm';
 
-export type ConsultationStatus = 'open' | 'ended' | 'cancelled';
+/** `pending` = awaiting the doctor's accept/reject. */
+export type ConsultationStatus =
+  | 'pending'
+  | 'open'
+  | 'ended'
+  | 'cancelled'
+  | 'rejected';
 
 export type ConsultationCancelReasonType =
   | 'video_consultation'

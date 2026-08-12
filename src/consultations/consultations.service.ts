@@ -237,10 +237,17 @@ export class ConsultationsService {
     const price = clampConsultationPrice(doctor?.consultation_price ?? 10);
 
     const existing = await this.consultationRepo.findOne({
-      where: { patient_id: patientUserId, doctor_id: dto.doctor_id, status: 'open' },
+      where: [
+        { patient_id: patientUserId, doctor_id: dto.doctor_id, status: 'open' },
+        { patient_id: patientUserId, doctor_id: dto.doctor_id, status: 'pending' },
+      ],
     });
     if (existing) {
-      throw new BadRequestException('You already have an open consultation with this doctor');
+      throw new BadRequestException(
+        existing.status === 'pending'
+          ? 'This doctor has not answered your previous request yet'
+          : 'You already have an open consultation with this doctor',
+      );
     }
 
     // Reserve first so an insufficient balance fails before we create anything.
@@ -251,7 +258,8 @@ export class ConsultationsService {
       const created = this.consultationRepo.create({
         patient_id: patientUserId,
         doctor_id: dto.doctor_id,
-        status: 'open',
+        // Awaits the doctor's answer; credits stay reserved meanwhile.
+        status: 'pending',
         description: dto.description?.trim() ?? '',
         reserved_points: price,
       });
@@ -269,7 +277,7 @@ export class ConsultationsService {
       {
         consultation_id: saved.id,
         action: 'start',
-        status: 'open',
+        status: 'pending',
         reserved_points: price,
       },
     );
@@ -312,6 +320,79 @@ export class ConsultationsService {
       throw new BadRequestException('Consultation is not open');
     }
     return c;
+  }
+
+  private async loadPendingForDoctor(
+    consultationId: string,
+    doctorUserId: string,
+  ): Promise<Consultation> {
+    const c = await this.consultationRepo.findOne({
+      where: { id: consultationId },
+    });
+    if (!c) throw new NotFoundException('Consultation not found');
+    if (c.doctor_id !== doctorUserId) {
+      throw new ForbiddenException('Not your consultation');
+    }
+    if (c.status !== 'pending') {
+      throw new BadRequestException('This request has already been answered');
+    }
+    return c;
+  }
+
+  /** Doctor accepts a pending request — chat and credits go live. */
+  async accept(doctorUserId: string, consultationId: string) {
+    await this.assertRole(doctorUserId, UserRole.DOCTOR);
+    const c = await this.loadPendingForDoctor(consultationId, doctorUserId);
+
+    c.status = 'open';
+    const saved = await this.consultationRepo.save(c);
+
+    await this.postActionMessage(
+      doctorUserId,
+      c.patient_id,
+      'Consultation accepted',
+      {
+        consultation_id: saved.id,
+        action: 'accept',
+        status: 'open',
+        reserved_points: saved.reserved_points,
+      },
+    );
+
+    this.scheduleIndexConsultation(saved.id);
+    return { consultation: this.mapConsultation(saved) };
+  }
+
+  /** Doctor declines — the patient's held credits go straight back. */
+  async reject(doctorUserId: string, consultationId: string, reason?: string) {
+    await this.assertRole(doctorUserId, UserRole.DOCTOR);
+    const c = await this.loadPendingForDoctor(consultationId, doctorUserId);
+
+    c.status = 'rejected';
+    const held = c.reserved_points ?? 0;
+    c.reserved_points = 0;
+    const saved = await this.consultationRepo.save(c);
+
+    if (held > 0) {
+      // A failed refund must not strand the request in pending.
+      await this.points
+        .refundReserved(c.patient_id, held)
+        .catch(() => undefined);
+    }
+
+    await this.postActionMessage(
+      doctorUserId,
+      c.patient_id,
+      reason?.trim() || 'Consultation request declined',
+      {
+        consultation_id: saved.id,
+        action: 'reject',
+        status: 'rejected',
+        reserved_points: 0,
+      },
+    );
+
+    return { consultation: this.mapConsultation(saved) };
   }
 
   async end(doctorUserId: string, consultationId: string, dto: EndConsultationDto) {

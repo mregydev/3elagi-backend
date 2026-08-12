@@ -47,6 +47,23 @@ export class ConsultationsController {
     return this.service.start(req.user.id, dto);
   }
 
+  /** Doctor answers a pending request. */
+  @Post(':id/accept')
+  @Roles('doctor')
+  accept(@Param('id') id: string, @Request() req) {
+    return this.service.accept(req.user.id, id);
+  }
+
+  @Post(':id/reject')
+  @Roles('doctor')
+  reject(
+    @Param('id') id: string,
+    @Body() body: { reason?: string },
+    @Request() req,
+  ) {
+    return this.service.reject(req.user.id, id, body?.reason);
+  }
+
   @Post(':id/end')
   @Roles('doctor')
   end(
