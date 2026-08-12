@@ -350,7 +350,7 @@ export class ConsultationsService {
     await this.postActionMessage(
       doctorUserId,
       c.patient_id,
-      'Consultation accepted',
+      'Accepted your consultation request — you can message now',
       {
         consultation_id: saved.id,
         action: 'accept',
@@ -380,10 +380,16 @@ export class ConsultationsService {
         .catch(() => undefined);
     }
 
+    const declineBody =
+      reason?.trim() ||
+      (held > 0
+        ? `Declined your consultation request — ${held} credits refunded`
+        : 'Declined your consultation request');
+
     await this.postActionMessage(
       doctorUserId,
       c.patient_id,
-      reason?.trim() || 'Consultation request declined',
+      declineBody,
       {
         consultation_id: saved.id,
         action: 'reject',
