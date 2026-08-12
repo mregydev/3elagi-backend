@@ -167,14 +167,21 @@ export class ConsultationsService {
   }
 
   /** Open consultation between the given user and peer, if any. */
+  /**
+   * The live consultation between two users — pending counts as live, otherwise
+   * the doctor never sees the request they are meant to accept or decline.
+   * Pending is preferred so a fresh request wins over a stale open one.
+   */
   async findActiveWithPeer(userId: string, peerId: string) {
     const rows = await this.consultationRepo
       .createQueryBuilder('c')
-      .where('c.status = :open', { open: 'open' })
+      .where('c.status IN (:...live)', { live: ['pending', 'open'] })
       .andWhere(
         '((c.patient_id = :userId AND c.doctor_id = :peerId) OR (c.patient_id = :peerId AND c.doctor_id = :userId))',
         { userId, peerId },
       )
+      .orderBy(`CASE WHEN c.status = 'pending' THEN 0 ELSE 1 END`, 'ASC')
+      .addOrderBy('c.created_at', 'DESC')
       .getOne();
     return rows ? this.mapConsultation(rows) : null;
   }
