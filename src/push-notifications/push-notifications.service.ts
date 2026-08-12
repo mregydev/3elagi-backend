@@ -48,10 +48,19 @@ export class PushNotificationsService {
     private readonly inApp: NotificationsService,
   ) {}
 
-  async sendChatMessage(input: ChatPushInput): Promise<void> {
+  /**
+   * `alwaysPush` bypasses the online check for decisions the recipient must not
+   * miss (a doctor accepting or declining a consultation). "Online" only means
+   * a socket exists — the app may be backgrounded, or the user may be on a
+   * different screen entirely.
+   */
+  async sendChatMessage(
+    input: ChatPushInput,
+    opts?: { alwaysPush?: boolean },
+  ): Promise<void> {
     // In-app rows keep the plain body — the sender is already their title.
     await this.safePersist(draftFromChat(input));
-    if (this.presence.isUserOnline(input.recipientId)) {
+    if (!opts?.alwaysPush && this.presence.isUserOnline(input.recipientId)) {
       this.logger.debug(
         `Chat push skipped — recipient ${input.recipientId} is online`,
       );

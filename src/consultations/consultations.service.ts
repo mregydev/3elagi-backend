@@ -80,6 +80,7 @@ export class ConsultationsService {
     recipient: string,
     content: string,
     meta: ConsultationActionMeta,
+    opts?: { alwaysPush?: boolean },
   ) {
     const created = this.messageRepo.create({
       type: 'consultation_action',
@@ -102,9 +103,13 @@ export class ConsultationsService {
 
     // Socket only reaches an open app. This also files the in-app notification
     // and pushes to the device when the recipient is away.
-    void this.notifyRecipient(creator, recipient, mapped.id, content).catch(
-      () => undefined,
-    );
+    void this.notifyRecipient(
+      creator,
+      recipient,
+      mapped.id,
+      content,
+      opts,
+    ).catch(() => undefined);
 
     return mapped;
   }
@@ -114,17 +119,21 @@ export class ConsultationsService {
     recipientId: string,
     messageId: string,
     body: string,
+    opts?: { alwaysPush?: boolean },
   ): Promise<void> {
     if (senderId === recipientId) return;
     const senderName = await this.users.getDisplayName(senderId);
-    await this.pushNotifications.sendChatMessage({
-      recipientId,
-      chatId: senderId,
-      messageId,
-      senderId,
-      senderName,
-      body,
-    });
+    await this.pushNotifications.sendChatMessage(
+      {
+        recipientId,
+        chatId: senderId,
+        messageId,
+        senderId,
+        senderName,
+        body,
+      },
+      opts,
+    );
   }
 
   private mapConsultation(c: Consultation) {
@@ -357,6 +366,7 @@ export class ConsultationsService {
         status: 'open',
         reserved_points: saved.reserved_points,
       },
+      { alwaysPush: true },
     );
 
     this.scheduleIndexConsultation(saved.id);
@@ -396,6 +406,7 @@ export class ConsultationsService {
         status: 'rejected',
         reserved_points: 0,
       },
+      { alwaysPush: true },
     );
 
     return { consultation: this.mapConsultation(saved) };

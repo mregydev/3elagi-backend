@@ -36,4 +36,15 @@ assert.ok(
   'notifyRecipient must push through PushNotificationsService',
 );
 
+// The doctor's answer must reach the patient even with the app open — the
+// generic chat push is suppressed for online recipients.
+for (const method of ['async accept(', 'async reject(']) {
+  const start = src.indexOf(method);
+  const body = src.slice(start, src.indexOf('\n  async ', start + 1));
+  assert.ok(
+    body.includes('alwaysPush: true'),
+    `${method} must push regardless of the patient's presence`,
+  );
+}
+
 console.log('consultation-notify checks passed');
