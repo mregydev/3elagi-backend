@@ -10,6 +10,37 @@ function chunk<T>(items: T[], size: number): T[][] {
   return out;
 }
 
+/**
+ * Expo rejects the whole request when one batch mixes tokens from two projects
+ * (`PUSH_TOO_MANY_EXPERIENCE_IDS`), so a single leftover token from a build of
+ * an older Expo project silences the push for every other device. The error
+ * lists the tokens per experience — return the ones that are not ours so the
+ * caller can drop them and resend.
+ */
+export function foreignProjectTokens(
+  responseBody: string,
+  batchTokens: string[],
+): string[] {
+  let parsed: {
+    errors?: { code?: string; details?: Record<string, string[]> }[];
+  };
+  try {
+    parsed = JSON.parse(responseBody);
+  } catch {
+    return [];
+  }
+  const details = parsed.errors?.find(
+    (e) => e.code === 'PUSH_TOO_MANY_EXPERIENCE_IDS',
+  )?.details;
+  if (!details) return [];
+
+  const inBatch = new Set(batchTokens);
+  return Object.entries(details)
+    .filter(([experienceId]) => experienceId !== EXPO_PUSH_CONFIG.experienceId)
+    .flatMap(([, tokens]) => tokens)
+    .filter((token) => inBatch.has(token));
+}
+
 @Injectable()
 export class ExpoPushClient {
   private readonly logger = new Logger(ExpoPushClient.name);
@@ -35,6 +66,21 @@ export class ExpoPushClient {
 
         if (!response.ok) {
           const text = await response.text();
+          const foreign = foreignProjectTokens(
+            text,
+            batch.map((m) => m.to),
+          );
+          if (foreign.length) {
+            this.logger.warn(
+              `Dropping ${foreign.length} token(s) from another Expo project and resending`,
+            );
+            invalid.push(...foreign);
+            const keep = new Set(foreign);
+            const retry = batch.filter((m) => !keep.has(m.to));
+            // Only one experience is left now, so this cannot recurse again.
+            if (retry.length) invalid.push(...(await this.send(retry)));
+            continue;
+          }
           this.logger.error(`Expo push HTTP ${response.status}: ${text}`);
           continue;
         }
