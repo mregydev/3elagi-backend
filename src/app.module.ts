@@ -149,6 +149,7 @@ import { UserNotifications1778510000000 } from './migrations/1778510000000-UserN
 import { PointPricing } from './entities/point-pricing.entity';
 import { DoctorImmediateCalls1778520000000 } from './migrations/1778520000000-DoctorImmediateCalls';
 import { PointPricing1778530000000 } from './migrations/1778530000000-PointPricing';
+import { DoctorMultipleSpecialities1778540000000 } from './migrations/1778540000000-DoctorMultipleSpecialities';
 import { UserNotification } from './entities/user-notification.entity';
 import { NotificationsModule } from './notifications/notifications.module';
 import { MedicalDocumentRequestsModule } from './medical-document-requests/medical-document-requests.module';
@@ -277,6 +278,7 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
           UserNotifications1778510000000,
           DoctorImmediateCalls1778520000000,
           PointPricing1778530000000,
+          DoctorMultipleSpecialities1778540000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',

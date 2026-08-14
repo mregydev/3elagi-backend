@@ -5,7 +5,9 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  ManyToMany,
   JoinColumn,
+  JoinTable,
 } from 'typeorm';
 import { User } from './user.entity';
 import { Clinic } from './clinic.entity';
@@ -114,6 +116,18 @@ export class Doctor {
   @ManyToOne(() => DoctorSpeciality, { nullable: true, eager: false })
   @JoinColumn({ name: 'speciality_id' })
   speciality: DoctorSpeciality | null;
+
+  /**
+   * Every speciality the doctor practises. `speciality_id` above stays the
+   * primary one — it is what browse, presence and the AI index read.
+   */
+  @ManyToMany(() => DoctorSpeciality, { eager: false })
+  @JoinTable({
+    name: 'doctor_speciality_links',
+    joinColumn: { name: 'doctor_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'speciality_id', referencedColumnName: 'id' },
+  })
+  specialities: DoctorSpeciality[];
 
   /** Bank account IBAN for payouts (doctor-only; never expose publicly). */
   @Column({ type: 'varchar', length: 64, nullable: true })

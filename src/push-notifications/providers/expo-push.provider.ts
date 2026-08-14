@@ -19,6 +19,14 @@ const CHAT_CHANNEL_ID = 'chat-messages';
 const VIDEO_CALL_CHANNEL_ID = 'video-calls';
 const APPOINTMENT_CHANNEL_ID = 'appointments';
 
+/**
+ * One notification per conversation instead of a stack of them: iOS groups by
+ * `threadId`, Android replaces the shown notification with the same `tag`.
+ */
+function thread(key: string): Pick<ExpoPushMessage, 'threadId' | 'tag'> {
+  return { threadId: key, tag: key };
+}
+
 function truncateTitle(text: string, max = 64): string {
   const trimmed = text?.trim() ?? '';
   if (!trimmed) return 'New message';
@@ -57,6 +65,7 @@ export class ExpoPushProvider implements PushProvider {
       sound: 'default',
       channelId: CHAT_CHANNEL_ID,
       priority: 'high',
+      ...thread(`chat:${input.chatId}`),
     }));
   }
 
@@ -74,6 +83,7 @@ export class ExpoPushProvider implements PushProvider {
       sound: 'default',
       channelId: CHAT_CHANNEL_ID,
       priority: 'high',
+      ...thread(`ai:${input.chatId}`),
     }));
   }
 
@@ -93,6 +103,7 @@ export class ExpoPushProvider implements PushProvider {
       channelId: VIDEO_CALL_CHANNEL_ID,
       priority: 'high',
       interruptionLevel: 'timeSensitive',
+      ...thread(`call:${input.sessionId}`),
     }));
   }
 
@@ -110,6 +121,7 @@ export class ExpoPushProvider implements PushProvider {
       sound: 'default',
       channelId: APPOINTMENT_CHANNEL_ID,
       priority: 'high',
+      ...thread(`appointment:${input.appointmentId}`),
     }));
   }
 
@@ -133,6 +145,7 @@ export class ExpoPushProvider implements PushProvider {
       sound: 'default',
       channelId: APPOINTMENT_CHANNEL_ID,
       priority: 'default',
+      ...thread(`appointment:${input.appointmentId}`),
     }));
   }
 
@@ -152,6 +165,7 @@ export class ExpoPushProvider implements PushProvider {
       sound: 'default',
       channelId: APPOINTMENT_CHANNEL_ID,
       priority: 'high',
+      ...thread(`appointment:${input.appointmentId}`),
     }));
   }
 
@@ -172,6 +186,7 @@ export class ExpoPushProvider implements PushProvider {
       sound: 'default',
       channelId: APPOINTMENT_CHANNEL_ID,
       priority: 'high',
+      ...thread(`intake:${input.instanceId}`),
     }));
   }
 

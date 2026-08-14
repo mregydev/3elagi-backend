@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Doctor } from '../entities/doctor.entity';
 import { Clinic } from '../entities/clinic.entity';
 import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
@@ -16,6 +16,14 @@ import {
 import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { SpecialitiesService } from '../specialities/specialities.service';
+
+/** Speciality ids with the primary (`speciality_id`) first. */
+export function sortPrimaryFirst(doctor: Doctor): string[] {
+  const linked = (doctor.specialities ?? []).map((s) => s.id);
+  const primary = doctor.speciality_id;
+  const rest = linked.filter((id) => id !== primary);
+  return primary ? [primary, ...rest] : rest;
+}
 
 @Injectable()
 export class DoctorsService {
@@ -69,13 +77,15 @@ export class DoctorsService {
   async findByUserId(userId: string) {
     const doctor = await this.doctorRepo.findOne({
       where: { user_id: userId },
-      relations: ['speciality'],
+      relations: ['speciality', 'specialities'],
     });
     if (!doctor) return null;
     return {
       ...doctor,
       speciality_name_en: doctor.speciality?.name_en ?? null,
       speciality_name_ar: doctor.speciality?.name_ar ?? null,
+      // Primary first, so a client showing only one still shows the right one.
+      speciality_ids: sortPrimaryFirst(doctor),
     };
   }
 
@@ -171,6 +181,28 @@ export class DoctorsService {
       if (!spec) throw new BadRequestException('Invalid speciality');
       safeUpdates.speciality_id = speciality_id;
     }
+
+    // A doctor may practise several specialities. The first is the primary one
+    // — browse, presence and the AI index still read the single column.
+    const specialityIds = (updates as { speciality_ids?: unknown })
+      .speciality_ids;
+    let nextSpecialities: DoctorSpeciality[] | null = null;
+    if (specialityIds !== undefined) {
+      const ids = Array.isArray(specialityIds)
+        ? [...new Set(specialityIds.filter((id): id is string => !!id))].slice(0, 10)
+        : [];
+      const found = ids.length
+        ? await this.specialityRepo.find({ where: { id: In(ids) } })
+        : [];
+      if (found.length !== ids.length) {
+        throw new BadRequestException('Invalid speciality');
+      }
+      // Keep the caller's order so the first stays primary.
+      nextSpecialities = ids.map((id) => found.find((s) => s.id === id)!);
+      if (safeUpdates.speciality_id === undefined) {
+        safeUpdates.speciality_id = ids[0] ?? null;
+      }
+    }
     if (consultation_price !== undefined) {
       safeUpdates.consultation_price = clampConsultationPrice(consultation_price);
     }
@@ -209,6 +241,17 @@ export class DoctorsService {
       safeUpdates.national_id = cleaned || null;
     }
     await this.doctorRepo.update(doctor.id, safeUpdates);
+    if (nextSpecialities) {
+      // Saving the relation rewrites the link rows to exactly this set.
+      const withLinks = await this.doctorRepo.findOne({
+        where: { id: doctor.id },
+        relations: ['specialities'],
+      });
+      if (withLinks) {
+        withLinks.specialities = nextSpecialities;
+        await this.doctorRepo.save(withLinks);
+      }
+    }
     void this.knowledgeIndexer.indexDoctor(doctor.id).catch(() => undefined);
 
     return this.findByUserId(userId);
