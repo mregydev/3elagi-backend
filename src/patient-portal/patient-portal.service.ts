@@ -175,6 +175,7 @@ export class PatientPortalService {
       rating_total: rating.rating_total,
       faqs: Array.isArray(doctor.faqs) ? doctor.faqs : [],
       tags: Array.isArray(doctor.tags) ? doctor.tags : [],
+      personal_clinic_location: doctor.personal_clinic_location ?? null,
       clinic: clinic
         ? {
             id: clinic.id,
