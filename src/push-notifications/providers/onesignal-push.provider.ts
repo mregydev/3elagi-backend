@@ -54,32 +54,26 @@ export class OneSignalPushProvider implements PushProvider {
 
   async sendIncomingVideoCall(input: IncomingVideoCallPushInput): Promise<void> {
     const callerName = truncateTitle(input.callerName, 48);
-    await this.sendToUser(
-      input.recipientId,
-      'Incoming video call',
-      `${callerName} is calling`,
-      {
-        type: 'incoming_video_call',
-        sessionId: input.sessionId,
-        callerId: input.callerId,
-        callerName: input.callerName,
-      },
-    );
+    await this.sendToUser(input.recipientId, '', '', {
+      type: 'incoming_video_call',
+      sessionId: input.sessionId,
+      callerId: input.callerId,
+      callerName: input.callerName,
+      title: 'Incoming video call',
+      body: `${callerName} is calling`,
+    });
   }
 
   async sendVideoCallCancelled(
     input: VideoCallCancelledPushInput,
   ): Promise<void> {
     const callerName = truncateTitle(input.callerName, 48);
-    await this.sendToUser(
-      input.recipientId,
-      'Missed video call',
-      `${callerName} hung up`,
-      {
-        type: 'video_call_cancelled',
-        sessionId: input.sessionId,
-      },
-    );
+    await this.sendToUser(input.recipientId, '', '', {
+      type: 'video_call_cancelled',
+      sessionId: input.sessionId,
+      title: 'Missed video call',
+      body: `${callerName} hung up`,
+    });
   }
 
   async sendAppointmentRequest(input: AppointmentRequestPushInput): Promise<void> {

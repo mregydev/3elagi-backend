@@ -93,20 +93,18 @@ export class ExpoPushProvider implements PushProvider {
     const callerName = truncateTitle(input.callerName, 48);
     await this.sendToUser(input.recipientId, (to) => ({
       to,
-      title: 'Incoming video call',
-      body: `${callerName} is calling`,
+      // Data-only so Android FCM invokes onMessageReceived even when the app
+      // is killed; native code shows CallStyle UI + loops incoming_call.wav.
       data: {
         type: 'incoming_video_call',
         sessionId: input.sessionId,
         callerId: input.callerId,
         callerName: input.callerName,
+        title: 'Incoming video call',
+        body: `${callerName} is calling`,
       },
-      // Bundled ringtone (see the app's expo-notifications plugin config), so an
-      // incoming call rings rather than pings. iOS reads this name directly;
-      // Android takes it from the channel below.
-      sound: 'ringtone.wav',
-      channelId: VIDEO_CALL_CHANNEL_ID,
       priority: 'high',
+      channelId: VIDEO_CALL_CHANNEL_ID,
       interruptionLevel: 'critical',
       ...thread(`call:${input.sessionId}`),
     }));
@@ -116,19 +114,16 @@ export class ExpoPushProvider implements PushProvider {
     input: VideoCallCancelledPushInput,
   ): Promise<void> {
     const callerName = truncateTitle(input.callerName, 48);
-    // Same tag as the ringing push: Android collapses by tag, so this replaces
-    // the "incoming call" entry instead of stacking a second one under it.
     await this.sendToUser(input.recipientId, (to) => ({
       to,
-      title: 'Missed video call',
-      body: `${callerName} hung up`,
       data: {
         type: 'video_call_cancelled',
         sessionId: input.sessionId,
+        title: 'Missed video call',
+        body: `${callerName} hung up`,
       },
-      sound: 'default',
+      priority: 'high',
       channelId: VIDEO_CALL_CHANNEL_ID,
-      priority: 'default',
       ...thread(`call:${input.sessionId}`),
     }));
   }
