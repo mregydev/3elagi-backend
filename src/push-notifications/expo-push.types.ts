@@ -2,11 +2,17 @@ export type PushNotificationType = 'chat' | 'ai' | 'incoming_video_call';
 
 export interface ExpoPushMessage {
   to: string;
-  title: string;
-  body: string;
+  /**
+   * Omitted by data-only pushes (the call ones): leaving title/body/sound off
+   * makes FCM deliver to onMessageReceived even when the app is killed, and the
+   * native layer draws the CallStyle UI and plays the ringtone itself. Those
+   * carry their copy inside `data` instead.
+   */
+  title?: string;
+  body?: string;
   data: Record<string, string>;
   /** 'default', or a sound bundled in the app (e.g. the call ringtone). */
-  sound: 'default' | (string & {});
+  sound?: 'default' | (string & {});
   channelId: string;
   priority: 'high' | 'default';
   /** iOS 15+: 'timeSensitive' cuts through Focus modes — calls only. */
