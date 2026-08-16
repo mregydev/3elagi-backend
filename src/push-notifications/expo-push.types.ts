@@ -5,7 +5,8 @@ export interface ExpoPushMessage {
   title: string;
   body: string;
   data: Record<string, string>;
-  sound: 'default';
+  /** 'default', or a sound bundled in the app (e.g. the call ringtone). */
+  sound: 'default' | (string & {});
   channelId: string;
   priority: 'high' | 'default';
   /** iOS 15+: 'timeSensitive' cuts through Focus modes — calls only. */

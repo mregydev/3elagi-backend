@@ -99,10 +99,13 @@ export class ExpoPushProvider implements PushProvider {
         callerId: input.callerId,
         callerName: input.callerName,
       },
-      sound: 'default',
+      // Bundled ringtone (see the app's expo-notifications plugin config), so an
+      // incoming call rings rather than pings. iOS reads this name directly;
+      // Android takes it from the channel below.
+      sound: 'ringtone.wav',
       channelId: VIDEO_CALL_CHANNEL_ID,
       priority: 'high',
-      interruptionLevel: 'timeSensitive',
+      interruptionLevel: 'critical',
       ...thread(`call:${input.sessionId}`),
     }));
   }

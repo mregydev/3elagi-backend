@@ -18,7 +18,6 @@ import { PushNotificationsService } from '../push-notifications/push-notificatio
 import { PointsService } from '../points/points.service';
 import { clampConsultationPrice } from '../points/message-price.constants';
 import { PresenceGateway } from '../presence/presence.gateway';
-import { PresenceService } from '../presence/presence.service';
 import { UsersService } from '../users/users.service';
 import { DailyService } from '../daily/daily.service';
 import { CreateVideoCallDto } from './dto/create-video-call.dto';
@@ -50,7 +49,6 @@ export class VideoCallsService {
     private readonly points: PointsService,
     private readonly push: PushNotificationsService,
     private readonly presenceGateway: PresenceGateway,
-    private readonly presence: PresenceService,
     private readonly users: UsersService,
   ) {}
 
@@ -181,13 +179,8 @@ export class VideoCallsService {
       throw new ForbiddenException('This doctor is not accepting calls');
     }
 
-    // No socket, no ringing: an offline doctor can never pick up.
-    if (!this.presence.isUserOnline(dto.doctor_user_id)) {
-      throw new ConflictException({
-        message: 'This doctor is offline right now',
-        code: 'doctor_offline',
-      });
-    }
+    // Offline doctors are still callable: the socket event rings an open app,
+    // and the high-priority push (below) rings a closed one.
 
     // One line per doctor: whoever is already ringing or talking holds it.
     const live = await this.findLiveSessionForDoctor(dto.doctor_user_id);
