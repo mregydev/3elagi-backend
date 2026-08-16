@@ -5,8 +5,9 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 
+import { OAuth2Client } from 'google-auth-library';
+
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
-const GOOGLE_TOKENINFO_URL = 'https://oauth2.googleapis.com/tokeninfo';
 
 export interface GoogleIdentity {
   email: string;
@@ -33,6 +34,34 @@ export class GoogleOAuthService {
 
   private get clientSecret(): string {
     return process.env.GOOGLE_CLIENT_SECRET ?? '';
+  }
+
+  /**
+   * Every client id that may legitimately have minted a token for us: the web
+   * client (authorization-code flow) plus the native ones Expo signs in with.
+   * A token whose `aud` is none of these belongs to another app entirely.
+   * Missing env vars are simply absent from the list — never blank strings,
+   * which would match a token with no audience.
+   */
+  private get allowedAudiences(): string[] {
+    return [
+      this.clientId,
+      process.env.GOOGLE_CLIENT_ID_IOS,
+      process.env.GOOGLE_CLIENT_ID_ANDROID,
+      // Android Google Sign-In returns the *web* client id as `aud` when the
+      // app requests an id token via `webClientId`; keep it explicit for the
+      // case where the web id is configured separately from the API's own.
+      process.env.GOOGLE_CLIENT_ID_WEB,
+    ]
+      .map((id) => id?.trim())
+      .filter((id): id is string => !!id);
+  }
+
+  private verifier: OAuth2Client | null = null;
+
+  private get client(): OAuth2Client {
+    if (!this.verifier) this.verifier = new OAuth2Client();
+    return this.verifier;
   }
 
   /** Only redirect URIs registered in Google Cloud are accepted. */
@@ -94,41 +123,42 @@ export class GoogleOAuthService {
     return this.identityFromIdToken(tokens.id_token);
   }
 
-  /** Native apps hand us an ID token directly (no code to exchange). */
+  /**
+   * Native apps hand us an ID token directly (no code to exchange).
+   *
+   * `verifyIdToken` checks Google's signature, issuer and expiry, and accepts
+   * an array for `audience` — which is the fix for iOS/Android tokens being
+   * rejected against the web client id alone.
+   */
   async identityFromIdToken(idToken: string): Promise<GoogleIdentity> {
-    const res = await fetch(
-      `${GOOGLE_TOKENINFO_URL}?id_token=${encodeURIComponent(idToken)}`,
-    );
-    if (!res.ok) throw new UnauthorizedException('Invalid Google token');
+    if (!idToken?.trim()) throw new BadRequestException('Missing Google token');
 
-    const claims = (await res.json()) as {
-      aud?: string;
-      sub?: string;
-      email?: string;
-      email_verified?: string | boolean;
-      name?: string;
-      picture?: string;
-      exp?: string;
-    };
+    const audience = this.allowedAudiences;
+    if (!audience.length) {
+      throw new BadRequestException('Google sign-in is not configured');
+    }
 
-    // Google validates the signature for us; audience and expiry are ours.
-    if (claims.aud !== this.clientId) {
-      throw new UnauthorizedException('Google token was issued for another app');
+    let payload;
+    try {
+      const ticket = await this.client.verifyIdToken({ idToken, audience });
+      payload = ticket.getPayload();
+    } catch (err) {
+      this.logger.warn(
+        `Google ID token rejected: ${err instanceof Error ? err.message : 'unknown'}`,
+      );
+      throw new UnauthorizedException('Invalid Google token');
     }
-    if (claims.exp && Number(claims.exp) * 1000 < Date.now()) {
-      throw new UnauthorizedException('Google token expired');
-    }
-    if (!claims.email || !claims.sub) {
+
+    if (!payload?.email || !payload.sub) {
       throw new UnauthorizedException('Google token carried no email');
     }
 
     return {
-      email: claims.email.trim().toLowerCase(),
-      emailVerified:
-        claims.email_verified === true || claims.email_verified === 'true',
-      name: claims.name?.trim() || null,
-      picture: claims.picture ?? null,
-      googleSub: claims.sub,
+      email: payload.email.trim().toLowerCase(),
+      emailVerified: payload.email_verified === true,
+      name: payload.name?.trim() || null,
+      picture: payload.picture ?? null,
+      googleSub: payload.sub,
     };
   }
 }

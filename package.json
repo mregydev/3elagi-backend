@@ -33,6 +33,7 @@
     "cheerio": "^1.2.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
+    "google-auth-library": "^10.9.1",
     "ioredis": "^5.11.1",
     "langchain": "^1.4.4",
     "mammoth": "^1.12.0",

@@ -146,14 +146,14 @@ export class AuthService {
     const existing = await this.userRepo.findOne({ where: { email } });
     if (existing) return this.buildAuthResponse(existing);
 
-    // New account: GDPR consent for storing medical records is required before
-    // any row is written. The client shows the notice and calls back with it.
+    // Unknown email: never sign in, and never create an account as a side
+    // effect of a *login*. Only the signup flow — which sends the GDPR consent
+    // — may create one; everyone else is sent to sign up.
     if (consent?.medicalRecordsStorage !== true) {
       throw new ForbiddenException({
-        code: 'CONSENT_REQUIRED',
-        message: 'Medical records storage consent is required',
+        code: 'ACCOUNT_NOT_FOUND',
+        message: 'No 3elagi account is linked to this Google email',
         email,
-        name: identity.name,
       });
     }
 
