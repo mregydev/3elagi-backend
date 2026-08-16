@@ -150,10 +150,13 @@ export class AuthService {
     // effect of a *login*. Only the signup flow — which sends the GDPR consent
     // — may create one; everyone else is sent to sign up.
     if (consent?.medicalRecordsStorage !== true) {
+      // The verified name/email go back so the client can prefill signup and
+      // let the user finish registering the normal way.
       throw new ForbiddenException({
         code: 'ACCOUNT_NOT_FOUND',
         message: 'No 3elagi account is linked to this Google email',
         email,
+        name: identity.name,
       });
     }
 
