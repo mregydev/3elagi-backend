@@ -14,6 +14,7 @@ import { PatientProfile } from '../entities/patient-profile.entity';
 import { PresenceModule } from '../presence/presence.module';
 import { SpecialitiesModule } from '../specialities/specialities.module';
 import { MailModule } from '../mail/mail.module';
+import { GoogleOAuthService } from './google-oauth.service';
 
 @Module({
   imports: [
@@ -32,7 +33,7 @@ import { MailModule } from '../mail/mail.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, GoogleOAuthService],
   exports: [JwtModule, AuthService],
 })
 export class AuthModule {}

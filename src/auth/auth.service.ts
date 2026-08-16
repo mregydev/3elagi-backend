@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
+  ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -24,6 +25,7 @@ import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { DEFAULT_MESSAGE_POINTS } from '../points/points.constants';
+import type { GoogleIdentity } from './google-oauth.service';
 import { clampConsultationPrice } from '../points/message-price.constants';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { SpecialitiesService } from '../specialities/specialities.service';
@@ -123,6 +125,60 @@ export class AuthService {
 
     const valid = await bcrypt.compare(dto.password, user.password_hash);
     if (!valid) throw new UnauthorizedException('Invalid credentials');
+
+    return this.buildAuthResponse(user);
+  }
+
+  /**
+   * Google sign-in: an existing account with that email is signed in, a new one
+   * is created as a patient. No password is set — these users sign in only
+   * through Google, and `login()` rejects them because bcrypt cannot match an
+   * unusable hash.
+   */
+  async signInWithGoogle(
+    identity: GoogleIdentity,
+    consent?: { medicalRecordsStorage?: boolean },
+  ) {
+    if (!identity.emailVerified) {
+      throw new UnauthorizedException('Google account email is not verified');
+    }
+    const email = this.normalizeEmail(identity.email);
+    const existing = await this.userRepo.findOne({ where: { email } });
+    if (existing) return this.buildAuthResponse(existing);
+
+    // New account: GDPR consent for storing medical records is required before
+    // any row is written. The client shows the notice and calls back with it.
+    if (consent?.medicalRecordsStorage !== true) {
+      throw new ForbiddenException({
+        code: 'CONSENT_REQUIRED',
+        message: 'Medical records storage consent is required',
+        email,
+        name: identity.name,
+      });
+    }
+
+    const user = this.userRepo.create({
+      email,
+      // Random, never shared: the account has no password to sign in with.
+      password_hash: await bcrypt.hash(randomBytes(32).toString('hex'), 10),
+      role: UserRole.PATIENT,
+      photo_url: identity.picture,
+      preferred_locale: 'ar',
+      message_points: DEFAULT_MESSAGE_POINTS,
+      points_spent_total: 0,
+      points_purchased_total: 0,
+      email_verified_at: new Date(),
+    });
+    await this.userRepo.save(user);
+
+    const profile = this.patientProfileRepo.create({
+      user_id: user.id,
+      name: identity.name ?? email.split('@')[0],
+      photo_url: identity.picture,
+      medical_records_storage_consent: true,
+      medical_records_storage_consent_at: new Date(),
+    });
+    await this.patientProfileRepo.save(profile);
 
     return this.buildAuthResponse(user);
   }
