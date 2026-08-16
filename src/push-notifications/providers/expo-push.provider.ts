@@ -10,13 +10,15 @@ import type {
   AppointmentStatusPushInput,
   ChatPushInput,
   IncomingVideoCallPushInput,
+  VideoCallCancelledPushInput,
   IntakeExamReminderPushInput,
   PushProvider,
   SystemNotificationPushInput,
 } from '../push.types';
 
 const CHAT_CHANNEL_ID = 'chat-messages';
-const VIDEO_CALL_CHANNEL_ID = 'video-calls';
+// Must match EXPO_VIDEO_CALL_CHANNEL_ID in the app (constants/expoPush.ts).
+const VIDEO_CALL_CHANNEL_ID = 'video-calls-ring';
 const APPOINTMENT_CHANNEL_ID = 'appointments';
 
 /**
@@ -106,6 +108,27 @@ export class ExpoPushProvider implements PushProvider {
       channelId: VIDEO_CALL_CHANNEL_ID,
       priority: 'high',
       interruptionLevel: 'critical',
+      ...thread(`call:${input.sessionId}`),
+    }));
+  }
+
+  async sendVideoCallCancelled(
+    input: VideoCallCancelledPushInput,
+  ): Promise<void> {
+    const callerName = truncateTitle(input.callerName, 48);
+    // Same tag as the ringing push: Android collapses by tag, so this replaces
+    // the "incoming call" entry instead of stacking a second one under it.
+    await this.sendToUser(input.recipientId, (to) => ({
+      to,
+      title: 'Missed video call',
+      body: `${callerName} hung up`,
+      data: {
+        type: 'video_call_cancelled',
+        sessionId: input.sessionId,
+      },
+      sound: 'default',
+      channelId: VIDEO_CALL_CHANNEL_ID,
+      priority: 'default',
       ...thread(`call:${input.sessionId}`),
     }));
   }

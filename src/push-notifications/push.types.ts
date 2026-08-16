@@ -31,6 +31,13 @@ export interface IncomingVideoCallPushInput {
   callerName: string;
 }
 
+/** Sent when a ringing call stops before it was answered. */
+export interface VideoCallCancelledPushInput {
+  recipientId: string;
+  sessionId: string;
+  callerName: string;
+}
+
 export interface AppointmentRequestPushInput {
   recipientId: string;
   appointmentId: string;
@@ -77,6 +84,7 @@ export interface PushProvider {
   sendChatMessage(input: ChatPushInput): Promise<void>;
   sendAiMessage(input: AiPushInput): Promise<void>;
   sendIncomingVideoCall(input: IncomingVideoCallPushInput): Promise<void>;
+  sendVideoCallCancelled(input: VideoCallCancelledPushInput): Promise<void>;
   sendAppointmentRequest(input: AppointmentRequestPushInput): Promise<void>;
   sendAppointmentStatus(input: AppointmentStatusPushInput): Promise<void>;
   sendAppointmentReminder(input: AppointmentReminderPushInput): Promise<void>;

@@ -7,6 +7,7 @@ import type {
   AppointmentStatusPushInput,
   ChatPushInput,
   IncomingVideoCallPushInput,
+  VideoCallCancelledPushInput,
   IntakeExamReminderPushInput,
   PushProvider,
   SystemNotificationPushInput,
@@ -62,6 +63,21 @@ export class OneSignalPushProvider implements PushProvider {
         sessionId: input.sessionId,
         callerId: input.callerId,
         callerName: input.callerName,
+      },
+    );
+  }
+
+  async sendVideoCallCancelled(
+    input: VideoCallCancelledPushInput,
+  ): Promise<void> {
+    const callerName = truncateTitle(input.callerName, 48);
+    await this.sendToUser(
+      input.recipientId,
+      'Missed video call',
+      `${callerName} hung up`,
+      {
+        type: 'video_call_cancelled',
+        sessionId: input.sessionId,
       },
     );
   }

@@ -19,6 +19,7 @@ import type {
   AppointmentStatusPushInput,
   ChatPushInput,
   IncomingVideoCallPushInput,
+  VideoCallCancelledPushInput,
   IntakeExamReminderPushInput,
   SystemNotificationPushInput,
 } from './push.types';
@@ -98,6 +99,13 @@ export class PushNotificationsService {
   async sendIncomingVideoCall(input: IncomingVideoCallPushInput): Promise<void> {
     await this.safePersist(draftFromIncomingVideoCall(input));
     await this.factory.getActive().sendIncomingVideoCall(input);
+  }
+
+  /** No draft row: this only clears the ringing entry from the tray. */
+  async sendVideoCallCancelled(
+    input: VideoCallCancelledPushInput,
+  ): Promise<void> {
+    await this.factory.getActive().sendVideoCallCancelled(input);
   }
 
   async sendAppointmentRequest(input: AppointmentRequestPushInput): Promise<void> {

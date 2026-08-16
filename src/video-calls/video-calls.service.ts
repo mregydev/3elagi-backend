@@ -328,6 +328,21 @@ export class VideoCallsService {
         session_id: session.id,
         status: 'ended' as VideoCallStatus,
       });
+
+      // Patient hung up while it was still ringing: the doctor may have the
+      // app closed, so the socket above reaches nobody and the ringing push
+      // stays in their tray. This one shares its tag and replaces it.
+      if (!wasAnswered && userId === session.patient_user_id) {
+        void this.push
+          .sendVideoCallCancelled({
+            recipientId: session.doctor_user_id,
+            sessionId: session.id,
+            callerName: session.patient_name,
+          })
+          .catch((err) => {
+            this.logger.error('Failed to send cancelled video call push', err);
+          });
+      }
     }
     return this.toView(session);
   }
