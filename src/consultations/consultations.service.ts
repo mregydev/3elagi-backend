@@ -26,7 +26,10 @@ import { PointsService } from '../points/points.service';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { DiagnosisService } from '../diagnosis/diagnosis.service';
 import { UsersService } from '../users/users.service';
-import { clampConsultationPrice } from '../points/message-price.constants';
+import {
+  clampConsultationPrice,
+  CONSULTATION_POINT_COST,
+} from '../points/message-price.constants';
 import { DocumentType } from '../entities/medical-document.entity';
 import {
   CancelConsultationDto,
@@ -267,7 +270,8 @@ export class ConsultationsService {
     }
 
     // Reserve first so an insufficient balance fails before we create anything.
-    await this.points.reservePoints(patientUserId, price);
+    // Free for now — see CONSULTATION_POINT_COST.
+    await this.points.reservePoints(patientUserId, CONSULTATION_POINT_COST);
 
     let saved: Consultation;
     try {

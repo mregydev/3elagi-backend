@@ -64,7 +64,7 @@ export interface StreamEvent {
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 20;
 /** Set false to allow AI messages without deducting message points. */
-const AI_POINTS_DEDUCTION_ENABLED = false;
+const AI_POINTS_DEDUCTION_ENABLED = true;
 const AI_MESSAGE_POINT_COST = 1;
 /** Max user messages a logged-out guest may send via the floating AI widget. */
 export const GUEST_AI_MAX_MESSAGES = 3;

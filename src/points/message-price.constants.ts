@@ -1,3 +1,10 @@
+/**
+ * Consultations and video appointments are free while the doctor collects the
+ * fee directly, so the reserve/settle flow still runs but holds nothing. Set
+ * this back to 1 to charge again.
+ */
+export const CONSULTATION_POINT_COST = 0;
+
 /** Consultation reserve amount in EGP credits. */
 export const MIN_CONSULTATION_PRICE = 1;
 export const MAX_CONSULTATION_PRICE = 100_000;

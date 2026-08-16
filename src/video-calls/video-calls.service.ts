@@ -16,7 +16,10 @@ import {
 } from '../entities/video-call-session.entity';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 import { PointsService } from '../points/points.service';
-import { clampConsultationPrice } from '../points/message-price.constants';
+import {
+  clampConsultationPrice,
+  CONSULTATION_POINT_COST,
+} from '../points/message-price.constants';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { UsersService } from '../users/users.service';
 import { DailyService } from '../daily/daily.service';
@@ -195,7 +198,12 @@ export class VideoCallsService {
     const cost = clampConsultationPrice(doctor?.video_consultation_price ?? 1);
 
     // Hold the credits before ringing — throws if the patient cannot afford it.
-    await this.points.reservePoints(patientUserId, cost, 'Starting a call');
+    // Free for now — the hold keeps its ledger row at zero (CONSULTATION_POINT_COST).
+    await this.points.reservePoints(
+      patientUserId,
+      CONSULTATION_POINT_COST,
+      'Starting a call',
+    );
 
     let patientName: string;
     let doctorName: string;
