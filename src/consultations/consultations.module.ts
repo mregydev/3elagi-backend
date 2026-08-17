@@ -5,6 +5,7 @@ import { Consultation } from '../entities/consultation.entity';
 import { Doctor } from '../entities/doctor.entity';
 import { User } from '../entities/user.entity';
 import { Message } from '../entities/message.entity';
+import { PatientProfile } from '../entities/patient-profile.entity';
 import { AiModule } from '../ai/ai.module';
 import { DoctorPatientAccessModule } from '../doctor-patient-access/doctor-patient-access.module';
 import { PointsModule } from '../points/points.module';
@@ -18,6 +19,7 @@ import { ConsultationsService } from './consultations.service';
 @Module({
   imports: [
     TypeOrmModule.forFeature([
+      PatientProfile,
       Consultation,
       ConsultationComplaint,
       Doctor,

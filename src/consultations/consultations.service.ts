@@ -31,6 +31,7 @@ import {
   CONSULTATION_POINT_COST,
 } from '../points/message-price.constants';
 import { DocumentType } from '../entities/medical-document.entity';
+import { PatientProfile } from '../entities/patient-profile.entity';
 import {
   CancelConsultationDto,
   EndConsultationDto,
@@ -46,6 +47,8 @@ export class ConsultationsService {
     private complaintRepo: Repository<ConsultationComplaint>,
     @InjectRepository(Doctor) private doctorRepo: Repository<Doctor>,
     @InjectRepository(User) private userRepo: Repository<User>,
+    @InjectRepository(PatientProfile)
+    private patientProfileRepo: Repository<PatientProfile>,
     @InjectRepository(Message) private messageRepo: Repository<Message>,
     private points: PointsService,
     private presence: PresenceGateway,
@@ -282,6 +285,17 @@ export class ConsultationsService {
     const names = await Promise.all(
       rows.map((r) => this.users.getDisplayName(r.patient_id)),
     );
+    // Patient country drives what the consultation is worth to the doctor
+    // (EG / JO / rest of world), so the app can price the list without a
+    // second round trip per row.
+    const countries = await Promise.all(
+      rows.map(async (r) => {
+        const profile = await this.patientProfileRepo.findOne({
+          where: { user_id: r.patient_id },
+        });
+        return profile?.country ?? null;
+      }),
+    );
     const ids = rows.map((r) => r.id);
     const complaints = ids.length
       ? await this.complaintRepo.find({
@@ -294,6 +308,7 @@ export class ConsultationsService {
     return rows.map((c, i) => ({
       ...this.mapConsultation(c),
       patient_name: names[i],
+      patient_country: countries[i],
       complaint_status: complaintByConsultation.get(c.id) ?? null,
     }));
   }
