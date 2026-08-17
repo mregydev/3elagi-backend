@@ -35,8 +35,32 @@ const startBody = service.slice(
   service.indexOf('\n  private async ', startMethod + 1),
 );
 assert.ok(
-  startBody.includes('patient_country: patientCountry'),
+  startBody.includes('patient_country: saved.patient_country'),
   'the request message meta must carry the resolved patient country',
+);
+assert.ok(
+  startBody.includes('patient_country: country'),
+  'the consultation row must store the country it was requested from',
+);
+// Rates are admin-editable in point_pricing; the constants are only a fallback
+// inside PointPricingService, so the value must come through that service.
+assert.ok(
+  startBody.includes('this.pointPricing.resolve('),
+  'the point value must come from the admin-set pricing table',
+);
+assert.ok(
+  startBody.includes('point_price_usd:'),
+  'the consultation must keep the rate it was priced at',
+);
+
+// A migration that is not listed in app.module.ts never runs.
+const appModule = fs.readFileSync(
+  path.join(__dirname, '..', 'app.module.ts'),
+  'utf8',
+);
+assert.ok(
+  appModule.includes('ConsultationPatientCountry1778550000000'),
+  'the patient_country migration must be registered in app.module.ts',
 );
 
 console.log('consultation-country.check OK');

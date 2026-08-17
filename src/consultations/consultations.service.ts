@@ -23,6 +23,7 @@ import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
 import { DoctorPatientAccessService } from '../doctor-patient-access/doctor-patient-access.service';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 import { PointsService } from '../points/points.service';
+import { PointPricingService } from '../points/point-pricing.service';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { DiagnosisService } from '../diagnosis/diagnosis.service';
 import { UsersService } from '../users/users.service';
@@ -51,6 +52,7 @@ export class ConsultationsService {
     private patientProfileRepo: Repository<PatientProfile>,
     @InjectRepository(Message) private messageRepo: Repository<Message>,
     private points: PointsService,
+    private pointPricing: PointPricingService,
     private presence: PresenceGateway,
     private diagnosis: DiagnosisService,
     private users: UsersService,
@@ -150,6 +152,10 @@ export class ConsultationsService {
       status: c.status,
       description: c.description,
       reserved_points: c.reserved_points,
+      patient_country: c.patient_country,
+      // numeric comes back from pg as a string.
+      point_price_usd:
+        c.point_price_usd === null ? null : Number(c.point_price_usd),
       doctor_note: c.doctor_note,
       diagnosis_id: c.diagnosis_id,
       cancel_reason_type: c.cancel_reason_type,
@@ -287,9 +293,11 @@ export class ConsultationsService {
     );
     // Patient country drives what the consultation is worth to the doctor
     // (EG / JO / rest of world), so the app can price the list without a
-    // second round trip per row.
+    // second round trip per row. Rows created before the IP capture have no
+    // country of their own — fall back to the patient's profile.
     const countries = await Promise.all(
       rows.map(async (r) => {
+        if (r.patient_country) return r.patient_country;
         const profile = await this.patientProfileRepo.findOne({
           where: { user_id: r.patient_id },
         });
@@ -371,6 +379,11 @@ export class ConsultationsService {
       );
     }
 
+    // Egypt / Jordan / rest of world, at the admin-set rate of the moment.
+    // Resolved before reserving so a pricing failure cannot strand credits.
+    const country = patientCountry?.trim().toUpperCase() || null;
+    const pointPrice = (await this.pointPricing.resolve(country)).pricePerPoint;
+
     // Reserve first so an insufficient balance fails before we create anything.
     // Free for now — see CONSULTATION_POINT_COST.
     await this.points.reservePoints(patientUserId, CONSULTATION_POINT_COST);
@@ -384,6 +397,8 @@ export class ConsultationsService {
         status: 'pending',
         description: dto.description?.trim() ?? '',
         reserved_points: price,
+        patient_country: country,
+        point_price_usd: pointPrice.toFixed(2),
       });
       saved = await this.consultationRepo.save(created);
     } catch (e) {
@@ -401,7 +416,7 @@ export class ConsultationsService {
         action: 'start',
         status: 'pending',
         reserved_points: price,
-        patient_country: patientCountry ?? null,
+        patient_country: saved.patient_country,
       },
       // The doctor has to answer before anything happens, so this notifies like
       // an incoming call: presence can still list a backgrounded or stale socket
