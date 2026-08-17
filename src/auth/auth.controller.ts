@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Post,
@@ -13,17 +14,10 @@ import { RegisterPatientDto } from './dto/register-patient.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { GoogleSignInDto } from './dto/google-sign-in.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { GoogleOAuthService } from './google-oauth.service';
-
-class GoogleSignInDto {
-  code?: string;
-  redirect_uri?: string;
-  id_token?: string;
-  /** GDPR: required the first time an account is created via Google. */
-  medical_records_storage_consent?: boolean;
-}
 
 @Controller('auth')
 export class AuthController {
@@ -35,12 +29,27 @@ export class AuthController {
   /** Web sends the one-time `code`; native apps send `id_token` instead. */
   @Post('google')
   async google_(@Body() dto: GoogleSignInDto) {
-    const identity = dto.code
-      ? await this.google.identityFromCode(dto.code, dto.redirect_uri ?? '')
-      : await this.google.identityFromIdToken(dto.id_token ?? '');
-    return this.authService.signInWithGoogle(identity, {
-      medicalRecordsStorage: dto.medical_records_storage_consent,
-    });
+    const code = dto.code?.trim();
+    const idToken = dto.id_token?.trim();
+
+    if (code) {
+      const identity = await this.google.identityFromCode(
+        code,
+        dto.redirect_uri?.trim() ?? '',
+      );
+      return this.authService.signInWithGoogle(identity, {
+        medicalRecordsStorage: dto.medical_records_storage_consent,
+      });
+    }
+
+    if (idToken) {
+      const identity = await this.google.identityFromIdToken(idToken);
+      return this.authService.signInWithGoogle(identity, {
+        medicalRecordsStorage: dto.medical_records_storage_consent,
+      });
+    }
+
+    throw new BadRequestException('Missing Google code or token');
   }
 
   @Post('login')
