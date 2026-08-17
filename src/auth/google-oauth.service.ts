@@ -76,6 +76,33 @@ export class GoogleOAuthService {
     return !!this.clientId && !!this.clientSecret;
   }
 
+  /** Parses Google's OAuth error JSON without logging the raw body. */
+  private parseGoogleTokenError(body: string): string | null {
+    try {
+      const parsed = JSON.parse(body) as { error?: string };
+      return typeof parsed.error === 'string' ? parsed.error : null;
+    } catch {
+      if (body.includes('invalid_grant')) return 'invalid_grant';
+      if (body.includes('invalid_client')) return 'invalid_client';
+      if (body.includes('redirect_uri_mismatch')) return 'redirect_uri_mismatch';
+      return null;
+    }
+  }
+
+  private messageForGoogleTokenError(error: string | null): string {
+    switch (error) {
+      case 'invalid_grant':
+        return 'Google sign-in expired, try again';
+      case 'invalid_client':
+      case 'unauthorized_client':
+        return 'Google sign-in is misconfigured on the server (client id/secret)';
+      case 'redirect_uri_mismatch':
+        return 'Google redirect URI does not match the sign-in request';
+      default:
+        return 'Google sign-in failed';
+    }
+  }
+
   async identityFromCode(
     code: string,
     redirectUri: string,
@@ -108,12 +135,14 @@ export class GoogleOAuthService {
 
     if (!res.ok) {
       const detail = await res.text().catch(() => '');
+      const googleError = this.parseGoogleTokenError(detail);
       // Never log the body verbatim — it can echo the secret back.
-      this.logger.warn(`Google token exchange failed (${res.status})`);
-      if (detail.includes('invalid_grant')) {
-        throw new UnauthorizedException('Google sign-in expired, try again');
-      }
-      throw new UnauthorizedException('Google sign-in failed');
+      this.logger.warn(
+        `Google token exchange failed (${res.status}): ${googleError ?? 'unknown'}`,
+      );
+      throw new UnauthorizedException(
+        this.messageForGoogleTokenError(googleError),
+      );
     }
 
     const tokens = (await res.json()) as { id_token?: string };
