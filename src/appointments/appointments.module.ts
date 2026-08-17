@@ -20,6 +20,7 @@ import { PushNotificationsModule } from '../push-notifications/push-notification
 import { DailyModule } from '../daily/daily.module';
 
 import { PointsModule } from '../points/points.module';
+import { ConsultationsModule } from '../consultations/consultations.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { PointsModule } from '../points/points.module';
     PushNotificationsModule,
     DailyModule,
     PointsModule,
+    ConsultationsModule,
   ],
   controllers: [AppointmentsController],
   providers: [AppointmentsService, AppointmentsChatService],

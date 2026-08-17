@@ -27,6 +27,7 @@ import { UsersService } from '../users/users.service';
 import { DailyService } from '../daily/daily.service';
 import { VideoCallSession } from '../entities/video-call-session.entity';
 import { PointsService } from '../points/points.service';
+import { ConsultationsService } from '../consultations/consultations.service';
 import { clampConsultationPrice } from '../points/message-price.constants';
 
 const APPOINTMENT_ACTIONS: AppointmentActionType[] = [
@@ -122,6 +123,7 @@ export class AppointmentsChatService {
     private readonly pushNotifications: PushNotificationsService,
     private readonly dailyService: DailyService,
     private readonly pointsService: PointsService,
+    private readonly consultationsService: ConsultationsService,
   ) {}
 
   private async releaseAppointmentCredits(
@@ -553,6 +555,18 @@ export class AppointmentsChatService {
         );
         appointment.meeting_link = ensured.roomUrl;
         appointment.video_call_session_id = ensured.sessionId;
+        await this.consultationsService
+          .ensureOpenForConfirmedAppointment(
+            doctorUserId,
+            patientUserId,
+            appointment.ai_patient_insight,
+          )
+          .catch((err) =>
+            this.logger.error(
+              'Failed to open consultation for confirmed appointment',
+              err,
+            ),
+          );
       }
     }
 

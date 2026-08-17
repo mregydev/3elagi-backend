@@ -202,6 +202,56 @@ export class ConsultationsService {
     );
   }
 
+  /**
+   * Opens (or accepts) a consultation when a doctor confirms an appointment.
+   * Chat messaging is gated on an open consultation, so the thread must go
+   * live as soon as the slot is approved — same as an answered video call.
+   */
+  async ensureOpenForConfirmedAppointment(
+    doctorUserId: string,
+    patientUserId: string,
+    description?: string | null,
+  ): Promise<void> {
+    if (await this.hasOpenBetween(doctorUserId, patientUserId)) return;
+
+    const pending = await this.consultationRepo.findOne({
+      where: {
+        doctor_id: doctorUserId,
+        patient_id: patientUserId,
+        status: 'pending',
+      },
+      order: { created_at: 'DESC' },
+    });
+    if (pending) {
+      await this.accept(doctorUserId, pending.id);
+      return;
+    }
+
+    const trimmedDescription = description?.trim() || 'Appointment consultation';
+    const consultation = this.consultationRepo.create({
+      patient_id: patientUserId,
+      doctor_id: doctorUserId,
+      status: 'open',
+      description: trimmedDescription,
+      reserved_points: 0,
+    });
+    const saved = await this.consultationRepo.save(consultation);
+
+    await this.postActionMessage(
+      doctorUserId,
+      patientUserId,
+      'Appointment confirmed — consultation is open, you can message now',
+      {
+        consultation_id: saved.id,
+        action: 'accept',
+        status: 'open',
+      },
+      { alwaysPush: true },
+    );
+
+    this.scheduleIndexConsultation(saved.id);
+  }
+
   /** Open consultation between the given user and peer, if any. */
   /**
    * The live consultation between two users — pending counts as live, otherwise
