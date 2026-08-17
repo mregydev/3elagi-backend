@@ -2,9 +2,11 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
@@ -25,6 +27,7 @@ import { UsersService } from '../users/users.service';
 import { DailyService } from '../daily/daily.service';
 import { CreateVideoCallDto } from './dto/create-video-call.dto';
 import { isLiveSession } from './live-session';
+import { ConsultationsService } from '../consultations/consultations.service';
 
 export interface VideoCallSessionView {
   id: string;
@@ -52,6 +55,8 @@ export class VideoCallsService {
     private readonly points: PointsService,
     private readonly push: PushNotificationsService,
     private readonly presenceGateway: PresenceGateway,
+    @Inject(forwardRef(() => ConsultationsService))
+    private readonly consultations: ConsultationsService,
     private readonly users: UsersService,
   ) {}
 
@@ -293,6 +298,14 @@ export class VideoCallsService {
       session.status = 'accepted';
       await this.sessionRepo.save(session);
     }
+    // Messaging (and record sharing) is gated on an open consultation, so the
+    // answered call opens one immediately; the doctor ends it as usual.
+    await this.consultations
+      .ensureOpenForVideoCall(session.doctor_user_id, session.patient_user_id)
+      .catch((err) =>
+        this.logger.error('Failed to open consultation for video call', err),
+      );
+
     this.notifyCaller(session, 'accepted');
     return this.toView(session);
   }

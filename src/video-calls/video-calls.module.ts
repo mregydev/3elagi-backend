@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
 import { User } from '../entities/user.entity';
@@ -11,6 +11,7 @@ import { UsersModule } from '../users/users.module';
 import { DailyModule } from '../daily/daily.module';
 import { VideoCallsController } from './video-calls.controller';
 import { VideoCallsService } from './video-calls.service';
+import { ConsultationsModule } from '../consultations/consultations.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { VideoCallsService } from './video-calls.service';
     PushNotificationsModule,
     PointsModule,
     PresenceModule,
+    forwardRef(() => ConsultationsModule),
     TypeOrmModule.forFeature([VideoCallSession, User, Doctor]),
   ],
   controllers: [VideoCallsController],

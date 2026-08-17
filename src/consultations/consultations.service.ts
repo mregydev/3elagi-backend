@@ -169,6 +169,39 @@ export class ConsultationsService {
     return count > 0;
   }
 
+  /**
+   * Opens a consultation for a call the doctor just answered, unless one is
+   * already live. Without this, messaging (and record sharing) stays blocked
+   * during a video consultation — the message gate requires an open one.
+   */
+  async ensureOpenForVideoCall(
+    doctorUserId: string,
+    patientUserId: string,
+  ): Promise<void> {
+    if (await this.hasOpenBetween(doctorUserId, patientUserId)) return;
+
+    const consultation = this.consultationRepo.create({
+      patient_id: patientUserId,
+      doctor_id: doctorUserId,
+      status: 'open',
+      description: 'Video consultation',
+      // Video calls are free for now; the doctor collects the fee directly.
+      reserved_points: 0,
+    });
+    const saved = await this.consultationRepo.save(consultation);
+
+    await this.postActionMessage(
+      doctorUserId,
+      patientUserId,
+      'Video consultation started — you can message now',
+      {
+        consultation_id: saved.id,
+        action: 'accept',
+        status: 'open',
+      },
+    );
+  }
+
   /** Open consultation between the given user and peer, if any. */
   /**
    * The live consultation between two users — pending counts as live, otherwise
