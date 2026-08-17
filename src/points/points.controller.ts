@@ -26,8 +26,8 @@ export class PointsController {
   }
 
   /**
-   * What one credit costs the caller, priced off their IP: Egypt in EGP,
-   * Jordan in JOD, everywhere else in USD. Public so the price can be shown
+   * What one credit costs the caller, priced off their IP: Egypt 2 USD,
+   * Jordan 15 USD, everywhere else 50 USD. Public so the price can be shown
    * before sign-in.
    */
   @Get('pricing')

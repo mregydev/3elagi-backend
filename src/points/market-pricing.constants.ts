@@ -2,6 +2,7 @@ import {
   normalizeMarketCountry,
   type MarketCountryCode,
 } from '../common/patient-countries';
+import { USD_PER_POINT } from './usd-point-rates.constants';
 
 export type MarketCurrency = 'EGP' | 'JOD' | 'USD';
 
@@ -17,43 +18,42 @@ export interface MarketPointPricing {
   billingCity: string;
 }
 
-/** Top-up FX: Egypt 100 EGP, Jordan 10 JOD, rest of world 5 USD per point. */
+/** Top-up: Egypt 2 USD, Jordan 15 USD, rest of world 50 USD per point (IP-priced). */
 export const MARKET_POINT_PRICING: Record<PointMarket, MarketPointPricing> = {
   EG: {
     market: 'EG',
-    currency: 'EGP',
-    pricePerPoint: 100,
+    currency: 'USD',
+    pricePerPoint: USD_PER_POINT.EG,
     billingCountry: 'EG',
     billingCity: 'Cairo',
   },
   JO: {
     market: 'JO',
-    currency: 'JOD',
-    pricePerPoint: 10,
+    currency: 'USD',
+    pricePerPoint: USD_PER_POINT.JO,
     billingCountry: 'JO',
     billingCity: 'Amman',
   },
   INTL: {
     market: 'INTL',
     currency: 'USD',
-    pricePerPoint: 5,
-    // Paymob settles in Egypt regardless of where the payer sits.
+    pricePerPoint: USD_PER_POINT.INTL,
     billingCountry: 'EG',
     billingCity: 'Cairo',
   },
 };
 
 /**
- * Default JOD → EGP rate from point parity:
- * 1 point = 10 JOD = 100 EGP → 1 JOD = 10 EGP.
+ * EGP charged to Paymob per 1 USD of display price.
+ * Override with env `USD_TO_EGP_RATE` (default 50).
+ */
+export const DEFAULT_USD_TO_EGP_RATE = 50;
+
+/**
+ * Legacy JOD → EGP parity kept for older rows still priced in JOD.
  * Override with env `JOD_TO_EGP_RATE`.
  */
-export const DEFAULT_JOD_TO_EGP_RATE =
-  MARKET_POINT_PRICING.EG.pricePerPoint / MARKET_POINT_PRICING.JO.pricePerPoint;
-
-/** Same parity for USD: 1 point = 5 USD = 100 EGP → 1 USD = 20 EGP. */
-export const DEFAULT_USD_TO_EGP_RATE =
-  MARKET_POINT_PRICING.EG.pricePerPoint / MARKET_POINT_PRICING.INTL.pricePerPoint;
+export const DEFAULT_JOD_TO_EGP_RATE = 10;
 
 /** Anything outside Egypt and Jordan pays the international USD rate. */
 export function resolvePointMarket(country?: string | null): PointMarket {

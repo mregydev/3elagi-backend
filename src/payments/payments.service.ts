@@ -14,6 +14,7 @@ import { PatientProfile } from '../entities/patient-profile.entity';
 import { User, UserRole } from '../entities/user.entity';
 import {
   DEFAULT_JOD_TO_EGP_RATE,
+  DEFAULT_USD_TO_EGP_RATE,
   moneyForPoints,
   paymobChargeForMarket,
   resolveMarketPricing,
@@ -87,6 +88,7 @@ export class PaymentsService {
     return {
       ...this.paymob.debugConfig(),
       jod_to_egp_rate: this.jodToEgpRate(),
+      usd_to_egp_rate: this.usdToEgpRate(),
     };
   }
 
@@ -96,6 +98,14 @@ export class PaymentsService {
     return Number.isFinite(parsed) && parsed > 0
       ? parsed
       : DEFAULT_JOD_TO_EGP_RATE;
+  }
+
+  private usdToEgpRate(): number {
+    const raw = this.config.get<string>('USD_TO_EGP_RATE')?.trim();
+    const parsed = raw ? Number(raw) : NaN;
+    return Number.isFinite(parsed) && parsed > 0
+      ? parsed
+      : DEFAULT_USD_TO_EGP_RATE;
   }
 
   private async resolvePayerCountry(user: User): Promise<string> {
@@ -113,8 +123,8 @@ export class PaymentsService {
 
   /**
    * @param points Number of credits to purchase (not cash).
-   * Display cash = points × market price (EG 100 EGP, JO 5 JOD).
-   * Paymob always charges EGP (JOD converted just before intention).
+   * Display cash = points × market USD price (EG 2, JO 15, INTL 50).
+   * Paymob always charges EGP (USD converted just before intention).
    */
   async createCardCheckout(
     userId: string,
@@ -140,16 +150,20 @@ export class PaymentsService {
     const country = ipCountry ?? (await this.resolvePayerCountry(user));
     const pricing = await this.pointPricing.resolve(country);
     const displayMoney = Math.round(points) * pricing.pricePerPoint;
-    const rate = this.jodToEgpRate();
     const { amountEgp: paymobAmountEgp } = paymobChargeForMarket(
       displayMoney,
       pricing.currency,
-      rate,
+      this.jodToEgpRate(),
+      this.usdToEgpRate(),
     );
 
-    if (pricing.currency === 'JOD') {
+    if (pricing.currency === 'USD') {
       this.logger.log(
-        `JO checkout: ${points} pts → ${displayMoney} JOD → ${paymobAmountEgp} EGP (rate=${rate})`,
+        `${pricing.market} checkout: ${points} pts → ${displayMoney} USD → ${paymobAmountEgp} EGP (rate=${this.usdToEgpRate()})`,
+      );
+    } else if (pricing.currency === 'JOD') {
+      this.logger.log(
+        `JO checkout: ${points} pts → ${displayMoney} JOD → ${paymobAmountEgp} EGP (rate=${this.jodToEgpRate()})`,
       );
     }
 
