@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { SpeechClient } from '@google-cloud/speech';
 
 /** Map client/container MIME types to ones Google AI Gemini accepts. */
 function normalizeGeminiAudioMime(mimeType: string): string {
@@ -30,22 +31,50 @@ function normalizeGeminiAudioMime(mimeType: string): string {
     raw === 'audio/wav' ||
     raw === 'audio/webm' ||
     raw === 'audio/flac' ||
-    raw === 'audio/aiff'
+    raw === 'audio/aiff' ||
+    raw === 'audio/x-caf'
   ) {
     return raw;
   }
-  // Unknown — try AAC (native mobile default) rather than failing on mp4.
   return raw || 'audio/aac';
+}
+
+function mimeCandidates(original: string, normalized: string): string[] {
+  const raw = (original || '').trim().toLowerCase();
+  return [
+    ...new Set([
+      normalized,
+      raw,
+      'audio/mp4',
+      'audio/m4a',
+      'audio/x-m4a',
+      'audio/aac',
+      'audio/wav',
+      'audio/3gpp',
+      'audio/webm',
+    ]),
+  ].filter(Boolean);
+}
+
+function geminiErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return String(err ?? 'Unknown error');
 }
 
 @Injectable()
 export class SttService {
   private readonly logger = new Logger(SttService.name);
-  private readonly modelName: string;
+  private readonly modelNames: string[];
+  private readonly speechClient = new SpeechClient();
 
   constructor(private readonly config: ConfigService) {
-    this.modelName =
-      this.config.get<string>('GEMINI_STT_MODEL') ?? 'gemini-2.0-flash';
+    const primary =
+      this.config.get<string>('GEMINI_STT_MODEL') ?? 'gemini-2.5-flash';
+    this.modelNames = [
+      primary,
+      'gemini-2.0-flash',
+      'gemini-1.5-flash',
+    ].filter((name, index, all) => all.indexOf(name) === index);
   }
 
   async transcribe(
@@ -58,11 +87,8 @@ export class SttService {
     }
 
     const apiKey = this.config.get<string>('GEMINI_API_KEY');
-    if (!apiKey) {
-      throw new InternalServerErrorException('Speech recognition is not configured');
-    }
-
     const normalizedMime = normalizeGeminiAudioMime(mimeType);
+    const candidates = mimeCandidates(mimeType, normalizedMime);
 
     const normalizedLang = (languageCode ?? '').trim().toLowerCase();
     const autoDetect =
@@ -88,45 +114,105 @@ export class SttService {
 Transcribe the spoken words in this audio accurately.
 Reply with only the transcript — no labels, quotes, language names, or commentary.`;
 
-    // Native recordings are AAC inside an MP4/3GP container; Gemini rejects one
-    // label or the other depending on the file, so try the plausible ones.
-    const candidates = [
-      ...new Set([normalizedMime, mimeType.trim().toLowerCase(), 'audio/mp4']),
-    ].filter(Boolean);
-
-    let lastErr: unknown;
-    for (const candidate of candidates) {
-      try {
-        const text = await this.runGemini(apiKey, audio, candidate, prompt);
-        if (!text) throw new BadRequestException('No speech detected');
-        return text;
-      } catch (err) {
-        if (err instanceof BadRequestException) throw err;
-        lastErr = err;
-        this.logger.warn(
-          `STT attempt failed (mime=${mimeType} → ${candidate}): ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        );
+    if (apiKey) {
+      let lastGeminiErr: unknown;
+      for (const candidate of candidates) {
+        for (const modelName of this.modelNames) {
+          try {
+            const text = await this.runGemini(
+              apiKey,
+              modelName,
+              audio,
+              candidate,
+              prompt,
+            );
+            if (!text) throw new BadRequestException('No speech detected');
+            return text;
+          } catch (err) {
+            if (err instanceof BadRequestException) throw err;
+            lastGeminiErr = err;
+            this.logger.warn(
+              `Gemini STT failed (model=${modelName}, mime=${mimeType} → ${candidate}): ${geminiErrorMessage(err)}`,
+            );
+          }
+        }
       }
+      this.logger.warn(
+        `Gemini STT exhausted (mime=${mimeType}); trying Cloud Speech`,
+        lastGeminiErr,
+      );
+    } else {
+      this.logger.warn('GEMINI_API_KEY missing; using Cloud Speech STT only');
     }
 
-    this.logger.error(`STT failed (mime=${mimeType})`, lastErr);
-    throw new InternalServerErrorException('Speech-to-text failed');
+    try {
+      const text = await this.transcribeWithCloudSpeech(
+        audio,
+        languageCode,
+      );
+      if (!text) throw new BadRequestException('No speech detected');
+      return text;
+    } catch (err) {
+      if (err instanceof BadRequestException) throw err;
+      this.logger.error(`STT failed (mime=${mimeType})`, err);
+      throw new InternalServerErrorException('Speech-to-text failed');
+    }
   }
 
   private async runGemini(
     apiKey: string,
+    modelName: string,
     audio: Buffer,
     mimeType: string,
     prompt: string,
   ): Promise<string> {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: this.modelName });
+    const model = genAI.getGenerativeModel({ model: modelName });
     const result = await model.generateContent([
       { inlineData: { mimeType, data: audio.toString('base64') } },
       { text: prompt },
     ]);
     return result.response.text()?.trim() ?? '';
+  }
+
+  private async transcribeWithCloudSpeech(
+    audio: Buffer,
+    languageCode?: string,
+  ): Promise<string> {
+    const normalizedLang = (languageCode ?? '').trim().toLowerCase();
+    const primaryLang =
+      normalizedLang === 'ar' || normalizedLang.startsWith('ar-')
+        ? 'ar-EG'
+        : normalizedLang === 'de' || normalizedLang.startsWith('de-')
+          ? 'de-DE'
+          : normalizedLang === 'es' || normalizedLang.startsWith('es-')
+            ? 'es-ES'
+            : normalizedLang === 'en' || normalizedLang.startsWith('en-')
+              ? 'en-US'
+              : 'en-US';
+
+    const altLangs = ['ar-EG', 'en-US', 'de-DE', 'es-ES'].filter(
+      (code) => code !== primaryLang,
+    );
+
+    const [response] = await this.speechClient.recognize({
+      audio: { content: audio.toString('base64') },
+      config: {
+        encoding: 'ENCODING_UNSPECIFIED',
+        languageCode: primaryLang,
+        alternativeLanguageCodes: altLangs,
+        enableAutomaticPunctuation: true,
+        model: 'latest_long',
+      },
+    });
+
+    const text = (response.results ?? [])
+      .flatMap((result) => result.alternatives ?? [])
+      .map((alt) => alt.transcript?.trim() ?? '')
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+
+    return text;
   }
 }
