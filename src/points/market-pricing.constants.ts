@@ -1,7 +1,4 @@
-import {
-  normalizeMarketCountry,
-  type MarketCountryCode,
-} from '../common/patient-countries';
+import type { MarketCountryCode } from '../common/patient-countries';
 import { USD_PER_POINT } from './usd-point-rates.constants';
 
 export type MarketCurrency = 'EGP' | 'JOD' | 'USD';
@@ -55,11 +52,12 @@ export const DEFAULT_USD_TO_EGP_RATE = 50;
  */
 export const DEFAULT_JOD_TO_EGP_RATE = 10;
 
-/** Anything outside Egypt and Jordan pays the international USD rate. */
+/** Egypt, Jordan, or everywhere else (including unknown IP → international). */
 export function resolvePointMarket(country?: string | null): PointMarket {
   const code = country?.trim().toUpperCase();
-  if (code === 'EG' || code === 'JO') return code;
-  return code ? 'INTL' : normalizeMarketCountry(country);
+  if (code === 'EG') return 'EG';
+  if (code === 'JO') return 'JO';
+  return 'INTL';
 }
 
 export function resolveMarketPricing(

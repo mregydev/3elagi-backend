@@ -14,8 +14,8 @@ import {
 
 /** Currency is fixed per market; only the price is admin-editable. */
 const MARKET_CURRENCY: Record<PointMarket, MarketCurrency> = {
-  EG: 'EGP',
-  JO: 'JOD',
+  EG: 'USD',
+  JO: 'USD',
   INTL: 'USD',
 };
 

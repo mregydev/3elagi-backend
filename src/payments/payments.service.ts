@@ -145,9 +145,8 @@ export class PaymentsService {
         ? await this.doctorRepo.findOne({ where: { user_id: userId } })
         : null;
 
-    // IP wins: it is where the card is being used. Profile country is the
-    // fallback for direct hits with no edge geo header.
-    const country = ipCountry ?? (await this.resolvePayerCountry(user));
+    // IP-only pricing — profile country is never used for the rate.
+    const country = ipCountry ?? null;
     const pricing = await this.pointPricing.resolve(country);
     const displayMoney = Math.round(points) * pricing.pricePerPoint;
     const { amountEgp: paymobAmountEgp } = paymobChargeForMarket(

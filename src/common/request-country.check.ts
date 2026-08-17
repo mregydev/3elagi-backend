@@ -1,8 +1,10 @@
 /** Run: npx ts-node src/common/request-country.check.ts */
 import * as assert from 'node:assert';
 import {
+  clientGeoFromRequest,
   clientIpFromRequest,
   countryFromRequest,
+  resolvePricingCountry,
   resolveRequestCountry,
 } from './request-country';
 
@@ -32,13 +34,24 @@ assert.equal(
   null,
 );
 
+assert.equal(clientGeoFromRequest({ 'x-client-geo-country': 'de' }), 'DE');
+assert.equal(clientGeoFromRequest({ 'x-client-geo-country': 'XX' }), null);
+
 void (async () => {
   // Header path answers without any network call.
   assert.equal(
     await resolveRequestCountry({ headers: { 'cf-ipcountry': 'JO' } }),
     'JO',
   );
-  // No header and no usable IP → null, so callers fall back deliberately.
+  // Client geo header when server IP is unusable (local dev / Cloud Run).
+  assert.equal(
+    await resolvePricingCountry({
+      headers: { 'x-client-geo-country': 'DE' },
+      socket: { remoteAddress: '::1' },
+    }),
+    'DE',
+  );
+  // No header and no usable IP → null (international rate).
   assert.equal(
     await resolveRequestCountry({ headers: {}, socket: { remoteAddress: '::1' } }),
     null,

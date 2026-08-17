@@ -14,7 +14,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { CreateCardCheckoutDto } from './dto/create-card-checkout.dto';
 import {
-  resolveRequestCountry,
+  resolvePricingCountry,
   type RequestLike,
 } from '../common/request-country';
 import { PaymentsService } from './payments.service';
@@ -34,7 +34,7 @@ export class PaymentsController {
     return this.payments.createCardCheckout(
       req.user.id,
       dto.amount,
-      await resolveRequestCountry(req),
+      await resolvePricingCountry(req),
     );
   }
 

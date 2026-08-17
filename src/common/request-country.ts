@@ -58,6 +58,8 @@ function isUsableCode(code: string | undefined): code is string {
   return !!code && /^[A-Z]{2}$/.test(code) && code !== 'XX' && code !== 'T1';
 }
 
+const CLIENT_GEO_HEADER = 'x-client-geo-country';
+
 /** Country already resolved by the edge, if any. */
 export function countryFromRequest(headers: HeaderBag): string | null {
   for (const name of COUNTRY_HEADERS) {
@@ -134,14 +136,31 @@ async function lookupCountry(ip: string): Promise<string | null> {
   return code;
 }
 
-/** Edge header first, then an IP lookup. Null when neither can tell. */
-export async function resolveRequestCountry(
+/** Browser-reported geo when the server cannot see the client IP (e.g. Cloud Run). */
+export function clientGeoFromRequest(headers: HeaderBag): string | null {
+  const code = header(headers, CLIENT_GEO_HEADER)?.trim().toUpperCase();
+  return isUsableCode(code) ? code : null;
+}
+
+/** Edge header → server GeoIP on client IP → client geo header. */
+export async function resolvePricingCountry(
   req: RequestLike,
 ): Promise<string | null> {
   const fromEdge = countryFromRequest(req.headers);
   if (fromEdge) return fromEdge;
 
   const ip = clientIpFromRequest(req);
-  if (!ip) return null;
-  return lookupCountry(ip);
+  if (ip) {
+    const fromIp = await lookupCountry(ip);
+    if (fromIp) return fromIp;
+  }
+
+  return clientGeoFromRequest(req.headers);
+}
+
+/** @deprecated Prefer resolvePricingCountry for credit pricing. */
+export async function resolveRequestCountry(
+  req: RequestLike,
+): Promise<string | null> {
+  return resolvePricingCountry(req);
 }

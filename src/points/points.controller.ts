@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Post, Request, UseGuards } from '@nestjs/common';
 import { Public } from '../auth/public.decorator';
 import {
-  resolveRequestCountry,
+  resolvePricingCountry,
   type RequestLike,
 } from '../common/request-country';
 import { PointPricingService } from './point-pricing.service';
@@ -33,7 +33,7 @@ export class PointsController {
   @Get('pricing')
   @Public()
   async pricing(@Request() req: RequestLike) {
-    const country = await resolveRequestCountry(req);
+    const country = await resolvePricingCountry(req);
     const [pricing, all] = await Promise.all([
       this.pointPricing.resolve(country),
       this.pointPricing.list(),
