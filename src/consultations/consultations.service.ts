@@ -337,7 +337,11 @@ export class ConsultationsService {
     return user;
   }
 
-  async start(patientUserId: string, dto: StartConsultationDto) {
+  async start(
+    patientUserId: string,
+    dto: StartConsultationDto,
+    patientCountry?: string | null,
+  ) {
     await this.assertRole(patientUserId, UserRole.PATIENT);
     if (dto.doctor_id === patientUserId) {
       throw new BadRequestException('Invalid doctor');
@@ -397,6 +401,7 @@ export class ConsultationsService {
         action: 'start',
         status: 'pending',
         reserved_points: price,
+        patient_country: patientCountry ?? null,
       },
       // The doctor has to answer before anything happens, so this notifies like
       // an incoming call: presence can still list a backgrounded or stale socket

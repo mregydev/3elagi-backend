@@ -90,6 +90,8 @@ export interface ConsultationActionMeta {
   action: ConsultationActionType;
   status: 'pending' | 'open' | 'ended' | 'cancelled' | 'rejected';
   reserved_points?: number;
+  /** ISO-2 country of the patient, resolved from their IP when they requested. */
+  patient_country?: string | null;
   cancel_reason_type?: 'video_consultation' | 'onsite_visit' | 'other';
   cancel_reason?: string;
   diagnosis_id?: string | null;

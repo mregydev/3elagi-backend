@@ -9,6 +9,7 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
+import { resolvePricingCountry } from '../common/request-country';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -43,8 +44,10 @@ export class ConsultationsController {
 
   @Post('start')
   @Roles('patient')
-  start(@Body() dto: StartConsultationDto, @Request() req) {
-    return this.service.start(req.user.id, dto);
+  async start(@Body() dto: StartConsultationDto, @Request() req) {
+    // Country comes from the caller's IP, never from the client payload.
+    const country = await resolvePricingCountry(req);
+    return this.service.start(req.user.id, dto, country);
   }
 
   /** Doctor answers a pending request. */
