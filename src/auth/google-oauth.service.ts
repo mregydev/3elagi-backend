@@ -46,6 +46,9 @@ export class GoogleOAuthService {
   private get allowedAudiences(): string[] {
     return [
       this.clientId,
+      process.env.GOOGLE_CLIENT_MOBILE_ID,
+      // Cloud Run uses this name for the Expo/native OAuth client.
+      process.env.GOOGLE_MOBILE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_ID_IOS,
       process.env.GOOGLE_CLIENT_ID_ANDROID,
       // Android Google Sign-In returns the *web* client id as `aud` when the
