@@ -12,6 +12,15 @@ const src = fs.readFileSync(
   path.join(__dirname, 'messages.service.ts'),
   'utf8',
 );
+const controller = fs.readFileSync(
+  path.join(__dirname, 'messages.controller.ts'),
+  'utf8',
+);
+
+assert.ok(
+  controller.includes("@Roles('doctor', 'patient', 'admin')"),
+  'messages controller must allow admin JWTs',
+);
 
 const participants = src.slice(
   src.indexOf('private async assertChatParticipants('),

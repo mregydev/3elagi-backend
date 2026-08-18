@@ -154,6 +154,7 @@ export class ConsultationsService {
       description: c.description,
       reserved_points: c.reserved_points,
       patient_country: c.patient_country,
+      pending_change: c.pending_change,
       payment_status: c.payment_status,
       payment_amount:
         c.payment_amount === null ? null : Number(c.payment_amount),
@@ -817,6 +818,10 @@ export class ConsultationsService {
     };
   }
 
+  /**
+   * Cancelling an open consultation is a request now — it was already agreed,
+   * so the patient has to agree to undo it.
+   */
   async cancel(
     doctorUserId: string,
     consultationId: string,
@@ -824,31 +829,92 @@ export class ConsultationsService {
   ) {
     const c = await this.loadOpenForDoctor(consultationId, doctorUserId);
 
-    // Doctor couldn't complete it — patient gets the points back.
-    await this.points.refundReserved(c.patient_id, c.reserved_points);
-
-    const reasonType = dto.reason_type as ConsultationCancelReasonType;
-    c.status = 'cancelled';
-    c.cancel_reason_type = reasonType;
-    c.cancel_reason = dto.reason?.trim() || null;
-    c.closed_at = new Date();
+    c.pending_change = {
+      kind: 'cancel',
+      by: doctorUserId,
+      reason_type: dto.reason_type,
+      reason: dto.reason?.trim() || undefined,
+    };
     const saved = await this.consultationRepo.save(c);
 
     await this.postActionMessage(
       doctorUserId,
       c.patient_id,
+      saved.pending_change?.reason || 'Asked to cancel the consultation',
+      {
+        consultation_id: saved.id,
+        action: 'cancel_request',
+        status: saved.status,
+        cancel_reason_type: dto.reason_type as ConsultationCancelReasonType,
+        cancel_reason: saved.pending_change?.reason,
+        pending_by: doctorUserId,
+      },
+      { alwaysPush: true },
+    );
+
+    return { consultation: this.mapConsultation(saved) };
+  }
+
+  /** The other side answers a cancellation request. */
+  async reviewCancel(userId: string, consultationId: string, approve: boolean) {
+    const c = await this.consultationRepo.findOne({
+      where: { id: consultationId },
+    });
+    if (!c) throw new NotFoundException('Consultation not found');
+    if (c.patient_id !== userId && c.doctor_id !== userId) {
+      throw new ForbiddenException('Not your consultation');
+    }
+    const pending = c.pending_change;
+    if (!pending || pending.kind !== 'cancel') {
+      throw new BadRequestException('There is nothing to answer');
+    }
+    if (pending.by === userId) {
+      throw new ForbiddenException('The other person has to answer this');
+    }
+    const peerId = c.patient_id === userId ? c.doctor_id : c.patient_id;
+
+    if (!approve) {
+      c.pending_change = null;
+      const kept = await this.consultationRepo.save(c);
+      await this.postActionMessage(
+        userId,
+        peerId,
+        'Declined cancelling the consultation',
+        {
+          consultation_id: kept.id,
+          action: 'cancel_declined',
+          status: kept.status,
+        },
+        { alwaysPush: true },
+      );
+      return { consultation: this.mapConsultation(kept) };
+    }
+
+    // Agreed: close it and give the held credits back.
+    await this.points.refundReserved(c.patient_id, c.reserved_points);
+    c.status = 'cancelled';
+    c.cancel_reason_type =
+      (pending.reason_type as ConsultationCancelReasonType) ?? null;
+    c.cancel_reason = pending.reason ?? null;
+    c.closed_at = new Date();
+    c.pending_change = null;
+    const saved = await this.consultationRepo.save(c);
+
+    await this.postActionMessage(
+      userId,
+      peerId,
       saved.cancel_reason || 'Consultation cancelled',
       {
         consultation_id: saved.id,
-        action: 'cancel' as ConsultationActionType,
+        action: 'cancel_approved',
         status: 'cancelled',
-        cancel_reason_type: reasonType,
+        cancel_reason_type: saved.cancel_reason_type ?? undefined,
         cancel_reason: saved.cancel_reason ?? undefined,
       },
+      { alwaysPush: true },
     );
 
     this.scheduleIndexConsultation(saved.id);
-
     return { consultation: this.mapConsultation(saved) };
   }
 }

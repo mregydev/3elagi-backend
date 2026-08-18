@@ -56,7 +56,22 @@ export type AppointmentActionType =
   | 'payment_request'
   | 'payment_submitted'
   | 'payment_approved'
-  | 'payment_rejected';
+  | 'payment_rejected'
+  | 'reschedule_request'
+  | 'reschedule_accepted'
+  | 'reschedule_declined'
+  | 'cancel_request'
+  | 'cancel_approved'
+  | 'cancel_declined';
+
+/** A change waiting on the other side: new slot, or cancelling an approved one. */
+export interface PendingChangeMeta {
+  /** User id who asked — only the other side may answer. */
+  pending_by?: string | null;
+  /** Proposed slot for a reschedule. */
+  proposed_date?: string | null;
+  proposed_time?: string | null;
+}
 
 /** Cash payment details carried by an appointment / consultation action. */
 export interface PaymentActionMeta {
@@ -68,7 +83,9 @@ export interface PaymentActionMeta {
   payment_proof_url?: string | null;
 }
 
-export interface AppointmentActionMeta extends PaymentActionMeta {
+export interface AppointmentActionMeta
+  extends PaymentActionMeta,
+    PendingChangeMeta {
   appointment_id: string;
   action: AppointmentActionType;
   date: string;
@@ -90,7 +107,10 @@ export type ConsultationActionType =
   | 'payment_request'
   | 'payment_submitted'
   | 'payment_approved'
-  | 'payment_rejected';
+  | 'payment_rejected'
+  | 'cancel_request'
+  | 'cancel_approved'
+  | 'cancel_declined';
 
 export interface ConsultationDiagnosisSummary {
   id: string;
@@ -103,7 +123,9 @@ export interface ConsultationDiagnosisSummary {
   }[];
 }
 
-export interface ConsultationActionMeta extends PaymentActionMeta {
+export interface ConsultationActionMeta
+  extends PaymentActionMeta,
+    PendingChangeMeta {
   consultation_id: string;
   action: ConsultationActionType;
   status: 'pending' | 'open' | 'ended' | 'cancelled' | 'rejected';

@@ -154,6 +154,7 @@ import { PointPricingUsdRates1778541000000 } from './migrations/1778541000000-Po
 import { ConsultationPatientCountry1778550000000 } from './migrations/1778550000000-ConsultationPatientCountry';
 import { DoctorFeesAndPaymentFlow1778560000000 } from './migrations/1778560000000-DoctorFeesAndPaymentFlow';
 import { DefaultDoctorFees1778570000000 } from './migrations/1778570000000-DefaultDoctorFees';
+import { PendingChanges1778580000000 } from './migrations/1778580000000-PendingChanges';
 import { AppointmentPatientCountry1778580000000 } from './migrations/1778580000000-AppointmentPatientCountry';
 import { UserNotification } from './entities/user-notification.entity';
 import { NotificationsModule } from './notifications/notifications.module';

@@ -1,4 +1,5 @@
 import type { PaymentState } from '../common/payment-flow';
+import type { PendingChange } from '../common/pending-change';
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -83,6 +84,10 @@ export class Consultation {
   /** Receipt the patient uploaded, waiting for the doctor to approve it. */
   @Column({ type: 'text', nullable: true })
   payment_proof_url: string | null;
+
+  /** Change awaiting the other side's answer (new slot, or cancellation). */
+  @Column({ type: 'jsonb', nullable: true })
+  pending_change: PendingChange | null;
 
   @CreateDateColumn()
   created_at: Date;

@@ -89,6 +89,16 @@ export class ConsultationsController {
     return this.service.reviewPayment(req.user.id, id, !!body?.approve);
   }
 
+  /** Either side answers a cancellation request. */
+  @Post(':id/cancel-review')
+  reviewCancel(
+    @Param('id') id: string,
+    @Body() body: { approve?: boolean },
+    @Request() req,
+  ) {
+    return this.service.reviewCancel(req.user.id, id, !!body?.approve);
+  }
+
   @Post(':id/reject')
   @Roles('doctor')
   reject(

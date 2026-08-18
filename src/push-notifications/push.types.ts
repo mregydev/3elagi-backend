@@ -58,7 +58,13 @@ export interface AppointmentStatusPushInput {
     | 'payment_request'
     | 'payment_submitted'
     | 'payment_approved'
-    | 'payment_rejected';
+    | 'payment_rejected'
+    | 'reschedule_request'
+    | 'reschedule_accepted'
+    | 'reschedule_declined'
+    | 'cancel_request'
+    | 'cancel_approved'
+    | 'cancel_declined';
   date: string;
   time: string;
 }
@@ -113,4 +119,10 @@ export const APPOINTMENT_STATUS_VERB: Record<
   payment_submitted: 'sent payment for',
   payment_approved: 'confirmed payment for',
   payment_rejected: 'rejected the payment for',
+  reschedule_request: 'asked to move',
+  reschedule_accepted: 'agreed to move',
+  reschedule_declined: 'kept the original time for',
+  cancel_request: 'asked to cancel',
+  cancel_approved: 'agreed to cancel',
+  cancel_declined: 'declined cancelling',
 };

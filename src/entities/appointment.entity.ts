@@ -11,6 +11,7 @@ import { Clinic } from './clinic.entity';
 import { Doctor } from './doctor.entity';
 import { Patient } from './patient.entity';
 import type { PaymentState } from '../common/payment-flow';
+import type { PendingChange } from '../common/pending-change';
 
 export enum AppointmentStatus {
   PENDING = 'pending',
@@ -123,6 +124,10 @@ export class Appointment {
   /** Receipt the patient uploaded, waiting for the doctor to approve it. */
   @Column({ type: 'text', nullable: true })
   payment_proof_url: string | null;
+
+  /** Change awaiting the other side's answer (new slot, or cancellation). */
+  @Column({ type: 'jsonb', nullable: true })
+  pending_change: PendingChange | null;
 
   @CreateDateColumn()
   created_at: Date;

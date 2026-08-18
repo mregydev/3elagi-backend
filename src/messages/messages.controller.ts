@@ -19,7 +19,7 @@ import type { RequestLike } from '../common/request-country';
 
 @Controller('messages')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('doctor', 'patient')
+@Roles('doctor', 'patient', 'admin')
 export class MessagesController {
   constructor(private readonly messagesService: MessagesService) {}
 

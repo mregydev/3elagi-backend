@@ -40,6 +40,12 @@ const APPOINTMENT_ACTIONS: AppointmentActionType[] = [
   'payment_submitted',
   'payment_approved',
   'payment_rejected',
+  'reschedule_request',
+  'reschedule_accepted',
+  'reschedule_declined',
+  'cancel_request',
+  'cancel_approved',
+  'cancel_declined',
 ];
 const CAIRO_TIME_ZONE = 'Africa/Cairo';
 
@@ -175,6 +181,18 @@ export class AppointmentsChatService {
         return `Payment approved — appointment confirmed for ${when}`;
       case 'payment_rejected':
         return `Payment rejected for ${when}`;
+      case 'reschedule_request':
+        return `Asked to move the appointment to ${when}`;
+      case 'reschedule_accepted':
+        return `Appointment moved to ${when}`;
+      case 'reschedule_declined':
+        return `Kept the appointment at ${when}`;
+      case 'cancel_request':
+        return `Asked to cancel the appointment for ${when}`;
+      case 'cancel_approved':
+        return `Appointment cancelled for ${when}`;
+      case 'cancel_declined':
+        return `Cancellation declined for ${when}`;
       default:
         return `Appointment update for ${when}`;
     }
@@ -666,13 +684,95 @@ export class AppointmentsChatService {
       ) {
         throw new BadRequestException('Appointment cannot be cancelled');
       }
-      appointment.status = AppointmentStatus.CANCELLED;
-      await this.releaseAppointmentCredits(
-        appointment,
-        doctorUserId,
-        patientUserId,
-      );
+      if (appointment.status === AppointmentStatus.PENDING) {
+        // Never approved by the doctor — either side may just drop it.
+        appointment.status = AppointmentStatus.CANCELLED;
+        await this.releaseAppointmentCredits(
+          appointment,
+          doctorUserId,
+          patientUserId,
+        );
+        await this.appointmentRepo.save(appointment);
+      } else {
+        // Already agreed: the other side has to agree to undo it too.
+        appointment.pending_change = { kind: 'cancel', by: actorUserId };
+        await this.appointmentRepo.save(appointment);
+        emitted = 'cancel_request';
+      }
+    }
+
+    if (action === 'reschedule_request') {
+      if (
+        appointment.status === AppointmentStatus.CANCELLED ||
+        appointment.status === AppointmentStatus.REJECTED ||
+        appointment.status === AppointmentStatus.DONE
+      ) {
+        throw new BadRequestException('Appointment can no longer be moved');
+      }
+      const date = meta.proposed_date?.trim();
+      const time = meta.proposed_time?.trim();
+      if (!date || !time) {
+        throw new BadRequestException('Pick the new date and time');
+      }
+      if (!isFutureSlot(date, time)) {
+        throw new BadRequestException('Pick a slot in the future');
+      }
+      appointment.pending_change = {
+        kind: 'reschedule',
+        by: actorUserId,
+        date,
+        time,
+      };
       await this.appointmentRepo.save(appointment);
+    }
+
+    if (
+      action === 'reschedule_accepted' ||
+      action === 'reschedule_declined' ||
+      action === 'cancel_approved' ||
+      action === 'cancel_declined'
+    ) {
+      const pending = appointment.pending_change;
+      const wantsReschedule = action.startsWith('reschedule_');
+      if (!pending || pending.kind !== (wantsReschedule ? 'reschedule' : 'cancel')) {
+        throw new BadRequestException('There is nothing to answer');
+      }
+      // Whoever asked cannot also answer.
+      if (pending.by === actorUserId) {
+        throw new ForbiddenException('The other person has to answer this');
+      }
+
+      if (action === 'reschedule_accepted') {
+        appointment.date = pending.date ?? appointment.date;
+        appointment.time = pending.time ?? appointment.time;
+        // The old room expires at the old time — mint one for the new slot.
+        appointment.meeting_link = null;
+        appointment.video_call_session_id = null;
+      }
+      if (action === 'cancel_approved') {
+        appointment.status = AppointmentStatus.CANCELLED;
+        await this.releaseAppointmentCredits(
+          appointment,
+          doctorUserId,
+          patientUserId,
+        );
+      }
+      appointment.pending_change = null;
+      await this.appointmentRepo.save(appointment);
+
+      if (
+        action === 'reschedule_accepted' &&
+        appointment.status === AppointmentStatus.CONFIRMED
+      ) {
+        const ensured = await this.ensureMeetingAssets(
+          appointment,
+          doctorUserId,
+          patientUserId,
+        );
+        appointment.meeting_link = ensured.roomUrl;
+        appointment.video_call_session_id = ensured.sessionId;
+        await this.appointmentRepo.save(appointment);
+      }
     }
 
     const updatedMeta: AppointmentActionMeta = {
@@ -694,6 +794,9 @@ export class AppointmentsChatService {
           ? (doctor?.payment_link?.trim() ?? null) || null
           : null,
       payment_proof_url: appointment.payment_proof_url,
+      pending_by: appointment.pending_change?.by ?? null,
+      proposed_date: appointment.pending_change?.date ?? null,
+      proposed_time: appointment.pending_change?.time ?? null,
     };
 
     const saved = await this.messageRepo.save(
@@ -701,8 +804,9 @@ export class AppointmentsChatService {
         type: 'appointment_action',
         content: AppointmentsChatService.appointmentActionLabel(
           emitted,
-          appointment.date,
-          appointment.time,
+          // A reschedule request is about the proposed slot, not the old one.
+          appointment.pending_change?.date ?? appointment.date,
+          appointment.pending_change?.time ?? appointment.time,
         ),
         creator: actorUserId,
         recipient: recipientId,
