@@ -227,6 +227,25 @@ export class UsersService {
   async getContactCard(userId: string) {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) return null;
+
+    if (user.role === UserRole.ADMIN) {
+      return {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        name: 'Admin',
+        photo_url: user.photo_url ?? null,
+        specialty: null,
+        doctor_id: null,
+        consultation_price: null,
+        video_consultation_price: null,
+        immediate_call_enabled: false,
+        rating_average: null,
+        rating_total: null,
+        country: null,
+      };
+    }
+
     if (user.role !== UserRole.DOCTOR && user.role !== UserRole.PATIENT) {
       return null;
     }

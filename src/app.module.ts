@@ -289,6 +289,7 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
           ConsultationPatientCountry1778550000000,
           DoctorFeesAndPaymentFlow1778560000000,
           DefaultDoctorFees1778570000000,
+          PendingChanges1778580000000,
           AppointmentPatientCountry1778580000000,
         ],
         migrationsRun: true,

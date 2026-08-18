@@ -15,7 +15,19 @@ const entity = fs.readFileSync(
   path.join(__dirname, '..', 'entities', 'appointment.entity.ts'),
   'utf8',
 );
+const appModule = fs.readFileSync(
+  path.join(__dirname, '..', 'app.module.ts'),
+  'utf8',
+);
 
+assert.ok(
+  entity.includes('pending_change'),
+  'appointments entity must define pending_change',
+);
+assert.ok(
+  appModule.includes('PendingChanges1778580000000'),
+  'the pending_change migration must be registered in app.module.ts',
+);
 assert.ok(
   entity.includes('patient_country'),
   'appointments must store patient_country',
