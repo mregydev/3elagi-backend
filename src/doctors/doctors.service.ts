@@ -17,6 +17,16 @@ import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { SpecialitiesService } from '../specialities/specialities.service';
 
+/** Money columns arrive from the client as numbers; the entity stores strings. */
+type FeeColumn =
+  | 'text_price_local'
+  | 'text_price_usd'
+  | 'video_price_local'
+  | 'video_price_usd';
+
+export type DoctorSelfUpdate = Partial<Omit<Doctor, FeeColumn>> &
+  Partial<Record<FeeColumn, number | string | null>>;
+
 /** Speciality ids with the primary (`speciality_id`) first. */
 export function sortPrimaryFirst(doctor: Doctor): string[] {
   const linked = (doctor.specialities ?? []).map((s) => s.id);
@@ -102,7 +112,7 @@ export class DoctorsService {
     return this.doctorRepo.save(doctor);
   }
 
-  async updateSelf(userId: string, updates: Partial<Doctor>) {
+  async updateSelf(userId: string, updates: DoctorSelfUpdate) {
     const doctor = await this.doctorRepo.findOne({ where: { user_id: userId } });
     if (!doctor) throw new NotFoundException('Doctor profile not found');
     // Whitelist: doctors must not be able to change privilege-sensitive fields
@@ -114,13 +124,32 @@ export class DoctorsService {
       faqs, tags, certification_urls, speciality_id,
       consultation_price, video_consultation_price, video_consultation_minutes,
       immediate_call_enabled,
+      text_price_local, text_price_usd, video_price_local, video_price_usd,
+      payment_link,
       iban, account_holder_full_name, national_id,
-    } = updates as Partial<Doctor>;
+    } = updates as DoctorSelfUpdate;
     const safeUpdates: Partial<Doctor> = {};
     if (name !== undefined) safeUpdates.name = name;
     if (phone !== undefined) safeUpdates.phone = phone;
     if (country !== undefined) {
       safeUpdates.country = String(country).trim().toUpperCase();
+    }
+    // Cash fees are free-form money; keep 2dp and drop anything not a number.
+    for (const [key, value] of Object.entries({
+      text_price_local,
+      text_price_usd,
+      video_price_local,
+      video_price_usd,
+    })) {
+      if (value === undefined) continue;
+      const amount = Number(value);
+      safeUpdates[key] =
+        value === null || !Number.isFinite(amount) || amount < 0
+          ? null
+          : amount.toFixed(2);
+    }
+    if (payment_link !== undefined) {
+      safeUpdates.payment_link = String(payment_link ?? '').trim() || null;
     }
     if (age !== undefined) safeUpdates.age = age;
     if (email !== undefined) safeUpdates.email = email;

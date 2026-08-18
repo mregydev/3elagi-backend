@@ -24,6 +24,7 @@ import { DoctorPatientAccessService } from '../doctor-patient-access/doctor-pati
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 import { PointsService } from '../points/points.service';
 import { PointPricingService } from '../points/point-pricing.service';
+import { resolveDoctorFee } from '../doctors/doctor-fees';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { DiagnosisService } from '../diagnosis/diagnosis.service';
 import { UsersService } from '../users/users.service';
@@ -153,6 +154,11 @@ export class ConsultationsService {
       description: c.description,
       reserved_points: c.reserved_points,
       patient_country: c.patient_country,
+      payment_status: c.payment_status,
+      payment_amount:
+        c.payment_amount === null ? null : Number(c.payment_amount),
+      payment_currency: c.payment_currency,
+      payment_proof_url: c.payment_proof_url,
       // numeric comes back from pg as a string.
       point_price_usd:
         c.point_price_usd === null ? null : Number(c.point_price_usd),
@@ -486,28 +492,188 @@ export class ConsultationsService {
     return c;
   }
 
-  /** Doctor accepts a pending request — chat and credits go live. */
-  async accept(doctorUserId: string, consultationId: string) {
+  /**
+   * Doctor accepts a pending request. Accepting outright opens the chat;
+   * accepting with `requirePayment` leaves it pending until the patient pays
+   * and the doctor approves the receipt.
+   */
+  async accept(
+    doctorUserId: string,
+    consultationId: string,
+    requirePayment = false,
+  ) {
     await this.assertRole(doctorUserId, UserRole.DOCTOR);
     const c = await this.loadPendingForDoctor(consultationId, doctorUserId);
 
+    if (requirePayment) {
+      const fee = await this.resolveTextFee(c);
+      if (fee.amount <= 0) {
+        throw new BadRequestException(
+          'Set your consultation price before asking for payment',
+        );
+      }
+      c.payment_status = 'awaiting_payment';
+      c.payment_amount = fee.amount.toFixed(2);
+      c.payment_currency = fee.currency;
+      c.payment_proof_url = null;
+      const held = await this.consultationRepo.save(c);
+
+      await this.postActionMessage(
+        doctorUserId,
+        c.patient_id,
+        `Please pay ${fee.amount} ${fee.currency} to start the consultation`,
+        {
+          consultation_id: held.id,
+          action: 'payment_request',
+          status: held.status,
+          reserved_points: held.reserved_points,
+          payment_status: held.payment_status,
+          payment_amount: fee.amount,
+          payment_currency: fee.currency,
+          payment_link: fee.payment_link,
+        },
+        { alwaysPush: true },
+      );
+      return { consultation: this.mapConsultation(held) };
+    }
+
+    const saved = await this.openAccepted(c, doctorUserId, 'accept');
+    return { consultation: this.mapConsultation(saved) };
+  }
+
+  /** The doctor's price for this patient, from where they consulted. */
+  private async resolveTextFee(c: Consultation) {
+    const doctor = await this.doctorRepo.findOne({
+      where: { user_id: c.doctor_id },
+    });
+    if (!doctor) return { amount: 0, currency: 'USD', payment_link: null };
+    let country = c.patient_country;
+    if (!country) {
+      const profile = await this.patientProfileRepo.findOne({
+        where: { user_id: c.patient_id },
+      });
+      country = profile?.country ?? null;
+    }
+    return resolveDoctorFee(doctor, country, 'text');
+  }
+
+  /** Opens an accepted consultation and tells the patient. */
+  private async openAccepted(
+    c: Consultation,
+    doctorUserId: string,
+    action: 'accept' | 'payment_approved',
+  ): Promise<Consultation> {
     c.status = 'open';
     const saved = await this.consultationRepo.save(c);
 
     await this.postActionMessage(
       doctorUserId,
       c.patient_id,
-      'Accepted your consultation request — you can message now',
+      action === 'accept'
+        ? 'Accepted your consultation request — you can message now'
+        : 'Payment approved — you can message now',
       {
         consultation_id: saved.id,
-        action: 'accept',
+        action,
         status: 'open',
         reserved_points: saved.reserved_points,
+        payment_status: saved.payment_status,
       },
       { alwaysPush: true },
     );
 
     this.scheduleIndexConsultation(saved.id);
+    return saved;
+  }
+
+  /** Patient uploads the receipt for a consultation the doctor priced. */
+  async submitPaymentProof(
+    patientUserId: string,
+    consultationId: string,
+    proofUrl: string,
+  ) {
+    await this.assertRole(patientUserId, UserRole.PATIENT);
+    const c = await this.consultationRepo.findOne({
+      where: { id: consultationId },
+    });
+    if (!c) throw new NotFoundException('Consultation not found');
+    if (c.patient_id !== patientUserId) {
+      throw new ForbiddenException('Not your consultation');
+    }
+    if (
+      c.payment_status !== 'awaiting_payment' &&
+      c.payment_status !== 'proof_submitted'
+    ) {
+      throw new BadRequestException('No payment was requested');
+    }
+    const proof = proofUrl?.trim();
+    if (!proof) throw new BadRequestException('Attach the payment receipt');
+
+    c.payment_proof_url = proof;
+    c.payment_status = 'proof_submitted';
+    const saved = await this.consultationRepo.save(c);
+
+    await this.postActionMessage(
+      patientUserId,
+      c.doctor_id,
+      'Sent the payment receipt',
+      {
+        consultation_id: saved.id,
+        action: 'payment_submitted',
+        status: saved.status,
+        payment_status: saved.payment_status,
+        payment_amount:
+          saved.payment_amount === null ? null : Number(saved.payment_amount),
+        payment_currency: saved.payment_currency,
+        payment_proof_url: saved.payment_proof_url,
+      },
+      { alwaysPush: true },
+    );
+    return { consultation: this.mapConsultation(saved) };
+  }
+
+  /** Doctor approves or rejects the receipt. Approving opens the chat. */
+  async reviewPayment(
+    doctorUserId: string,
+    consultationId: string,
+    approve: boolean,
+  ) {
+    await this.assertRole(doctorUserId, UserRole.DOCTOR);
+    const c = await this.consultationRepo.findOne({
+      where: { id: consultationId },
+    });
+    if (!c) throw new NotFoundException('Consultation not found');
+    if (c.doctor_id !== doctorUserId) {
+      throw new ForbiddenException('Not your consultation');
+    }
+    if (c.payment_status !== 'proof_submitted') {
+      throw new BadRequestException('There is no receipt to review');
+    }
+
+    if (!approve) {
+      c.payment_status = 'awaiting_payment';
+      c.payment_proof_url = null;
+      const saved = await this.consultationRepo.save(c);
+      await this.postActionMessage(
+        doctorUserId,
+        c.patient_id,
+        'The payment receipt was rejected',
+        {
+          consultation_id: saved.id,
+          action: 'payment_rejected',
+          status: saved.status,
+          payment_status: saved.payment_status,
+          payment_amount:
+            saved.payment_amount === null ? null : Number(saved.payment_amount),
+          payment_currency: saved.payment_currency,
+        },
+        { alwaysPush: true },
+      );
+      return { consultation: this.mapConsultation(saved) };
+    }
+
+    c.payment_status = 'paid';
+    const saved = await this.openAccepted(c, doctorUserId, 'payment_approved');
     return { consultation: this.mapConsultation(saved) };
   }
 

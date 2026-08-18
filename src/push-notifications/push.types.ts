@@ -51,7 +51,14 @@ export interface AppointmentStatusPushInput {
   recipientId: string;
   appointmentId: string;
   actorName: string;
-  action: 'confirm' | 'reject' | 'cancel';
+  action:
+    | 'confirm'
+    | 'reject'
+    | 'cancel'
+    | 'payment_request'
+    | 'payment_submitted'
+    | 'payment_approved'
+    | 'payment_rejected';
   date: string;
   time: string;
 }
@@ -93,3 +100,17 @@ export interface PushProvider {
 }
 
 export type PushProviderId = 'expo' | 'onesignal';
+
+/** Past-tense verb for each appointment status push. */
+export const APPOINTMENT_STATUS_VERB: Record<
+  AppointmentStatusPushInput['action'],
+  string
+> = {
+  confirm: 'confirmed',
+  reject: 'declined',
+  cancel: 'cancelled',
+  payment_request: 'asked you to pay for',
+  payment_submitted: 'sent payment for',
+  payment_approved: 'confirmed payment for',
+  payment_rejected: 'rejected the payment for',
+};

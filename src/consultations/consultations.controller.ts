@@ -50,11 +50,37 @@ export class ConsultationsController {
     return this.service.start(req.user.id, dto, country);
   }
 
-  /** Doctor answers a pending request. */
+  /** Doctor answers a pending request, optionally asking for payment first. */
   @Post(':id/accept')
   @Roles('doctor')
-  accept(@Param('id') id: string, @Request() req) {
-    return this.service.accept(req.user.id, id);
+  accept(
+    @Param('id') id: string,
+    @Body() body: { require_payment?: boolean },
+    @Request() req,
+  ) {
+    return this.service.accept(req.user.id, id, !!body?.require_payment);
+  }
+
+  /** Patient attaches the receipt for a consultation the doctor priced. */
+  @Post(':id/payment-proof')
+  @Roles('patient')
+  submitPaymentProof(
+    @Param('id') id: string,
+    @Body() body: { proof_url?: string },
+    @Request() req,
+  ) {
+    return this.service.submitPaymentProof(req.user.id, id, body?.proof_url ?? '');
+  }
+
+  /** Doctor approves or rejects that receipt. */
+  @Post(':id/payment-review')
+  @Roles('doctor')
+  reviewPayment(
+    @Param('id') id: string,
+    @Body() body: { approve?: boolean },
+    @Request() req,
+  ) {
+    return this.service.reviewPayment(req.user.id, id, !!body?.approve);
   }
 
   @Post(':id/reject')

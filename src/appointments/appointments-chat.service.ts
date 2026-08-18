@@ -29,12 +29,17 @@ import { VideoCallSession } from '../entities/video-call-session.entity';
 import { PointsService } from '../points/points.service';
 import { ConsultationsService } from '../consultations/consultations.service';
 import { clampConsultationPrice } from '../points/message-price.constants';
+import { resolveDoctorFee } from '../doctors/doctor-fees';
 
 const APPOINTMENT_ACTIONS: AppointmentActionType[] = [
   'request',
   'confirm',
   'reject',
   'cancel',
+  'payment_request',
+  'payment_submitted',
+  'payment_approved',
+  'payment_rejected',
 ];
 const CAIRO_TIME_ZONE = 'Africa/Cairo';
 
@@ -162,6 +167,14 @@ export class AppointmentsChatService {
         return `Appointment declined for ${when}`;
       case 'cancel':
         return `Appointment cancelled for ${when}`;
+      case 'payment_request':
+        return `Payment required for ${when}`;
+      case 'payment_submitted':
+        return `Payment receipt sent for ${when}`;
+      case 'payment_approved':
+        return `Payment approved — appointment confirmed for ${when}`;
+      case 'payment_rejected':
+        return `Payment rejected for ${when}`;
       default:
         return `Appointment update for ${when}`;
     }
@@ -375,19 +388,15 @@ export class AppointmentsChatService {
       throw e;
     }
 
-    const ensured = await this.ensureMeetingAssets(
-      appointment,
-      doctorUserId,
-      patientUserId,
-    );
-
+    // No room until the doctor confirms — and, when there is a fee, not until
+    // the payment clears. The link is created in confirmAppointment().
     const meta: AppointmentActionMeta = {
       appointment_id: appointment.id,
       action: 'request',
       date,
       time: timeDb,
       status: appointment.status,
-      meeting_link: ensured.roomUrl,
+      meeting_link: null,
       duration_minutes: doctor.video_consultation_minutes ?? 30,
       ...(insightForDoctor ? { patient_insight: insightForDoctor } : {}),
     };
@@ -485,6 +494,57 @@ export class AppointmentsChatService {
     return { roomUrl, sessionId };
   }
 
+  /** Cash the doctor charges this patient for a video visit, if any. */
+  private async resolveVisitFee(doctor: Doctor | null, patientUserId: string) {
+    if (!doctor) return { amount: 0, currency: 'USD', payment_link: null };
+    const profile = await this.profileRepo.findOne({
+      where: { user_id: patientUserId },
+    });
+    return resolveDoctorFee(doctor, profile?.country ?? null, 'video');
+  }
+
+  /**
+   * Everything that makes a visit real: credits settled, room created, chat
+   * opened. Runs once the doctor confirms — or once the payment clears.
+   */
+  private async confirmAppointment(
+    appointment: Appointment,
+    doctorUserId: string,
+    patientUserId: string,
+  ): Promise<void> {
+    appointment.status = AppointmentStatus.CONFIRMED;
+    await this.appointmentRepo.save(appointment);
+
+    if (appointment.reserved_points > 0 && !appointment.points_settled) {
+      await this.pointsService.settleReservedToDoctor(
+        patientUserId,
+        doctorUserId,
+        appointment.reserved_points,
+      );
+      appointment.points_settled = true;
+      await this.appointmentRepo.save(appointment);
+    }
+    const ensured = await this.ensureMeetingAssets(
+      appointment,
+      doctorUserId,
+      patientUserId,
+    );
+    appointment.meeting_link = ensured.roomUrl;
+    appointment.video_call_session_id = ensured.sessionId;
+    await this.consultationsService
+      .ensureOpenForConfirmedAppointment(
+        doctorUserId,
+        patientUserId,
+        appointment.ai_patient_insight,
+      )
+      .catch((err) =>
+        this.logger.error(
+          'Failed to open consultation for confirmed appointment',
+          err,
+        ),
+      );
+  }
+
   async handleAction(
     actorUserId: string,
     recipientId: string,
@@ -516,6 +576,10 @@ export class AppointmentsChatService {
       throw new ForbiddenException('Not a participant in this appointment');
     }
 
+    // What the thread ends up showing: confirming a paid visit asks for money
+    // rather than opening it.
+    let emitted: AppointmentActionType = action;
+
     if (action === 'confirm' || action === 'reject') {
       if (actorUserId !== doctorUserId) {
         throw new ForbiddenException('Only the doctor can confirm or reject');
@@ -523,50 +587,66 @@ export class AppointmentsChatService {
       if (appointment.status !== AppointmentStatus.PENDING) {
         throw new BadRequestException('Appointment is no longer pending');
       }
-      appointment.status =
-        action === 'confirm'
-          ? AppointmentStatus.CONFIRMED
-          : AppointmentStatus.REJECTED;
       if (action === 'reject') {
+        appointment.status = AppointmentStatus.REJECTED;
         await this.releaseAppointmentCredits(
           appointment,
           doctorUserId,
           patientUserId,
         );
-      }
-      await this.appointmentRepo.save(appointment);
-      if (action === 'confirm') {
-        if (
-          appointment.reserved_points > 0 &&
-          !appointment.points_settled
-        ) {
-          await this.pointsService.settleReservedToDoctor(
-            patientUserId,
-            doctorUserId,
-            appointment.reserved_points,
-          );
-          appointment.points_settled = true;
+        await this.appointmentRepo.save(appointment);
+      } else {
+        const fee = await this.resolveVisitFee(doctor, patientUserId);
+        if (fee.amount > 0 && appointment.payment_status !== 'paid') {
+          // Stays pending, and stays without a meeting link, until the patient
+          // pays and the doctor approves the receipt.
+          appointment.payment_status = 'awaiting_payment';
+          appointment.payment_amount = fee.amount.toFixed(2);
+          appointment.payment_currency = fee.currency;
+          appointment.payment_proof_url = null;
           await this.appointmentRepo.save(appointment);
-        }
-        const ensured = await this.ensureMeetingAssets(
-          appointment,
-          doctorUserId,
-          patientUserId,
-        );
-        appointment.meeting_link = ensured.roomUrl;
-        appointment.video_call_session_id = ensured.sessionId;
-        await this.consultationsService
-          .ensureOpenForConfirmedAppointment(
+          emitted = 'payment_request';
+        } else {
+          await this.confirmAppointment(
+            appointment,
             doctorUserId,
             patientUserId,
-            appointment.ai_patient_insight,
-          )
-          .catch((err) =>
-            this.logger.error(
-              'Failed to open consultation for confirmed appointment',
-              err,
-            ),
           );
+        }
+      }
+    }
+
+    if (action === 'payment_submitted') {
+      if (actorUserId !== patientUserId) {
+        throw new ForbiddenException('Only the patient can send a receipt');
+      }
+      if (
+        appointment.payment_status !== 'awaiting_payment' &&
+        appointment.payment_status !== 'proof_submitted'
+      ) {
+        throw new BadRequestException('No payment was requested');
+      }
+      const proof = meta.payment_proof_url?.trim();
+      if (!proof) throw new BadRequestException('Attach the payment receipt');
+      appointment.payment_proof_url = proof;
+      appointment.payment_status = 'proof_submitted';
+      await this.appointmentRepo.save(appointment);
+    }
+
+    if (action === 'payment_approved' || action === 'payment_rejected') {
+      if (actorUserId !== doctorUserId) {
+        throw new ForbiddenException('Only the doctor can review the payment');
+      }
+      if (appointment.payment_status !== 'proof_submitted') {
+        throw new BadRequestException('There is no receipt to review');
+      }
+      if (action === 'payment_approved') {
+        appointment.payment_status = 'paid';
+        await this.confirmAppointment(appointment, doctorUserId, patientUserId);
+      } else {
+        appointment.payment_status = 'awaiting_payment';
+        appointment.payment_proof_url = null;
+        await this.appointmentRepo.save(appointment);
       }
     }
 
@@ -589,18 +669,30 @@ export class AppointmentsChatService {
 
     const updatedMeta: AppointmentActionMeta = {
       appointment_id: appointment.id,
-      action,
+      action: emitted,
       date: appointment.date,
       time: appointment.time ?? '',
       status: appointment.status,
       meeting_link: appointment.meeting_link,
+      payment_status: appointment.payment_status,
+      payment_amount:
+        appointment.payment_amount === null
+          ? null
+          : Number(appointment.payment_amount),
+      payment_currency: appointment.payment_currency,
+      // Only worth sending while the patient still has to pay.
+      payment_link:
+        appointment.payment_status === 'awaiting_payment'
+          ? (doctor?.payment_link?.trim() ?? null) || null
+          : null,
+      payment_proof_url: appointment.payment_proof_url,
     };
 
     const saved = await this.messageRepo.save(
       this.messageRepo.create({
         type: 'appointment_action',
         content: AppointmentsChatService.appointmentActionLabel(
-          action,
+          emitted,
           appointment.date,
           appointment.time,
         ),
@@ -615,7 +707,7 @@ export class AppointmentsChatService {
     await this.emitChatMessage(saved, actorUserId, recipientId, {
       actor_id: actorUserId,
       actor_name: actorName,
-      action,
+      action: emitted,
       date: appointment.date,
       time: formatTimeLabel(appointment.time),
       status: appointment.status,
@@ -626,7 +718,7 @@ export class AppointmentsChatService {
         recipientId,
         appointmentId: appointment.id,
         actorName,
-        action,
+        action: emitted,
         date: appointment.date,
         time: formatTimeLabel(appointment.time),
       })

@@ -1,3 +1,4 @@
+import type { PaymentState } from '../common/payment-flow';
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -68,6 +69,20 @@ export class Consultation {
 
   @Column({ type: 'text', nullable: true })
   cancel_reason: string | null;
+
+  /** Cash payment the doctor asked for; see PaymentState. */
+  @Column({ type: 'varchar', length: 24, default: 'none' })
+  payment_status: PaymentState;
+
+  @Column({ type: 'numeric', precision: 12, scale: 2, nullable: true })
+  payment_amount: string | null;
+
+  @Column({ type: 'varchar', length: 3, nullable: true })
+  payment_currency: string | null;
+
+  /** Receipt the patient uploaded, waiting for the doctor to approve it. */
+  @Column({ type: 'text', nullable: true })
+  payment_proof_url: string | null;
 
   @CreateDateColumn()
   created_at: Date;

@@ -93,6 +93,27 @@ export class Doctor {
   @Column({ type: 'int', default: 30 })
   video_consultation_minutes: number;
 
+  /**
+   * Cash fees the doctor charges, paid outside the app through `payment_link`.
+   * `_local` is in the doctor's own currency (EGP in Egypt, JOD in Jordan) and
+   * applies to patients in the doctor's country; `_usd` applies to everyone else.
+   */
+  @Column({ type: 'numeric', precision: 12, scale: 2, nullable: true })
+  text_price_local: string | null;
+
+  @Column({ type: 'numeric', precision: 12, scale: 2, nullable: true })
+  text_price_usd: string | null;
+
+  @Column({ type: 'numeric', precision: 12, scale: 2, nullable: true })
+  video_price_local: string | null;
+
+  @Column({ type: 'numeric', precision: 12, scale: 2, nullable: true })
+  video_price_usd: string | null;
+
+  /** Where the patient pays (bank/wallet/Stripe link the doctor owns). */
+  @Column({ type: 'text', nullable: true })
+  payment_link: string | null;
+
   /** Doctor accepts immediate (unscheduled) calls straight from the chat. */
   @Column({ type: 'boolean', default: false })
   immediate_call_enabled: boolean;

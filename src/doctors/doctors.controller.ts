@@ -82,6 +82,12 @@ export class DoctorsController {
       video_consultation_price: number;
       video_consultation_minutes: number;
       immediate_call_enabled: boolean;
+      /** Cash fees: home currency for local patients, USD for everyone else. */
+      text_price_local: number | null;
+      text_price_usd: number | null;
+      video_price_local: number | null;
+      video_price_usd: number | null;
+      payment_link: string | null;
       iban: string | null;
       account_holder_full_name: string | null;
       national_id: string | null;

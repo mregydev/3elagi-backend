@@ -152,6 +152,7 @@ import { PointPricing1778530000000 } from './migrations/1778530000000-PointPrici
 import { DoctorMultipleSpecialities1778540000000 } from './migrations/1778540000000-DoctorMultipleSpecialities';
 import { PointPricingUsdRates1778541000000 } from './migrations/1778541000000-PointPricingUsdRates';
 import { ConsultationPatientCountry1778550000000 } from './migrations/1778550000000-ConsultationPatientCountry';
+import { DoctorFeesAndPaymentFlow1778560000000 } from './migrations/1778560000000-DoctorFeesAndPaymentFlow';
 import { UserNotification } from './entities/user-notification.entity';
 import { NotificationsModule } from './notifications/notifications.module';
 import { MedicalDocumentRequestsModule } from './medical-document-requests/medical-document-requests.module';
@@ -283,6 +284,7 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
           DoctorMultipleSpecialities1778540000000,
           PointPricingUsdRates1778541000000,
           ConsultationPatientCountry1778550000000,
+          DoctorFeesAndPaymentFlow1778560000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',

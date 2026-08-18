@@ -52,9 +52,23 @@ export type AppointmentActionType =
   | 'request'
   | 'confirm'
   | 'reject'
-  | 'cancel';
+  | 'cancel'
+  | 'payment_request'
+  | 'payment_submitted'
+  | 'payment_approved'
+  | 'payment_rejected';
 
-export interface AppointmentActionMeta {
+/** Cash payment details carried by an appointment / consultation action. */
+export interface PaymentActionMeta {
+  payment_status?: string;
+  payment_amount?: number | null;
+  payment_currency?: string | null;
+  /** Where the patient pays — the doctor's own link. */
+  payment_link?: string | null;
+  payment_proof_url?: string | null;
+}
+
+export interface AppointmentActionMeta extends PaymentActionMeta {
   appointment_id: string;
   action: AppointmentActionType;
   date: string;
@@ -72,7 +86,11 @@ export type ConsultationActionType =
   | 'accept'
   | 'reject'
   | 'end'
-  | 'cancel';
+  | 'cancel'
+  | 'payment_request'
+  | 'payment_submitted'
+  | 'payment_approved'
+  | 'payment_rejected';
 
 export interface ConsultationDiagnosisSummary {
   id: string;
@@ -85,7 +103,7 @@ export interface ConsultationDiagnosisSummary {
   }[];
 }
 
-export interface ConsultationActionMeta {
+export interface ConsultationActionMeta extends PaymentActionMeta {
   consultation_id: string;
   action: ConsultationActionType;
   status: 'pending' | 'open' | 'ended' | 'cancelled' | 'rejected';
