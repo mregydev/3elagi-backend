@@ -26,6 +26,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { DEFAULT_MESSAGE_POINTS } from '../points/points.constants';
 import type { GoogleIdentity } from './google-oauth.service';
+import { defaultDoctorFeeColumns } from '../doctors/doctor-fees';
 import { clampConsultationPrice } from '../points/message-price.constants';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { SpecialitiesService } from '../specialities/specialities.service';
@@ -317,6 +318,7 @@ export class AuthService {
       email,
       speciality_id: speciality.id,
       consultation_price: clampConsultationPrice(dto.consultation_price),
+      ...defaultDoctorFeeColumns(dto.country),
       approval_status: 'approved',
     });
     await this.doctorRepo.save(doctor);

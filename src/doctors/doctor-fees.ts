@@ -8,6 +8,37 @@
 import type { Doctor } from '../entities/doctor.entity';
 
 export type ConsultationKind = 'text' | 'video';
+
+/**
+ * Starting prices every doctor gets, by market. Egypt bills locals 200 EGP,
+ * Jordan bills locals 15 JOD, and both bill 50 USD abroad. Doctors change them
+ * from their profile; these are only the defaults.
+ */
+export const DEFAULT_DOCTOR_FEES: Record<
+  'EG' | 'JO',
+  { local: number; usd: number }
+> = {
+  EG: { local: 200, usd: 50 },
+  JO: { local: 15, usd: 50 },
+};
+
+/** The four fee columns a newly created doctor starts with. */
+export function defaultDoctorFeeColumns(country?: string | null): {
+  text_price_local: string;
+  text_price_usd: string;
+  video_price_local: string;
+  video_price_usd: string;
+} {
+  const code = country?.trim().toUpperCase();
+  const fees =
+    code === 'JO' ? DEFAULT_DOCTOR_FEES.JO : DEFAULT_DOCTOR_FEES.EG;
+  return {
+    text_price_local: fees.local.toFixed(2),
+    text_price_usd: fees.usd.toFixed(2),
+    video_price_local: fees.local.toFixed(2),
+    video_price_usd: fees.usd.toFixed(2),
+  };
+}
 export type FeeCurrency = 'EGP' | 'JOD' | 'USD';
 
 export interface DoctorFee {
