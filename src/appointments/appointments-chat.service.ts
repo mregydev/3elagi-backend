@@ -676,6 +676,12 @@ export class AppointmentsChatService {
       }
     }
 
+    if (action === 'cancel' || action === 'reschedule_request') {
+      if (appointment.pending_change) {
+        throw new BadRequestException('There is already a pending request');
+      }
+    }
+
     if (action === 'cancel') {
       if (
         appointment.status === AppointmentStatus.CANCELLED ||
@@ -702,12 +708,8 @@ export class AppointmentsChatService {
     }
 
     if (action === 'reschedule_request') {
-      if (
-        appointment.status === AppointmentStatus.CANCELLED ||
-        appointment.status === AppointmentStatus.REJECTED ||
-        appointment.status === AppointmentStatus.DONE
-      ) {
-        throw new BadRequestException('Appointment can no longer be moved');
+      if (appointment.status !== AppointmentStatus.CONFIRMED) {
+        throw new BadRequestException('Only confirmed appointments can be moved');
       }
       const date = meta.proposed_date?.trim();
       const time = meta.proposed_time?.trim();
