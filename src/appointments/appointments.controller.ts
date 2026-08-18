@@ -20,6 +20,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
+import { resolvePricingCountry, type RequestLike } from '../common/request-country';
 
 @Controller('appointments')
 export class AppointmentsController {
@@ -72,10 +73,11 @@ export class AppointmentsController {
   @Post('chat-book')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('patient')
-  chatBook(
-    @Request() req: { user: { id: string } },
+  async chatBook(
+    @Request() req: { user: { id: string } } & RequestLike,
     @Body() dto: ChatBookAppointmentDto,
   ) {
+    const country = await resolvePricingCountry(req);
     return this.chatService.bookFromChat(
       req.user.id,
       dto.doctor_user_id,
@@ -83,6 +85,7 @@ export class AppointmentsController {
       dto.time,
       dto.reason,
       dto.patient_insight,
+      country,
     );
   }
 
@@ -95,16 +98,17 @@ export class AppointmentsController {
   @Post('chat-action')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('doctor', 'patient')
-  chatAction(
-    @Request() req: { user: { id: string } },
+  async chatAction(
+    @Request() req: { user: { id: string } } & RequestLike,
     @Body() dto: AppointmentActionDto,
   ) {
+    const country = await resolvePricingCountry(req);
     return this.chatService.handleAction(req.user.id, dto.recipient_id, {
       appointment_id: dto.appointment_id,
       action: dto.action,
       date: '',
       time: '',
-    });
+    }, country);
   }
 
   @Post(':id/cancel')

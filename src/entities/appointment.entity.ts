@@ -82,6 +82,10 @@ export class Appointment {
   @Column({ type: 'uuid', nullable: true })
   patient_user_id: string | null;
 
+  /** ISO-2 country the patient booked from, resolved from their IP. */
+  @Column({ type: 'varchar', length: 2, nullable: true })
+  patient_country: string | null;
+
   @Column({ type: 'boolean', default: false })
   hide_name: boolean;
 

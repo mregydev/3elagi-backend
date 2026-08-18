@@ -61,7 +61,7 @@ const consultations = fs.readFileSync(
 );
 const accept = consultations.slice(
   consultations.indexOf('  async accept('),
-  consultations.indexOf('  private async resolveTextFee('),
+  consultations.indexOf('  private async resolveConsultationFee('),
 );
 assert.ok(
   accept.includes('if (requirePayment)') &&

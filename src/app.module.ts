@@ -154,6 +154,7 @@ import { PointPricingUsdRates1778541000000 } from './migrations/1778541000000-Po
 import { ConsultationPatientCountry1778550000000 } from './migrations/1778550000000-ConsultationPatientCountry';
 import { DoctorFeesAndPaymentFlow1778560000000 } from './migrations/1778560000000-DoctorFeesAndPaymentFlow';
 import { DefaultDoctorFees1778570000000 } from './migrations/1778570000000-DefaultDoctorFees';
+import { AppointmentPatientCountry1778580000000 } from './migrations/1778580000000-AppointmentPatientCountry';
 import { UserNotification } from './entities/user-notification.entity';
 import { NotificationsModule } from './notifications/notifications.module';
 import { MedicalDocumentRequestsModule } from './medical-document-requests/medical-document-requests.module';
@@ -287,6 +288,7 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
           ConsultationPatientCountry1778550000000,
           DoctorFeesAndPaymentFlow1778560000000,
           DefaultDoctorFees1778570000000,
+          AppointmentPatientCountry1778580000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',

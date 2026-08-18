@@ -501,12 +501,13 @@ export class ConsultationsService {
     doctorUserId: string,
     consultationId: string,
     requirePayment = false,
+    requestCountry?: string | null,
   ) {
     await this.assertRole(doctorUserId, UserRole.DOCTOR);
     const c = await this.loadPendingForDoctor(consultationId, doctorUserId);
 
     if (requirePayment) {
-      const fee = await this.resolveTextFee(c);
+      const fee = await this.resolveConsultationFee(c, 'text', requestCountry);
       if (fee.amount <= 0) {
         throw new BadRequestException(
           'Set your consultation price before asking for payment',
@@ -541,20 +542,21 @@ export class ConsultationsService {
     return { consultation: this.mapConsultation(saved) };
   }
 
-  /** The doctor's price for this patient, from where they consulted. */
-  private async resolveTextFee(c: Consultation) {
+  /** The doctor's price for this patient, from where they consulted (IP). */
+  private async resolveConsultationFee(
+    c: Consultation,
+    kind: 'text' | 'video',
+    requestCountry?: string | null,
+  ) {
     const doctor = await this.doctorRepo.findOne({
       where: { user_id: c.doctor_id },
     });
-    if (!doctor) return { amount: 0, currency: 'USD', payment_link: null };
-    let country = c.patient_country;
-    if (!country) {
-      const profile = await this.patientProfileRepo.findOne({
-        where: { user_id: c.patient_id },
-      });
-      country = profile?.country ?? null;
-    }
-    return resolveDoctorFee(doctor, country, 'text');
+    if (!doctor) return { amount: 0, currency: 'USD' as const, payment_link: null };
+    const country =
+      c.patient_country?.trim().toUpperCase() ||
+      requestCountry?.trim().toUpperCase() ||
+      null;
+    return resolveDoctorFee(doctor, country, kind);
   }
 
   /** Opens an accepted consultation and tells the patient. */
@@ -654,7 +656,7 @@ export class ConsultationsService {
       c.payment_status = 'awaiting_payment';
       c.payment_proof_url = null;
       const saved = await this.consultationRepo.save(c);
-      const fee = await this.resolveTextFee(saved);
+      const fee = await this.resolveConsultationFee(saved, 'text', null);
       await this.postActionMessage(
         doctorUserId,
         c.patient_id,

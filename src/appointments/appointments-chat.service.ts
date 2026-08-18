@@ -296,6 +296,7 @@ export class AppointmentsChatService {
     time: string,
     reason?: string,
     patientInsight?: string,
+    patientCountry?: string | null,
   ): Promise<{ appointment: Appointment; message: ReturnType<typeof this.mapMessage> }> {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       throw new BadRequestException('date must be YYYY-MM-DD');
@@ -378,6 +379,7 @@ export class AppointmentsChatService {
           queue_position: count + 1,
           booked_via_app: true,
           patient_user_id: patientUserId,
+          patient_country: patientCountry?.trim().toUpperCase() || null,
           reserved_points: price,
           points_settled: false,
           ai_patient_insight: insightForDoctor || null,
@@ -495,12 +497,17 @@ export class AppointmentsChatService {
   }
 
   /** Cash the doctor charges this patient for a video visit, if any. */
-  private async resolveVisitFee(doctor: Doctor | null, patientUserId: string) {
-    if (!doctor) return { amount: 0, currency: 'USD', payment_link: null };
-    const profile = await this.profileRepo.findOne({
-      where: { user_id: patientUserId },
-    });
-    return resolveDoctorFee(doctor, profile?.country ?? null, 'video');
+  private resolveVisitFee(
+    doctor: Doctor | null,
+    appointment: Appointment,
+    requestCountry?: string | null,
+  ) {
+    if (!doctor) return { amount: 0, currency: 'USD' as const, payment_link: null };
+    const country =
+      appointment.patient_country?.trim().toUpperCase() ||
+      requestCountry?.trim().toUpperCase() ||
+      null;
+    return resolveDoctorFee(doctor, country, 'video');
   }
 
   /**
@@ -549,6 +556,7 @@ export class AppointmentsChatService {
     actorUserId: string,
     recipientId: string,
     meta: AppointmentActionMeta,
+    requestCountry?: string | null,
   ): Promise<Message> {
     const action = meta.action;
     if (!APPOINTMENT_ACTIONS.includes(action) || action === 'request') {
@@ -596,7 +604,7 @@ export class AppointmentsChatService {
         );
         await this.appointmentRepo.save(appointment);
       } else {
-        const fee = await this.resolveVisitFee(doctor, patientUserId);
+        const fee = this.resolveVisitFee(doctor, appointment, requestCountry);
         if (fee.amount > 0 && appointment.payment_status !== 'paid') {
           // Stays pending, and stays without a meeting link, until the patient
           // pays and the doctor approves the receipt.

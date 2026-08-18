@@ -15,6 +15,7 @@ import { Roles } from '../auth/roles.decorator';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { MessagesService } from './messages.service';
+import type { RequestLike } from '../common/request-country';
 
 @Controller('messages')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -37,10 +38,10 @@ export class MessagesController {
 
   @Post()
   create(
-    @Request() req: { user: { id: string } },
+    @Request() req: { user: { id: string } } & RequestLike,
     @Body() dto: CreateMessageDto,
   ) {
-    return this.messagesService.create(req.user.id, dto);
+    return this.messagesService.create(req.user.id, dto, req);
   }
 
   @Post('with/:peerId/read')

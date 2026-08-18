@@ -53,12 +53,18 @@ export class ConsultationsController {
   /** Doctor answers a pending request, optionally asking for payment first. */
   @Post(':id/accept')
   @Roles('doctor')
-  accept(
+  async accept(
     @Param('id') id: string,
     @Body() body: { require_payment?: boolean },
     @Request() req,
   ) {
-    return this.service.accept(req.user.id, id, !!body?.require_payment);
+    const country = await resolvePricingCountry(req);
+    return this.service.accept(
+      req.user.id,
+      id,
+      !!body?.require_payment,
+      country,
+    );
   }
 
   /** Patient attaches the receipt for a consultation the doctor priced. */

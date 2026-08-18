@@ -25,6 +25,7 @@ import { UpdateMessageDto } from './dto/update-message.dto';
 import { MessageEmotionsService } from '../message-emotions/message-emotions.service';
 import { AppointmentsChatService } from '../appointments/appointments-chat.service';
 import { ConsultationsService } from '../consultations/consultations.service';
+import { resolvePricingCountry, type RequestLike } from '../common/request-country';
 
 const ACCESS_ACTIONS: AccessActionType[] = [
   'grant_records',
@@ -315,7 +316,7 @@ export class MessagesService {
     });
   }
 
-  async create(userId: string, dto: CreateMessageDto) {
+  async create(userId: string, dto: CreateMessageDto, req?: RequestLike) {
     const type: MessageType = dto.type ?? 'text';
     const content = this.resolveContent(dto, type);
 
@@ -431,10 +432,12 @@ export class MessagesService {
 
       await this.assertCanChat(userId, dto.recipient_id);
 
+      const requestCountry = req ? await resolvePricingCountry(req) : null;
       const saved = await this.appointmentsChatService.handleAction(
         userId,
         dto.recipient_id,
         meta,
+        requestCountry,
       );
       return this.mapMessage(saved);
     }
