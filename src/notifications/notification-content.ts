@@ -9,6 +9,7 @@ import type {
   PushNotificationType,
   SystemNotificationPushInput,
 } from '../push-notifications/push.types';
+import { APPOINTMENT_STATUS_VERB } from '../push-notifications/push.types';
 
 export type InAppNotificationDraft = {
   userId: string;
@@ -97,24 +98,86 @@ export function draftFromAppointmentRequest(
 export function draftFromAppointmentStatus(
   input: AppointmentStatusPushInput,
 ): InAppNotificationDraft {
-  const actorName = truncateTitle(input.actorName, 48);
-  const verb =
-    input.action === 'confirm'
-      ? 'confirmed'
-      : input.action === 'reject'
-        ? 'declined'
-        : 'cancelled';
+  const { title, body } = buildAppointmentStatusNotification(input);
   return {
     userId: input.recipientId,
     type: 'appointment_status',
-    title: 'Appointment update',
-    body: `${actorName} ${verb} ${input.date} ${input.time}`,
+    title,
+    body,
     data: {
       type: 'appointment_status',
       appointmentId: input.appointmentId,
       action: input.action,
     },
   };
+}
+
+function formatProposedSlot(date?: string, time?: string): string {
+  if (!date) return '';
+  const clock = time?.trim() ? time.slice(0, 5) : '';
+  return clock ? `${date} ${clock}` : date;
+}
+
+/** Shared copy for in-app rows and device push for appointment status changes. */
+export function buildAppointmentStatusNotification(
+  input: AppointmentStatusPushInput,
+): { title: string; body: string } {
+  const actorName = truncateTitle(input.actorName, 48);
+  const slot = `${input.date} ${input.time}`.trim();
+  const proposed = formatProposedSlot(input.proposedDate, input.proposedTime);
+
+  switch (input.action) {
+    case 'reschedule_request':
+      return {
+        title: 'Meeting time update request',
+        body: proposed
+          ? `Your meeting with ${actorName} — new time proposed: ${proposed}`
+          : `Your meeting with ${actorName} — new time proposed`,
+      };
+    case 'reschedule_accepted':
+      return {
+        title: 'Meeting time updated',
+        body: slot
+          ? `${actorName} accepted the meeting time change — ${slot}`
+          : `${actorName} accepted the meeting time change`,
+      };
+    case 'reschedule_declined':
+      return {
+        title: 'Meeting time update',
+        body: `${actorName} rejected the meeting time change`,
+      };
+    case 'cancel_request':
+      return {
+        title: 'Cancellation request',
+        body: slot
+          ? `${actorName} asked to cancel your meeting on ${slot}`
+          : `${actorName} asked to cancel your meeting`,
+      };
+    case 'cancel_approved':
+      return {
+        title: 'Appointment cancelled',
+        body: `${actorName} agreed to cancel the meeting`,
+      };
+    case 'cancel_declined':
+      return {
+        title: 'Cancellation declined',
+        body: `${actorName} declined to cancel the meeting`,
+      };
+    default: {
+      const verb =
+        input.action === 'confirm'
+          ? 'confirmed'
+          : input.action === 'reject'
+            ? 'declined'
+            : input.action === 'cancel'
+              ? 'cancelled'
+              : (APPOINTMENT_STATUS_VERB[input.action] ?? 'updated');
+      return {
+        title: 'Appointment update',
+        body: slot ? `${actorName} ${verb} ${slot}` : `${actorName} ${verb}`,
+      };
+    }
+  }
 }
 
 export function draftFromAppointmentReminder(

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { buildAppointmentStatusNotification } from '../../notifications/notification-content';
 import { OneSignalPushClient } from '../onesignal-push.client';
-import { APPOINTMENT_STATUS_VERB } from '../push.types';
 import type {
   AiPushInput,
   AppointmentReminderPushInput,
@@ -92,12 +92,11 @@ export class OneSignalPushProvider implements PushProvider {
   }
 
   async sendAppointmentStatus(input: AppointmentStatusPushInput): Promise<void> {
-    const actorName = truncateTitle(input.actorName, 48);
-    const verb = APPOINTMENT_STATUS_VERB[input.action];
+    const { title, body } = buildAppointmentStatusNotification(input);
     await this.sendToUser(
       input.recipientId,
-      'Appointment update',
-      `${actorName} ${verb} ${input.date} ${input.time}`,
+      title,
+      body,
       {
         type: 'appointment_status',
         appointmentId: input.appointmentId,

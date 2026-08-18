@@ -711,6 +711,12 @@ export class AppointmentsChatService {
       if (appointment.status !== AppointmentStatus.CONFIRMED) {
         throw new BadRequestException('Only confirmed appointments can be moved');
       }
+      const currentTime = appointment.time?.trim();
+      if (!currentTime || !isFutureSlot(appointment.date, currentTime)) {
+        throw new BadRequestException(
+          'Cannot change the time after the meeting has started',
+        );
+      }
       const date = meta.proposed_date?.trim();
       const time = meta.proposed_time?.trim();
       if (!date || !time) {
@@ -818,6 +824,14 @@ export class AppointmentsChatService {
     );
 
     const actorName = await this.usersService.getDisplayName(actorUserId);
+    const pushDate =
+      emitted === 'reschedule_request' && appointment.pending_change?.date
+        ? appointment.pending_change.date
+        : appointment.date;
+    const pushTime =
+      emitted === 'reschedule_request' && appointment.pending_change?.time
+        ? formatTimeLabel(appointment.pending_change.time)
+        : formatTimeLabel(appointment.time);
     await this.emitChatMessage(saved, actorUserId, recipientId, {
       actor_id: actorUserId,
       actor_name: actorName,
@@ -833,8 +847,16 @@ export class AppointmentsChatService {
         appointmentId: appointment.id,
         actorName,
         action: emitted,
-        date: appointment.date,
-        time: formatTimeLabel(appointment.time),
+        date: pushDate,
+        time: pushTime,
+        proposedDate:
+          emitted === 'reschedule_request'
+            ? (appointment.pending_change?.date ?? undefined)
+            : undefined,
+        proposedTime:
+          emitted === 'reschedule_request'
+            ? (appointment.pending_change?.time ?? undefined)
+            : undefined,
       })
       .catch((err) => this.logger.error('Appointment status push failed', err));
 

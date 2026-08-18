@@ -28,6 +28,10 @@ assert.ok(
   handle.includes("if (!isFutureSlot(date, time))"),
   'a reschedule must land in the future',
 );
+assert.ok(
+  handle.includes('Cannot change the time after the meeting has started'),
+  'reschedule must be blocked once the meeting start time has passed',
+);
 // Accepting a new slot must not reuse the old room, which expires at the old time.
 const accepted = handle.slice(handle.indexOf("if (action === 'reschedule_accepted') {"));
 assert.ok(
@@ -49,6 +53,16 @@ assert.ok(
   messages.includes("'reschedule_request'") &&
     messages.includes("'cancel_approved'"),
   'messages.service must allow reschedule/cancel approval actions',
+);
+
+const notificationContent = fs.readFileSync(
+  path.join(__dirname, '..', 'notifications', 'notification-content.ts'),
+  'utf8',
+);
+assert.ok(
+  notificationContent.includes('Meeting time update request') &&
+    notificationContent.includes('accepted the meeting time change'),
+  'in-app notifications must describe meeting time changes',
 );
 
 const consultations = fs.readFileSync(

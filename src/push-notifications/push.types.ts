@@ -67,6 +67,9 @@ export interface AppointmentStatusPushInput {
     | 'cancel_declined';
   date: string;
   time: string;
+  /** Proposed slot when action is reschedule_request. */
+  proposedDate?: string;
+  proposedTime?: string;
 }
 
 export interface AppointmentReminderPushInput {

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { buildAppointmentStatusNotification } from '../../notifications/notification-content';
 import { DeviceTokensService } from '../device-tokens.service';
 import { ExpoPushClient } from '../expo-push.client';
-import { APPOINTMENT_STATUS_VERB } from '../push.types';
 import type { ExpoPushMessage } from '../expo-push.types';
 import { isValidExpoPushToken } from '../expo-push.tokens';
 import type {
@@ -148,12 +148,11 @@ export class ExpoPushProvider implements PushProvider {
   }
 
   async sendAppointmentStatus(input: AppointmentStatusPushInput): Promise<void> {
-    const actorName = truncateTitle(input.actorName, 48);
-    const verb = APPOINTMENT_STATUS_VERB[input.action];
+    const { title, body } = buildAppointmentStatusNotification(input);
     await this.sendToUser(input.recipientId, (to) => ({
       to,
-      title: 'Appointment update',
-      body: `${actorName} ${verb} ${input.date} ${input.time}`,
+      title,
+      body,
       data: {
         type: 'appointment_status',
         appointmentId: input.appointmentId,
