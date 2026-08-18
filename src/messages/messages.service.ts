@@ -45,6 +45,12 @@ const APPOINTMENT_ACTIONS: AppointmentActionType[] = [
   'payment_submitted',
   'payment_approved',
   'payment_rejected',
+  'reschedule_request',
+  'reschedule_accepted',
+  'reschedule_declined',
+  'cancel_request',
+  'cancel_approved',
+  'cancel_declined',
 ];
 
 /** Record kinds that may be linked into a chat message. */

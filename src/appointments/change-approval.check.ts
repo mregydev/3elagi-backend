@@ -41,6 +41,16 @@ assert.ok(
   'an approved cancellation must release the credits',
 );
 
+const messages = fs.readFileSync(
+  path.join(__dirname, '..', 'messages', 'messages.service.ts'),
+  'utf8',
+);
+assert.ok(
+  messages.includes("'reschedule_request'") &&
+    messages.includes("'cancel_approved'"),
+  'messages.service must allow reschedule/cancel approval actions',
+);
+
 const consultations = fs.readFileSync(
   path.join(__dirname, '..', 'consultations', 'consultations.service.ts'),
   'utf8',
