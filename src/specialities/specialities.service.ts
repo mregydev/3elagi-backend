@@ -182,6 +182,12 @@ export class SpecialitiesService {
     return this.mapDoctorRow(doctor, user, requestedSpec, rating);
   }
 
+  /** numeric columns come back from pg as strings. */
+  private static toFeeNumber(value: string | null): number | null {
+    const n = Number(value);
+    return value !== null && Number.isFinite(n) && n > 0 ? n : null;
+  }
+
   private mapDoctorRow(
     d: Doctor,
     user: User | undefined,
@@ -207,6 +213,10 @@ export class SpecialitiesService {
       experience_years: d.experience_years,
       consultation_fee_egp: d.consultation_fee_egp,
       consultation_price: d.consultation_price ?? 1,
+      text_price_local: SpecialitiesService.toFeeNumber(d.text_price_local),
+      text_price_usd: SpecialitiesService.toFeeNumber(d.text_price_usd),
+      video_price_local: SpecialitiesService.toFeeNumber(d.video_price_local),
+      video_price_usd: SpecialitiesService.toFeeNumber(d.video_price_usd),
       rating_average: rating?.average ?? 0,
       rating_total: rating?.total ?? 0,
       immediate_call_enabled: !!d.immediate_call_enabled,

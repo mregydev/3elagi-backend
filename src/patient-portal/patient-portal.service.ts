@@ -18,6 +18,12 @@ import { IntakeTest } from '../entities/intake-test.entity';
 import { DoctorReview } from '../entities/review.entity';
 import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
 import { User } from '../entities/user.entity';
+
+/** numeric columns come back from pg as strings; 0 means "not priced". */
+function feeNumber(value: string | null): number | null {
+  const n = Number(value);
+  return value !== null && Number.isFinite(n) && n > 0 ? n : null;
+}
 import { SchedulesService } from '../schedules/schedules.service';
 import { UploadsService } from '../uploads/uploads.service';
 import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
@@ -168,6 +174,13 @@ export class PatientPortalService {
       experience_years: doctor.experience_years,
       consultation_fee_egp: doctor.consultation_fee_egp,
       consultation_price: doctor.consultation_price ?? 1,
+      // Cash fees + the doctor's country, so the app can price the visit for
+      // whoever is looking (local currency at home, USD abroad).
+      country: doctor.country ?? 'EG',
+      text_price_local: feeNumber(doctor.text_price_local),
+      text_price_usd: feeNumber(doctor.text_price_usd),
+      video_price_local: feeNumber(doctor.video_price_local),
+      video_price_usd: feeNumber(doctor.video_price_usd),
       speciality_id: doctor.speciality_id,
       specialty: doctor.speciality?.name_en ?? doctor.professional_title ?? null,
       specialty_ar: doctor.speciality?.name_ar ?? null,
