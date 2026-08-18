@@ -294,7 +294,8 @@ export class AuthService {
       location: '',
       owner_id: user.id,
       is_personal: true,
-      approval_status: 'approved',
+      // Mirrors the doctor: an admin approving the doctor approves this too.
+      approval_status: 'pending',
     });
     await this.clinicRepo.save(personalClinic);
 
@@ -319,7 +320,9 @@ export class AuthService {
       speciality_id: speciality.id,
       consultation_price: clampConsultationPrice(dto.consultation_price),
       ...defaultDoctorFeeColumns(dto.country),
-      approval_status: 'approved',
+      // New doctors wait for an admin: PATCH /admin/doctors/:id/approval is
+      // what lists them, opens booking, and broadcasts them to the rosters.
+      approval_status: 'pending',
     });
     await this.doctorRepo.save(doctor);
 

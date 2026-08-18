@@ -109,8 +109,10 @@ export class MessagesService {
       roles.size === 2;
     const isDoctorDoctor =
       sender.role === UserRole.DOCTOR && recipient.role === UserRole.DOCTOR;
+    // Support: an admin may reach any member, and any member may reply.
+    const involvesAdmin = roles.has(UserRole.ADMIN);
 
-    if (!isDoctorPatient && !isDoctorDoctor) {
+    if (!isDoctorPatient && !isDoctorDoctor && !involvesAdmin) {
       throw new ForbiddenException(
         'Chat is only allowed between doctors and patients, or between two doctors',
       );
@@ -128,12 +130,20 @@ export class MessagesService {
     return sender.role === UserRole.DOCTOR && recipient.role === UserRole.DOCTOR;
   }
 
+  /** Admin support threads skip the consultation gate and the access rules. */
+  private involvesAdmin(sender: User, recipient: User): boolean {
+    return sender.role === UserRole.ADMIN || recipient.role === UserRole.ADMIN;
+  }
+
   private async assertCanChat(senderId: string, recipientId: string) {
     const { sender, recipient } = await this.assertChatParticipants(
       senderId,
       recipientId,
     );
     if (this.isDoctorDoctorPair(sender, recipient)) {
+      return;
+    }
+    if (this.involvesAdmin(sender, recipient)) {
       return;
     }
     await this.doctorPatientAccessService.assertCanChat(senderId, recipientId);
@@ -436,7 +446,10 @@ export class MessagesService {
       userId,
       dto.recipient_id,
     );
-    if (!this.isDoctorDoctorPair(sender, recipient)) {
+    if (
+      !this.isDoctorDoctorPair(sender, recipient) &&
+      !this.involvesAdmin(sender, recipient)
+    ) {
       const open = await this.consultationsService.hasOpenBetween(
         userId,
         dto.recipient_id,

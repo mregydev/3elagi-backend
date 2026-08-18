@@ -680,7 +680,7 @@ export class AppointmentsChatService {
           ? null
           : Number(appointment.payment_amount),
       payment_currency: appointment.payment_currency,
-      // Only worth sending while the patient still has to pay.
+      // Sent whenever money is still owed — including after a rejected receipt.
       payment_link:
         appointment.payment_status === 'awaiting_payment'
           ? (doctor?.payment_link?.trim() ?? null) || null

@@ -654,6 +654,7 @@ export class ConsultationsService {
       c.payment_status = 'awaiting_payment';
       c.payment_proof_url = null;
       const saved = await this.consultationRepo.save(c);
+      const fee = await this.resolveTextFee(saved);
       await this.postActionMessage(
         doctorUserId,
         c.patient_id,
@@ -666,6 +667,8 @@ export class ConsultationsService {
           payment_amount:
             saved.payment_amount === null ? null : Number(saved.payment_amount),
           payment_currency: saved.payment_currency,
+          // Still owed — carry the link so they can pay again from this card.
+          payment_link: fee.payment_link,
         },
         { alwaysPush: true },
       );
