@@ -34,6 +34,7 @@ import { AiStreamService } from './ai-stream.service';
 import { DoctorPatientsContextSource } from './context/sources/doctor-patients.context-source';
 import { DoctorPracticeInsightsContextSource } from './context/sources/doctor-practice-insights.context-source';
 import { DoctorProfileContextSource } from './context/sources/doctor-profile.context-source';
+import { DoctorMedicationMarketContextSource } from './context/sources/doctor-medication-market.context-source';
 import { DoctorsContextSource } from './context/sources/doctors.context-source';
 import { AdminKnowledgeContextSource } from './context/sources/admin-knowledge.context-source';
 import { GeneralKnowledgeContextSource } from './context/sources/general-knowledge.context-source';
@@ -90,6 +91,7 @@ import { UploadsModule } from '../uploads/uploads.module';
     AiResponseService,
     AiLinkValidatorService,
     DoctorProfileContextSource,
+    DoctorMedicationMarketContextSource,
     DoctorPatientsContextSource,
     DoctorPracticeInsightsContextSource,
     PatientProfileContextSource,

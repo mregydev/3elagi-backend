@@ -123,6 +123,63 @@ export class ConsultationsService {
     return mapped;
   }
 
+  /**
+   * Starting a consultation (text request, video call, or accept) implies the
+   * patient allows the doctor to view their medical records for that visit.
+   */
+  private async grantRecordsForConsultation(
+    patientUserId: string,
+    doctorUserId: string,
+  ): Promise<void> {
+    try {
+      const doctor =
+        await this.doctorPatientAccess.resolveDoctorFromUserId(doctorUserId);
+      const existing = await this.doctorPatientAccess.findOrCreate(
+        patientUserId,
+        doctor.id,
+      );
+      const wasGranted = existing.records_allowed;
+
+      const status = await this.doctorPatientAccess.applyAccessAction(
+        patientUserId,
+        doctorUserId,
+        'grant_records',
+      );
+
+      if (!wasGranted) {
+        const created = this.messageRepo.create({
+          type: 'access_action',
+          content: DoctorPatientAccessService.accessActionLabel('grant_records'),
+          creator: patientUserId,
+          recipient: doctorUserId,
+          attachment_url: null,
+          attachment_meta: { action: 'grant_records' },
+        });
+        const saved = await this.messageRepo.save(created);
+        const mapped = this.mapMessage(saved);
+        this.presence.emitToUser(doctorUserId, 'message:new', {
+          message: mapped,
+          peer_id: patientUserId,
+        });
+        this.presence.emitToUser(patientUserId, 'message:new', {
+          message: mapped,
+          peer_id: doctorUserId,
+        });
+      }
+
+      this.presence.emitToUser(doctorUserId, 'access:updated', {
+        status,
+        peer_id: patientUserId,
+      });
+      this.presence.emitToUser(patientUserId, 'access:updated', {
+        status,
+        peer_id: doctorUserId,
+      });
+    } catch {
+      // Blocked chat or invalid pair — consultation / call still stands.
+    }
+  }
+
   private async notifyRecipient(
     senderId: string,
     recipientId: string,
@@ -216,6 +273,8 @@ export class ConsultationsService {
         status: 'open',
       },
     );
+
+    await this.grantRecordsForConsultation(patientUserId, doctorUserId);
   }
 
   /**
@@ -264,6 +323,8 @@ export class ConsultationsService {
       },
       { alwaysPush: true },
     );
+
+    await this.grantRecordsForConsultation(patientUserId, doctorUserId);
 
     this.scheduleIndexConsultation(saved.id);
   }
@@ -436,24 +497,7 @@ export class ConsultationsService {
       },
     );
 
-    // Starting a consultation implies the doctor may view the patient's records.
-    try {
-      const accessStatus = await this.doctorPatientAccess.applyAccessAction(
-        patientUserId,
-        dto.doctor_id,
-        'grant_records',
-      );
-      this.presence.emitToUser(dto.doctor_id, 'access:updated', {
-        status: accessStatus,
-        peer_id: patientUserId,
-      });
-      this.presence.emitToUser(patientUserId, 'access:updated', {
-        status: accessStatus,
-        peer_id: dto.doctor_id,
-      });
-    } catch {
-      // Already granted or chat blocked — consultation still stands.
-    }
+    await this.grantRecordsForConsultation(patientUserId, dto.doctor_id);
 
     this.scheduleIndexConsultation(saved.id);
 
@@ -584,6 +628,8 @@ export class ConsultationsService {
       },
       { alwaysPush: true },
     );
+
+    await this.grantRecordsForConsultation(c.patient_id, doctorUserId);
 
     this.scheduleIndexConsultation(saved.id);
     return saved;

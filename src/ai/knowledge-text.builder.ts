@@ -7,6 +7,11 @@ import { PatientProfile } from '../entities/patient-profile.entity';
 import { Prescription } from '../entities/prescription.entity';
 import { Symptom } from '../entities/symptom.entity';
 
+import {
+  normalizeMarketCountry,
+  patientCountryLabel,
+} from '../common/patient-countries';
+
 import type { MedicalAiInsight } from '../common/medical-ai-insight.types';
 
 function formatDate(value: Date | string | null | undefined): string {
@@ -80,6 +85,12 @@ export function buildDoctorProfileText(
     lines.push('', 'Speciality (Arabic):', speciality.name_ar);
   }
   if (doctor.phone) lines.push('', 'Phone:', doctor.phone);
+  const practiceCountry = normalizeMarketCountry(doctor.country);
+  lines.push(
+    '',
+    'Practice country:',
+    `${patientCountryLabel(practiceCountry, 'en')} (${practiceCountry})`,
+  );
   if (doctor.personal_clinic_location) {
     lines.push('', 'Location:', doctor.personal_clinic_location);
   }

@@ -63,4 +63,32 @@ export class RegisterDoctorDto {
   @IsOptional()
   @Type(() => Number)
   consultation_price?: number;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  @Type(() => Number)
+  text_price_local?: number | null;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  @Type(() => Number)
+  text_price_usd?: number | null;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  @Type(() => Number)
+  video_price_local?: number | null;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  @Type(() => Number)
+  video_price_usd?: number | null;
+
+  @IsString()
+  @IsOptional()
+  payment_link?: string | null;
 }

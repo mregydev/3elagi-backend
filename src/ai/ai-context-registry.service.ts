@@ -3,6 +3,7 @@ import type { AIContextSource } from './context/ai-context-source.interface';
 import { DoctorPatientsContextSource } from './context/sources/doctor-patients.context-source';
 import { DoctorPracticeInsightsContextSource } from './context/sources/doctor-practice-insights.context-source';
 import { DoctorProfileContextSource } from './context/sources/doctor-profile.context-source';
+import { DoctorMedicationMarketContextSource } from './context/sources/doctor-medication-market.context-source';
 import { DoctorsContextSource } from './context/sources/doctors.context-source';
 import { GeneralKnowledgeContextSource } from './context/sources/general-knowledge.context-source';
 import { MedicalRecordsContextSource } from './context/sources/medical-records.context-source';
@@ -19,6 +20,7 @@ export class AiContextRegistryService implements OnModuleInit {
 
   constructor(
     doctorProfile: DoctorProfileContextSource,
+    doctorMedicationMarket: DoctorMedicationMarketContextSource,
     doctorPatients: DoctorPatientsContextSource,
     doctorPracticeInsights: DoctorPracticeInsightsContextSource,
     patientProfile: PatientProfileContextSource,
@@ -32,6 +34,7 @@ export class AiContextRegistryService implements OnModuleInit {
   ) {
     this.sources = [
       doctorProfile,
+      doctorMedicationMarket,
       doctorPatients,
       doctorPracticeInsights,
       patientProfile,

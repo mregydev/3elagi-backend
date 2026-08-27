@@ -306,6 +306,18 @@ export class AuthService {
       throw new ConflictException('Invalid speciality');
     }
 
+    const feeDefaults = defaultDoctorFeeColumns(dto.country);
+    const normalizeFee = (
+      value: number | null | undefined,
+      fallback: string,
+    ): string => {
+      if (value === undefined || value === null) return fallback;
+      const amount = Number(value);
+      return Number.isFinite(amount) && amount >= 0
+        ? amount.toFixed(2)
+        : fallback;
+    };
+
     const doctor = this.doctorRepo.create({
       user_id: user.id,
       name: dto.name,
@@ -319,7 +331,11 @@ export class AuthService {
       email,
       speciality_id: speciality.id,
       consultation_price: clampConsultationPrice(dto.consultation_price),
-      ...defaultDoctorFeeColumns(dto.country),
+      text_price_local: normalizeFee(dto.text_price_local, feeDefaults.text_price_local),
+      text_price_usd: normalizeFee(dto.text_price_usd, feeDefaults.text_price_usd),
+      video_price_local: normalizeFee(dto.video_price_local, feeDefaults.video_price_local),
+      video_price_usd: normalizeFee(dto.video_price_usd, feeDefaults.video_price_usd),
+      payment_link: dto.payment_link?.trim() || null,
       // New doctors wait for an admin: PATCH /admin/doctors/:id/approval is
       // what lists them, opens booking, and broadcasts them to the rosters.
       approval_status: 'pending',
