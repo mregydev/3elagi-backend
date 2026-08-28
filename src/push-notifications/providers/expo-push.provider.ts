@@ -213,6 +213,7 @@ export class ExpoPushProvider implements PushProvider {
       body: truncateBody(input.body),
       data: {
         type: 'system_notification',
+        ...(input.data ?? {}),
       },
       sound: 'default',
       channelId: CHAT_CHANNEL_ID,

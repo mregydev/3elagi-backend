@@ -132,9 +132,12 @@ export class PushNotificationsService {
     await this.factory.getActive().sendIntakeExamReminder(input);
   }
 
-  async sendSystemNotification(input: SystemNotificationPushInput): Promise<void> {
+  async sendSystemNotification(
+    input: SystemNotificationPushInput,
+    opts?: { alwaysPush?: boolean },
+  ): Promise<void> {
     await this.safePersist(draftFromSystem(input));
-    if (this.presence.isUserOnline(input.recipientId)) return;
+    if (!opts?.alwaysPush && this.presence.isUserOnline(input.recipientId)) return;
     await this.factory.getActive().sendSystemNotification(input);
   }
 

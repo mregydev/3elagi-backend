@@ -145,6 +145,7 @@ export class OneSignalPushProvider implements PushProvider {
       truncateBody(input.body),
       {
         type: 'system_notification',
+        ...(input.data ?? {}),
       },
     );
   }

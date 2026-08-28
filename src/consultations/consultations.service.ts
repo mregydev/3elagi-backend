@@ -963,4 +963,98 @@ export class ConsultationsService {
     this.scheduleIndexConsultation(saved.id);
     return { consultation: this.mapConsultation(saved) };
   }
+
+  /**
+   * Either party deletes a consultation and all related chat messages.
+   * Pending/open consultations refund reserved credits to the patient.
+   */
+  async remove(userId: string, consultationId: string) {
+    const c = await this.consultationRepo.findOne({
+      where: { id: consultationId },
+    });
+    if (!c) throw new NotFoundException('Consultation not found');
+    if (c.patient_id !== userId && c.doctor_id !== userId) {
+      throw new ForbiddenException('Not your consultation');
+    }
+
+    const peerId = c.patient_id === userId ? c.doctor_id : c.patient_id;
+    const patientId = c.patient_id;
+    const doctorId = c.doctor_id;
+
+    if (c.status === 'pending' || c.status === 'open') {
+      const held = c.reserved_points ?? 0;
+      if (held > 0) {
+        await this.points
+          .refundReserved(c.patient_id, held)
+          .catch(() => undefined);
+      }
+    }
+
+    const endTime = c.closed_at ?? new Date();
+    const rows = await this.messageRepo
+      .createQueryBuilder('m')
+      .where(
+        '((m.creator = :patient AND m.recipient = :doctor) OR (m.creator = :doctor AND m.recipient = :patient))',
+        { patient: patientId, doctor: doctorId },
+      )
+      .andWhere(
+        `(m.datetime >= :start AND m.datetime <= :end) OR (m.attachment_meta->>'consultation_id' = :cid)`,
+        { start: c.created_at, end: endTime, cid: consultationId },
+      )
+      .getMany();
+
+    const messageIds = rows.map((row) => row.id);
+    if (messageIds.length > 0) {
+      await this.messageRepo.delete(messageIds);
+    }
+
+    await this.complaintRepo.delete({ consultation_id: consultationId });
+    await this.consultationRepo.delete({ id: consultationId });
+
+    const removalPayload = {
+      consultation_id: consultationId,
+      peer_id: userId,
+      message_ids: messageIds,
+    };
+    this.presence.emitToUser(peerId, 'consultation:removed', removalPayload);
+    this.presence.emitToUser(userId, 'consultation:removed', {
+      ...removalPayload,
+      peer_id: peerId,
+    });
+
+    for (const messageId of messageIds) {
+      this.presence.emitToUser(patientId, 'message:deleted', {
+        message_id: messageId,
+        peer_id: doctorId,
+      });
+      this.presence.emitToUser(doctorId, 'message:deleted', {
+        message_id: messageId,
+        peer_id: patientId,
+      });
+    }
+
+    const removerName = await this.users.getDisplayName(userId);
+    void this.pushNotifications
+      .sendSystemNotification(
+        {
+          recipientId: peerId,
+          title: 'Consultation removed',
+          body: `${removerName} removed the consultation and its chat history`,
+          data: {
+            type: 'consultation_removed',
+            consultationId,
+            chatId: userId,
+            removedBy: userId,
+          },
+        },
+        { alwaysPush: true },
+      )
+      .catch(() => undefined);
+
+    return {
+      ok: true,
+      consultation_id: consultationId,
+      deleted_message_ids: messageIds,
+    };
+  }
 }

@@ -85,6 +85,7 @@ export interface SystemNotificationPushInput {
   recipientId: string;
   title: string;
   body: string;
+  data?: Record<string, string>;
 }
 
 export interface IntakeExamReminderPushInput {

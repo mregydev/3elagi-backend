@@ -229,6 +229,7 @@ export function draftFromSystem(
     body: truncateBody(input.body),
     data: {
       type: 'system_notification',
+      ...input.data,
     },
   };
 }

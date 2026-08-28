@@ -128,4 +128,10 @@ export class ConsultationsController {
   ) {
     return this.service.cancel(req.user.id, id, dto);
   }
+
+  /** Either party removes a consultation and wipes its chat history. */
+  @Post(':id/remove')
+  remove(@Param('id') id: string, @Request() req) {
+    return this.service.remove(req.user.id, id);
+  }
 }
