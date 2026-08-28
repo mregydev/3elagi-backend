@@ -133,10 +133,11 @@ export class AuthService {
 
   /**
    * Returns two JWT sessions for the web demo shell (patient + doctor).
-   * Gated by DEMO_AUTH_ENABLED — does not affect normal login endpoints.
+   * Public endpoint — no caller auth. Disabled only when DEMO_AUTH_ENABLED=false
+   * or demo credentials are missing from the environment.
    */
   async createDemoPanelSessions() {
-    if (this.config.get<string>('DEMO_AUTH_ENABLED') !== 'true') {
+    if (this.config.get<string>('DEMO_AUTH_ENABLED') === 'false') {
       throw new ForbiddenException('Demo auth is disabled');
     }
 
