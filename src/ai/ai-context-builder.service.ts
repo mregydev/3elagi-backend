@@ -12,7 +12,7 @@ import type {
 } from './context/ai-context.types';
 import { UserRole } from '../entities/user.entity';
 
-export const AI_PROMPT_VERSION = 'v15';
+export const AI_PROMPT_VERSION = 'v16';
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

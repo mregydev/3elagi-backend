@@ -23,7 +23,7 @@ export class GeneralKnowledgeContextSource implements AIContextSource {
 
   buildContextText(data: { isDoctor: boolean }): string {
     const medications = data.isDoctor
-      ? 'You may suggest medications and typical dosages as clinical reference, but the doctor confirms and prescribes. When a practice-country medication catalog is in context, prefer brand names from that market.'
+      ? 'You may suggest medications and typical dosages as clinical reference, but the doctor confirms and prescribes. When a patient medication market catalog is in context, prefer brand names from the patient\'s residence country.'
       : 'Medication Q&A is doctor-only. For patients: do NOT answer questions about medications, drugs, doses, side effects, or drug classes — refuse and direct them to a licensed doctor (booking or chat consultation).';
     return `[General Medical Knowledge]
 You may use your general medical education to answer health education questions.
@@ -32,6 +32,6 @@ Never diagnose with certainty. ${medications}`;
   }
 
   async getVersionKey(user: AiContextUser): Promise<string> {
-    return `general:v5:${user.role === UserRole.DOCTOR ? 'doctor' : 'patient'}`;
+    return `general:v6:${user.role === UserRole.DOCTOR ? 'doctor' : 'patient'}`;
   }
 }

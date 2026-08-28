@@ -57,6 +57,12 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
+  /** Isolated demo sessions for `/demo` — disabled unless DEMO_AUTH_ENABLED=true. */
+  @Post('demo/sessions')
+  demoSessions() {
+    return this.authService.createDemoPanelSessions();
+  }
+
   @Post('register/clinic')
   registerClinic(@Body() dto: RegisterClinicDto) {
     return this.authService.registerClinic(dto);

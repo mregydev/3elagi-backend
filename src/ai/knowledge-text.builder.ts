@@ -9,6 +9,7 @@ import { Symptom } from '../entities/symptom.entity';
 
 import {
   normalizeMarketCountry,
+  normalizePatientCountry,
   patientCountryLabel,
 } from '../common/patient-countries';
 
@@ -51,6 +52,13 @@ export function buildPatientProfileText(
   }
   if (profile.gender) {
     lines.push('', 'Gender:', profile.gender);
+  }
+  if (profile.country) {
+    lines.push(
+      '',
+      'Residence country:',
+      `${patientCountryLabel(normalizePatientCountry(profile.country), 'en')} (${normalizePatientCountry(profile.country)})`,
+    );
   }
   if (profile.chronic_conditions) {
     lines.push('', 'Chronic conditions:', profile.chronic_conditions);
