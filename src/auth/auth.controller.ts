@@ -57,12 +57,6 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
-  /** Public demo sessions for `/demo` — requires demo account env vars on the server. */
-  @Post('demo/sessions')
-  demoSessions() {
-    return this.authService.createDemoPanelSessions();
-  }
-
   @Post('register/clinic')
   registerClinic(@Body() dto: RegisterClinicDto) {
     return this.authService.registerClinic(dto);

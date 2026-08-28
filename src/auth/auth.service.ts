@@ -4,7 +4,6 @@ import {
   ConflictException,
   ForbiddenException,
   BadRequestException,
-  ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -129,39 +128,6 @@ export class AuthService {
     if (!valid) throw new UnauthorizedException('Invalid credentials');
 
     return this.buildAuthResponse(user);
-  }
-
-  /**
-   * Returns two JWT sessions for the web demo shell (patient + doctor).
-   * Public endpoint — no caller auth. Disabled only when DEMO_AUTH_ENABLED=false
-   * or demo credentials are missing from the environment.
-   */
-  async createDemoPanelSessions() {
-    if (this.config.get<string>('DEMO_AUTH_ENABLED') === 'false') {
-      throw new ForbiddenException('Demo auth is disabled');
-    }
-
-    const patientEmail = this.config.get<string>('DEMO_PATIENT_EMAIL')?.trim();
-    const patientPassword = this.config
-      .get<string>('DEMO_PATIENT_PASSWORD')
-      ?.trim();
-    const doctorEmail = this.config.get<string>('DEMO_DOCTOR_EMAIL')?.trim();
-    const doctorPassword = this.config
-      .get<string>('DEMO_DOCTOR_PASSWORD')
-      ?.trim();
-
-    if (!patientEmail || !patientPassword || !doctorEmail || !doctorPassword) {
-      throw new ServiceUnavailableException(
-        'Demo credentials are not configured',
-      );
-    }
-
-    const [mobile, laptop] = await Promise.all([
-      this.login({ email: patientEmail, password: patientPassword }),
-      this.login({ email: doctorEmail, password: doctorPassword }),
-    ]);
-
-    return { mobile, laptop };
   }
 
   /**
