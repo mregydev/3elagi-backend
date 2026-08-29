@@ -25,21 +25,17 @@ export class DeviceTokensService {
       throw new BadRequestException('Invalid Expo push token');
     }
 
-    const existing = await this.tokenRepo.findOne({
-      where: { user_id: userId, token: trimmed },
-    });
-    if (existing) {
-      existing.platform = platform;
-      await this.tokenRepo.save(existing);
-      return;
-    }
-
-    await this.tokenRepo.save(
-      this.tokenRepo.create({
+    // Upsert avoids duplicate-key races when the client registers twice in parallel.
+    await this.tokenRepo.upsert(
+      {
         user_id: userId,
         token: trimmed,
         platform,
-      }),
+      },
+      {
+        conflictPaths: ['user_id', 'token'],
+        skipUpdateIfNoValuesChanged: true,
+      },
     );
   }
 
