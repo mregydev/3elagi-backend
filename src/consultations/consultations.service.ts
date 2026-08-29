@@ -399,10 +399,22 @@ export class ConsultationsService {
     const names = await Promise.all(
       rows.map((r) => this.users.getDisplayName(r.doctor_id)),
     );
-    return rows.map((c, i) => ({
-      ...this.mapConsultation(c),
-      doctor_name: names[i],
-    }));
+    return Promise.all(
+      rows.map(async (c, i) => {
+        const mapped = {
+          ...this.mapConsultation(c),
+          doctor_name: names[i],
+        };
+        if (
+          c.payment_status === 'awaiting_payment' ||
+          c.payment_status === 'proof_submitted'
+        ) {
+          const fee = await this.resolveConsultationFee(c, 'text');
+          return { ...mapped, payment_link: fee.payment_link };
+        }
+        return mapped;
+      }),
+    );
   }
 
   private async assertRole(userId: string, role: UserRole): Promise<User> {
