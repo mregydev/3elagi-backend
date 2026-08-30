@@ -13,6 +13,7 @@ import { Doctor } from '../entities/doctor.entity';
 import { Patient } from '../entities/patient.entity';
 import { Clinic } from '../entities/clinic.entity';
 import { IntakeTest } from '../entities/intake-test.entity';
+import { Message } from '../entities/message.entity';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 
 function localDateYmd(date = new Date()): string {
@@ -31,7 +32,21 @@ export class AppointmentsService {
     @InjectRepository(Patient) private patientRepo: Repository<Patient>,
     @InjectRepository(Clinic) private clinicRepo: Repository<Clinic>,
     @InjectRepository(IntakeTest) private intakeRepo: Repository<IntakeTest>,
+    @InjectRepository(Message) private messageRepo: Repository<Message>,
   ) {}
+
+  /** Appointment ids referenced in chat for this user (covers legacy rows). */
+  private async chatLinkedAppointmentIds(userId: string): Promise<string[]> {
+    const rows = await this.messageRepo
+      .createQueryBuilder('m')
+      .select("DISTINCT m.attachment_meta->>'appointment_id'", 'appointment_id')
+      .where('m.type = :type', { type: 'appointment_action' })
+      .andWhere('(m.creator = :userId OR m.recipient = :userId)', { userId })
+      .andWhere("m.attachment_meta->>'appointment_id' IS NOT NULL")
+      .getRawMany<{ appointment_id: string }>();
+
+    return rows.map((row) => row.appointment_id).filter(Boolean);
+  }
 
   async findByClinicAndDate(clinicId: string, date: string) {
     const appointments = await this.appointmentRepo.find({
@@ -355,26 +370,43 @@ export class AppointmentsService {
    */
   async listVideoConsultationsForUser(userId: string, role: string) {
     const today = localDateYmd();
+    const isDoctor = String(role ?? '').toLowerCase() === 'doctor';
     const upcomingStatuses = [
       AppointmentStatus.PENDING,
       AppointmentStatus.CONFIRMED,
       AppointmentStatus.WAITING,
       AppointmentStatus.ACTIVE,
     ];
+    const chatIds = await this.chatLinkedAppointmentIds(userId);
 
     const qb = this.appointmentRepo.createQueryBuilder('a');
 
-    if (role === 'doctor') {
+    if (isDoctor) {
       const doctor = await this.doctorRepo.findOne({ where: { user_id: userId } });
       if (!doctor) return [];
-      qb.where('a.doctor_id = :doctorId', { doctorId: doctor.id });
+      qb.andWhere(
+        new Brackets((owner) => {
+          owner.where('a.doctor_id = :doctorId', { doctorId: doctor.id });
+          if (chatIds.length) {
+            owner.orWhere('a.id IN (:...chatIds)', { chatIds });
+          }
+        }),
+      );
     } else {
-      qb.where('a.patient_user_id = :patientUserId', { patientUserId: userId });
+      qb.andWhere(
+        new Brackets((owner) => {
+          owner.where('a.patient_user_id = :patientUserId', {
+            patientUserId: userId,
+          });
+          if (chatIds.length) {
+            owner.orWhere('a.id IN (:...chatIds)', { chatIds });
+          }
+        }),
+      );
     }
 
     qb.leftJoinAndSelect('a.doctor', 'doctor')
       .leftJoinAndSelect('a.patient', 'patient')
-      .andWhere('a.booked_via_app = true')
       .andWhere('a.status NOT IN (:...closed)', {
         closed: [AppointmentStatus.CANCELLED, AppointmentStatus.REJECTED],
       })
@@ -400,7 +432,7 @@ export class AppointmentsService {
 
     const appts = await qb.getMany();
 
-    if (role === 'doctor') {
+    if (isDoctor) {
       return appts.map((a) =>
         this.mapUpcomingAppointment(
           a,
