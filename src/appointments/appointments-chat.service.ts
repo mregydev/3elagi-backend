@@ -30,6 +30,7 @@ import { PointsService } from '../points/points.service';
 import { ConsultationsService } from '../consultations/consultations.service';
 import { clampConsultationPrice } from '../points/message-price.constants';
 import { resolveDoctorFee } from '../doctors/doctor-fees';
+import { deleteAppointmentActionMessages } from './appointment-chat-messages';
 
 const APPOINTMENT_ACTIONS: AppointmentActionType[] = [
   'request',
@@ -960,7 +961,9 @@ export class AppointmentsChatService {
       if (videoSessionIds.length) {
         await this.videoCallRepo.delete(videoSessionIds);
       }
-      await this.appointmentRepo.delete(expiredAppointments.map((item) => item.id));
+      const expiredIds = expiredAppointments.map((item) => item.id);
+      await deleteAppointmentActionMessages(this.messageRepo, expiredIds);
+      await this.appointmentRepo.delete(expiredIds);
       this.logger.log(
         `Deleted ${expiredAppointments.length} expired appointments during reminder check`,
       );

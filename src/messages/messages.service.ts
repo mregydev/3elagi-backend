@@ -13,6 +13,7 @@ import {
   Message,
   MessageType,
 } from '../entities/message.entity';
+import { Appointment } from '../entities/appointment.entity';
 import { User, UserRole } from '../entities/user.entity';
 import {
   DoctorPatientAccessService,
@@ -26,6 +27,7 @@ import { MessageEmotionsService } from '../message-emotions/message-emotions.ser
 import { AppointmentsChatService } from '../appointments/appointments-chat.service';
 import { ConsultationsService } from '../consultations/consultations.service';
 import { resolvePricingCountry, type RequestLike } from '../common/request-country';
+import { stripOrphanedAppointmentMessages } from '../appointments/appointment-chat-messages';
 
 const ACCESS_ACTIONS: AccessActionType[] = [
   'grant_records',
@@ -69,6 +71,7 @@ export class MessagesService {
   constructor(
     @InjectRepository(Message) private messageRepo: Repository<Message>,
     @InjectRepository(User) private userRepo: Repository<User>,
+    @InjectRepository(Appointment) private appointmentRepo: Repository<Appointment>,
     private usersService: UsersService,
     private presenceGateway: PresenceGateway,
     private pushNotifications: PushNotificationsService,
@@ -246,12 +249,18 @@ export class MessagesService {
       .orderBy('m.datetime', 'ASC')
       .getMany();
 
+    const validRows = await stripOrphanedAppointmentMessages(
+      rows,
+      this.appointmentRepo,
+      this.messageRepo,
+    );
+
     const grouped = await this.messageEmotionsService.getForMessages(
-      rows.map((row) => row.id),
+      validRows.map((row) => row.id),
       'chat',
     );
 
-    return rows.map((row) => ({
+    return validRows.map((row) => ({
       ...this.mapMessage(row),
       emotions: grouped[row.id] ?? [],
     }));
@@ -618,14 +627,22 @@ export class MessagesService {
           (await this.usersService.getContactCard(peerId));
         if (!peer) return null;
 
-        const lastMessage = await this.messageRepo
+        const recentMessages = await this.messageRepo
           .createQueryBuilder('m')
           .where(
             '(m.creator = :userId AND m.recipient = :peerId) OR (m.creator = :peerId AND m.recipient = :userId)',
             { userId, peerId },
           )
           .orderBy('m.datetime', 'DESC')
-          .getOne();
+          .take(30)
+          .getMany();
+
+        const validRecent = await stripOrphanedAppointmentMessages(
+          recentMessages,
+          this.appointmentRepo,
+          this.messageRepo,
+        );
+        const lastMessage = validRecent[0] ?? null;
 
         if (!lastMessage) return null;
 

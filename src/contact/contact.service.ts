@@ -1,6 +1,11 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { MailService } from '../mail/mail.service';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import {
+  ContactSubmission,
+  type ContactSubmissionAttachment,
+} from '../entities/contact-submission.entity';
+import { UploadsService } from '../uploads/uploads.service';
 
 const MAX_FILES = 5;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
@@ -8,16 +13,10 @@ const MAX_FILE_BYTES = 10 * 1024 * 1024;
 @Injectable()
 export class ContactService {
   constructor(
-    private readonly mail: MailService,
-    private readonly config: ConfigService,
+    @InjectRepository(ContactSubmission)
+    private readonly submissionRepo: Repository<ContactSubmission>,
+    private readonly uploads: UploadsService,
   ) {}
-
-  private contactTo(): string {
-    return (
-      this.config.get<string>('CONTACT_TO_EMAIL')?.trim() ||
-      'alaahamed@3elagi.net'
-    );
-  }
 
   async submit(input: {
     message: string;
@@ -48,25 +47,83 @@ export class ContactService {
       }
     }
 
-    const fromEmail = (input.email || '').trim().toLowerCase();
+    const fromEmail = (input.email || '').trim().toLowerCase() || null;
     const fromName = (input.name || '').trim() || fromEmail || '3elagi user';
 
-    await this.mail.sendContactMessage({
-      to: this.contactTo(),
-      fromName,
-      fromEmail,
-      userId: input.userId,
-      role: input.role,
-      message,
-      attachments: files
-        .filter((f) => f?.buffer?.length)
-        .map((f) => ({
-          filename: f.originalname || 'attachment',
-          content: f.buffer,
-          contentType: f.mimetype,
-        })),
-    });
+    const attachments: ContactSubmissionAttachment[] = [];
+    for (const file of files.filter((f) => f?.buffer?.length)) {
+      try {
+        const uploaded = await this.uploads.uploadFile({
+          ...file,
+          originalname: file.originalname || 'attachment',
+          mimetype: file.mimetype || 'application/octet-stream',
+        });
+        attachments.push({
+          file_name: file.originalname || 'attachment',
+          mime_type: file.mimetype || 'application/octet-stream',
+          url: uploaded.url,
+          object_path: uploaded.objectPath ?? uploaded.path ?? null,
+        });
+      } catch {
+        // Skip attachments that fail storage — message still lands in the inbox.
+      }
+    }
 
-    return { ok: true };
+    const saved = await this.submissionRepo.save(
+      this.submissionRepo.create({
+        user_id: input.userId ?? null,
+        sender_name: fromName,
+        sender_email: fromEmail,
+        sender_role: input.role?.trim() || null,
+        message,
+        attachments,
+      }),
+    );
+
+    return { ok: true, id: saved.id };
+  }
+
+  async listForAdmin() {
+    const rows = await this.submissionRepo.find({
+      order: { created_at: 'DESC' },
+      take: 200,
+    });
+    return rows.map((row) => this.mapSubmission(row, { includeMessage: false }));
+  }
+
+  async findOneForAdmin(id: string) {
+    const row = await this.submissionRepo.findOne({ where: { id } });
+    if (!row) throw new NotFoundException('Contact message not found');
+    if (!row.read_at) {
+      row.read_at = new Date();
+      await this.submissionRepo.save(row);
+    }
+    return this.mapSubmission(row, { includeMessage: true });
+  }
+
+  async markRead(id: string, read: boolean) {
+    const row = await this.submissionRepo.findOne({ where: { id } });
+    if (!row) throw new NotFoundException('Contact message not found');
+    row.read_at = read ? row.read_at ?? new Date() : null;
+    await this.submissionRepo.save(row);
+    return this.mapSubmission(row, { includeMessage: true });
+  }
+
+  private mapSubmission(
+    row: ContactSubmission,
+    opts: { includeMessage: boolean },
+  ) {
+    return {
+      id: row.id,
+      user_id: row.user_id,
+      sender_name: row.sender_name,
+      sender_email: row.sender_email,
+      sender_role: row.sender_role,
+      message: opts.includeMessage ? row.message : undefined,
+      message_preview: row.message.slice(0, 160),
+      attachments: row.attachments ?? [],
+      read_at: row.read_at?.toISOString() ?? null,
+      created_at: row.created_at.toISOString(),
+    };
   }
 }

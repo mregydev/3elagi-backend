@@ -21,6 +21,8 @@ import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
 import { AdminService } from './admin.service';
 import { PointPricingService } from '../points/point-pricing.service';
+import { ContactService } from '../contact/contact.service';
+import { DoctorRegistrationRequestsService } from '../doctor-registration-requests/doctor-registration-requests.service';
 import type { PointMarket } from '../entities/point-pricing.entity';
 import { TrainRagDocumentChunkDto } from './dto/train-rag-document-chunk.dto';
 import { IntakeQuestion } from '../entities/intake-test.entity';
@@ -30,8 +32,11 @@ import type { ApprovalStatus } from '../entities/doctor.entity';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
 export class AdminController {
-  constructor(private readonly service: AdminService,
+  constructor(
+    private readonly service: AdminService,
     private readonly pointPricing: PointPricingService,
+    private readonly contactService: ContactService,
+    private readonly doctorRegistrationRequests: DoctorRegistrationRequestsService,
   ) {}
 
   @Get('stats')
@@ -227,5 +232,41 @@ export class AdminController {
       market.toUpperCase() as PointMarket,
       Number(body?.price_per_point),
     );
+  }
+
+  @Get('contact-messages')
+  listContactMessages() {
+    return this.contactService.listForAdmin();
+  }
+
+  @Get('contact-messages/:id')
+  getContactMessage(@Param('id') id: string) {
+    return this.contactService.findOneForAdmin(id);
+  }
+
+  @Patch('contact-messages/:id/read')
+  markContactMessageRead(
+    @Param('id') id: string,
+    @Body() body: { read?: boolean },
+  ) {
+    return this.contactService.markRead(id, body?.read !== false);
+  }
+
+  @Get('doctor-registrations')
+  listDoctorRegistrations() {
+    return this.doctorRegistrationRequests.listForAdmin();
+  }
+
+  @Get('doctor-registrations/:id')
+  getDoctorRegistration(@Param('id') id: string) {
+    return this.doctorRegistrationRequests.findOneForAdmin(id);
+  }
+
+  @Patch('doctor-registrations/:id/read')
+  markDoctorRegistrationRead(
+    @Param('id') id: string,
+    @Body() body: { read?: boolean },
+  ) {
+    return this.doctorRegistrationRequests.markRead(id, body?.read !== false);
   }
 }

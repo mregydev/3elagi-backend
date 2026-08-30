@@ -17,6 +17,8 @@ import { PushNotificationsModule } from '../push-notifications/push-notification
 import { PointsModule } from '../points/points.module';
 import { SpecialitiesModule } from '../specialities/specialities.module';
 import { UploadsModule } from '../uploads/uploads.module';
+import { ContactModule } from '../contact/contact.module';
+import { DoctorRegistrationRequestsModule } from '../doctor-registration-requests/doctor-registration-requests.module';
 
 @Module({
   imports: [
@@ -39,6 +41,8 @@ import { UploadsModule } from '../uploads/uploads.module';
     PointsModule,
     SpecialitiesModule,
     UploadsModule,
+    ContactModule,
+    DoctorRegistrationRequestsModule,
   ],
   controllers: [AdminController],
   providers: [AdminService],

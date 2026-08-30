@@ -2,6 +2,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Message } from '../entities/message.entity';
 import { User } from '../entities/user.entity';
+import { Appointment } from '../entities/appointment.entity';
 import { UsersModule } from '../users/users.module';
 import { PresenceModule } from '../presence/presence.module';
 import { DoctorPatientAccessModule } from '../doctor-patient-access/doctor-patient-access.module';
@@ -15,7 +16,7 @@ import { MessagesService } from './messages.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Message, User]),
+    TypeOrmModule.forFeature([Message, User, Appointment]),
     UsersModule,
     PresenceModule,
     DoctorPatientAccessModule,

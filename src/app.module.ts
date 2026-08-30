@@ -53,6 +53,7 @@ import { Advertisement } from './entities/advertisement.entity';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { ContactModule } from './contact/contact.module';
+import { DoctorRegistrationRequestsModule } from './doctor-registration-requests/doctor-registration-requests.module';
 import { ClinicsModule } from './clinics/clinics.module';
 import { DoctorsModule } from './doctors/doctors.module';
 import { JoinRequestsModule } from './join-requests/join-requests.module';
@@ -156,7 +157,12 @@ import { DoctorFeesAndPaymentFlow1778560000000 } from './migrations/177856000000
 import { DefaultDoctorFees1778570000000 } from './migrations/1778570000000-DefaultDoctorFees';
 import { PendingChanges1778580000000 } from './migrations/1778580000000-PendingChanges';
 import { AppointmentPatientCountry1778580000000 } from './migrations/1778580000000-AppointmentPatientCountry';
+import { BackfillBookedViaApp1778590000000 } from './migrations/1778590000000-BackfillBookedViaApp';
+import { ContactSubmissions1778600000000 } from './migrations/1778600000000-ContactSubmissions';
+import { DoctorRegistrationRequests1778610000000 } from './migrations/1778610000000-DoctorRegistrationRequests';
 import { UserNotification } from './entities/user-notification.entity';
+import { ContactSubmission } from './entities/contact-submission.entity';
+import { DoctorRegistrationRequest } from './entities/doctor-registration-request.entity';
 import { NotificationsModule } from './notifications/notifications.module';
 import { MedicalDocumentRequestsModule } from './medical-document-requests/medical-document-requests.module';
 
@@ -206,6 +212,8 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
           PaymentIntention,
           MedicalDocumentRequest,
           UserNotification,
+          ContactSubmission,
+          DoctorRegistrationRequest,
         ],
         synchronize: false,
         migrations: [
@@ -291,6 +299,9 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
           DefaultDoctorFees1778570000000,
           PendingChanges1778580000000,
           AppointmentPatientCountry1778580000000,
+          BackfillBookedViaApp1778590000000,
+          ContactSubmissions1778600000000,
+          DoctorRegistrationRequests1778610000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
@@ -303,6 +314,7 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
     }),
     AuthModule,
     ContactModule,
+    DoctorRegistrationRequestsModule,
     ClinicsModule,
     DoctorsModule,
     JoinRequestsModule,

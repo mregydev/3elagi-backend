@@ -15,6 +15,10 @@ import { Clinic } from '../entities/clinic.entity';
 import { IntakeTest } from '../entities/intake-test.entity';
 import { Message } from '../entities/message.entity';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
+import {
+  deleteAppointmentActionMessages,
+  existingAppointmentIds,
+} from './appointment-chat-messages';
 
 function localDateYmd(date = new Date()): string {
   const year = date.getFullYear();
@@ -35,7 +39,7 @@ export class AppointmentsService {
     @InjectRepository(Message) private messageRepo: Repository<Message>,
   ) {}
 
-  /** Appointment ids referenced in chat for this user (covers legacy rows). */
+  /** Appointment ids referenced in chat that still exist in the DB. */
   private async chatLinkedAppointmentIds(userId: string): Promise<string[]> {
     const rows = await this.messageRepo
       .createQueryBuilder('m')
@@ -45,7 +49,8 @@ export class AppointmentsService {
       .andWhere("m.attachment_meta->>'appointment_id' IS NOT NULL")
       .getRawMany<{ appointment_id: string }>();
 
-    return rows.map((row) => row.appointment_id).filter(Boolean);
+    const ids = rows.map((row) => row.appointment_id).filter(Boolean);
+    return [...(await existingAppointmentIds(this.appointmentRepo, ids))];
   }
 
   async findByClinicAndDate(clinicId: string, date: string) {
@@ -256,6 +261,7 @@ export class AppointmentsService {
   async remove(id: string) {
     const appt = await this.appointmentRepo.findOne({ where: { id } });
     if (!appt) throw new NotFoundException('Appointment not found');
+    await deleteAppointmentActionMessages(this.messageRepo, [id]);
     await this.appointmentRepo.delete(id);
     return { message: 'Appointment deleted' };
   }
