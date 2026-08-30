@@ -54,6 +54,7 @@ import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { ContactModule } from './contact/contact.module';
 import { DoctorRegistrationRequestsModule } from './doctor-registration-requests/doctor-registration-requests.module';
+import { AppReviewsModule } from './app-reviews/app-reviews.module';
 import { ClinicsModule } from './clinics/clinics.module';
 import { DoctorsModule } from './doctors/doctors.module';
 import { JoinRequestsModule } from './join-requests/join-requests.module';
@@ -161,9 +162,11 @@ import { BackfillBookedViaApp1778590000000 } from './migrations/1778590000000-Ba
 import { ContactSubmissions1778600000000 } from './migrations/1778600000000-ContactSubmissions';
 import { DoctorRegistrationRequests1778610000000 } from './migrations/1778610000000-DoctorRegistrationRequests';
 import { DoctorRegistrationRequestCountry1778620000000 } from './migrations/1778620000000-DoctorRegistrationRequestCountry';
+import { AppReviews1778630000000 } from './migrations/1778630000000-AppReviews';
 import { UserNotification } from './entities/user-notification.entity';
 import { ContactSubmission } from './entities/contact-submission.entity';
 import { DoctorRegistrationRequest } from './entities/doctor-registration-request.entity';
+import { AppReview } from './entities/app-review.entity';
 import { NotificationsModule } from './notifications/notifications.module';
 import { MedicalDocumentRequestsModule } from './medical-document-requests/medical-document-requests.module';
 
@@ -215,6 +218,7 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
           UserNotification,
           ContactSubmission,
           DoctorRegistrationRequest,
+          AppReview,
         ],
         synchronize: false,
         migrations: [
@@ -304,6 +308,7 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
           ContactSubmissions1778600000000,
           DoctorRegistrationRequests1778610000000,
           DoctorRegistrationRequestCountry1778620000000,
+          AppReviews1778630000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
@@ -317,6 +322,7 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
     AuthModule,
     ContactModule,
     DoctorRegistrationRequestsModule,
+    AppReviewsModule,
     ClinicsModule,
     DoctorsModule,
     JoinRequestsModule,

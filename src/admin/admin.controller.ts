@@ -23,6 +23,7 @@ import { AdminService } from './admin.service';
 import { PointPricingService } from '../points/point-pricing.service';
 import { ContactService } from '../contact/contact.service';
 import { DoctorRegistrationRequestsService } from '../doctor-registration-requests/doctor-registration-requests.service';
+import { AppReviewsService } from '../app-reviews/app-reviews.service';
 import type { PointMarket } from '../entities/point-pricing.entity';
 import { TrainRagDocumentChunkDto } from './dto/train-rag-document-chunk.dto';
 import { IntakeQuestion } from '../entities/intake-test.entity';
@@ -37,6 +38,7 @@ export class AdminController {
     private readonly pointPricing: PointPricingService,
     private readonly contactService: ContactService,
     private readonly doctorRegistrationRequests: DoctorRegistrationRequestsService,
+    private readonly appReviews: AppReviewsService,
   ) {}
 
   @Get('stats')
@@ -268,5 +270,23 @@ export class AdminController {
     @Body() body: { read?: boolean },
   ) {
     return this.doctorRegistrationRequests.markRead(id, body?.read !== false);
+  }
+
+  @Get('app-reviews')
+  listAppReviews() {
+    return this.appReviews.listForAdmin();
+  }
+
+  @Get('app-reviews/:id')
+  getAppReview(@Param('id') id: string) {
+    return this.appReviews.findOneForAdmin(id);
+  }
+
+  @Patch('app-reviews/:id/read')
+  markAppReviewRead(
+    @Param('id') id: string,
+    @Body() body: { read?: boolean },
+  ) {
+    return this.appReviews.markRead(id, body?.read !== false);
   }
 }

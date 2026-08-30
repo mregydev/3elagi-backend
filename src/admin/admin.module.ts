@@ -19,6 +19,7 @@ import { SpecialitiesModule } from '../specialities/specialities.module';
 import { UploadsModule } from '../uploads/uploads.module';
 import { ContactModule } from '../contact/contact.module';
 import { DoctorRegistrationRequestsModule } from '../doctor-registration-requests/doctor-registration-requests.module';
+import { AppReviewsModule } from '../app-reviews/app-reviews.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { DoctorRegistrationRequestsModule } from '../doctor-registration-request
     UploadsModule,
     ContactModule,
     DoctorRegistrationRequestsModule,
+    AppReviewsModule,
   ],
   controllers: [AdminController],
   providers: [AdminService],
