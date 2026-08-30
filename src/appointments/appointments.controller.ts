@@ -35,6 +35,13 @@ export class AppointmentsController {
     return this.service.listUpcomingForUser(req.user.id, req.user.role);
   }
 
+  /** Video visits booked in-app — includes rows awaiting payment. */
+  @Get('video-consultations')
+  @UseGuards(JwtAuthGuard)
+  listVideoConsultations(@Request() req: { user: { id: string; role: string } }) {
+    return this.service.listVideoConsultationsForUser(req.user.id, req.user.role);
+  }
+
   @Get('clinic/:clinicId/screen')
   getClinicQueueScreen(@Param('clinicId') clinicId: string) {
     return this.service.getClinicQueueScreen(clinicId);

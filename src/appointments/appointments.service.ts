@@ -4,7 +4,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, MoreThanOrEqual, Repository } from 'typeorm';
+import { In, MoreThanOrEqual, Repository, Brackets } from 'typeorm';
 import {
   Appointment,
   AppointmentStatus,
@@ -340,6 +340,76 @@ export class AppointmentsService {
       },
       order: { date: 'ASC', time: 'ASC' },
     });
+    return appts.map((a) =>
+      this.mapUpcomingAppointment(
+        a,
+        a.doctor?.name ?? 'Doctor',
+        a.doctor?.user_id ?? null,
+      ),
+    );
+  }
+
+  /**
+   * App-booked video visits for the consultations tab — includes upcoming slots
+   * and anything still in the payment gate (even if the date has passed).
+   */
+  async listVideoConsultationsForUser(userId: string, role: string) {
+    const today = localDateYmd();
+    const upcomingStatuses = [
+      AppointmentStatus.PENDING,
+      AppointmentStatus.CONFIRMED,
+      AppointmentStatus.WAITING,
+      AppointmentStatus.ACTIVE,
+    ];
+
+    const qb = this.appointmentRepo.createQueryBuilder('a');
+
+    if (role === 'doctor') {
+      const doctor = await this.doctorRepo.findOne({ where: { user_id: userId } });
+      if (!doctor) return [];
+      qb.where('a.doctor_id = :doctorId', { doctorId: doctor.id });
+    } else {
+      qb.where('a.patient_user_id = :patientUserId', { patientUserId: userId });
+    }
+
+    qb.leftJoinAndSelect('a.doctor', 'doctor')
+      .leftJoinAndSelect('a.patient', 'patient')
+      .andWhere('a.booked_via_app = true')
+      .andWhere('a.status NOT IN (:...closed)', {
+        closed: [AppointmentStatus.CANCELLED, AppointmentStatus.REJECTED],
+      })
+      .andWhere(
+        new Brackets((sub) => {
+          sub
+            .where('a.payment_status IN (:...paymentPending)', {
+              paymentPending: ['awaiting_payment', 'proof_submitted'],
+            })
+            .orWhere(
+              new Brackets((upcoming) => {
+                upcoming
+                  .where('a.date >= :today', { today })
+                  .andWhere('a.status IN (:...upcomingStatuses)', {
+                    upcomingStatuses,
+                  });
+              }),
+            );
+        }),
+      )
+      .orderBy('a.date', 'ASC')
+      .addOrderBy('a.time', 'ASC');
+
+    const appts = await qb.getMany();
+
+    if (role === 'doctor') {
+      return appts.map((a) =>
+        this.mapUpcomingAppointment(
+          a,
+          a.patient?.name ?? a.patient_name ?? 'Patient',
+          a.patient_user_id ?? null,
+        ),
+      );
+    }
+
     return appts.map((a) =>
       this.mapUpcomingAppointment(
         a,
