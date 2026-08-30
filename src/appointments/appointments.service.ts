@@ -268,6 +268,37 @@ export class AppointmentsService {
     return Date.now() > end ? null : link;
   }
 
+  private mapUpcomingAppointment(a: Appointment, otherName: string, otherUserId: string | null) {
+    const durationMinutes = a.doctor?.video_consultation_minutes ?? 30;
+    const paymentStatus = a.payment_status ?? 'none';
+    return {
+      id: a.id,
+      date: a.date,
+      time: a.time,
+      status: a.status,
+      duration_minutes: durationMinutes,
+      meeting_link: this.activeMeetingLink(
+        a.date,
+        a.time,
+        durationMinutes,
+        a.meeting_link,
+      ),
+      other_name: otherName,
+      other_user_id: otherUserId,
+      ai_patient_insight: a.ai_patient_insight ?? null,
+      booked_via_app: a.booked_via_app,
+      payment_status: paymentStatus,
+      payment_amount:
+        a.payment_amount === null ? null : Number(a.payment_amount),
+      payment_currency: a.payment_currency,
+      payment_proof_url: a.payment_proof_url,
+      payment_link:
+        paymentStatus === 'awaiting_payment'
+          ? a.doctor?.payment_link?.trim() || null
+          : null,
+    };
+  }
+
   async listUpcomingForUser(userId: string, role: string) {
     const today = localDateYmd();
 
@@ -287,26 +318,13 @@ export class AppointmentsService {
         },
         order: { date: 'ASC', time: 'ASC' },
       });
-      return appts.map((a) => {
-        const durationMinutes = a.doctor?.video_consultation_minutes ?? 30;
-        return {
-          id: a.id,
-          date: a.date,
-          time: a.time,
-          status: a.status,
-          duration_minutes: durationMinutes,
-          meeting_link: this.activeMeetingLink(
-            a.date,
-            a.time,
-            durationMinutes,
-            a.meeting_link,
-          ),
-          other_name: a.patient?.name ?? a.patient_name ?? 'Patient',
-          other_user_id: a.patient_user_id ?? null,
-          ai_patient_insight: a.ai_patient_insight ?? null,
-          booked_via_app: a.booked_via_app,
-        };
-      });
+      return appts.map((a) =>
+        this.mapUpcomingAppointment(
+          a,
+          a.patient?.name ?? a.patient_name ?? 'Patient',
+          a.patient_user_id ?? null,
+        ),
+      );
     }
 
     const appts = await this.appointmentRepo.find({
@@ -322,25 +340,13 @@ export class AppointmentsService {
       },
       order: { date: 'ASC', time: 'ASC' },
     });
-    return appts.map((a) => {
-      const durationMinutes = a.doctor?.video_consultation_minutes ?? 30;
-      return {
-        id: a.id,
-        date: a.date,
-        time: a.time,
-        status: a.status,
-        duration_minutes: durationMinutes,
-        meeting_link: this.activeMeetingLink(
-          a.date,
-          a.time,
-          durationMinutes,
-          a.meeting_link,
-        ),
-        other_name: a.doctor?.name ?? 'Doctor',
-        other_user_id: a.doctor?.user_id ?? null,
-        booked_via_app: a.booked_via_app,
-      };
-    });
+    return appts.map((a) =>
+      this.mapUpcomingAppointment(
+        a,
+        a.doctor?.name ?? 'Doctor',
+        a.doctor?.user_id ?? null,
+      ),
+    );
   }
 
   async findById(id: string) {
