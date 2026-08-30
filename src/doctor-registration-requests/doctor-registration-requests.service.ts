@@ -9,6 +9,7 @@ import { DoctorRegistrationRequest } from '../entities/doctor-registration-reque
 import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const ALLOWED_COUNTRIES = new Set(['EG', 'JO']);
 
 @Injectable()
 export class DoctorRegistrationRequestsService {
@@ -23,11 +24,13 @@ export class DoctorRegistrationRequestsService {
     doctorName: string;
     email: string;
     phone: string;
+    country: string;
     specialityId: string;
   }) {
     const doctorName = (input.doctorName || '').trim();
     const email = (input.email || '').trim().toLowerCase();
     const phone = (input.phone || '').trim();
+    const country = (input.country || '').trim().toUpperCase();
     const specialityId = (input.specialityId || '').trim();
 
     if (doctorName.length < 2) {
@@ -41,6 +44,9 @@ export class DoctorRegistrationRequestsService {
     }
     if (!phone) {
       throw new BadRequestException('Phone number is required');
+    }
+    if (!ALLOWED_COUNTRIES.has(country)) {
+      throw new BadRequestException('Country must be Egypt or Jordan');
     }
     if (!specialityId) {
       throw new BadRequestException('Speciality is required');
@@ -58,6 +64,7 @@ export class DoctorRegistrationRequestsService {
         doctor_name: doctorName,
         email,
         phone,
+        country,
         speciality_id: speciality.id,
         speciality_name_en: speciality.name_en,
         speciality_name_ar: speciality.name_ar,
@@ -99,6 +106,7 @@ export class DoctorRegistrationRequestsService {
       doctor_name: row.doctor_name,
       email: row.email,
       phone: row.phone,
+      country: row.country,
       speciality_id: row.speciality_id,
       speciality_name_en: row.speciality_name_en,
       speciality_name_ar: row.speciality_name_ar,

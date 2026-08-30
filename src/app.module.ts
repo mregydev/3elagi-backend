@@ -160,6 +160,7 @@ import { AppointmentPatientCountry1778580000000 } from './migrations/17785800000
 import { BackfillBookedViaApp1778590000000 } from './migrations/1778590000000-BackfillBookedViaApp';
 import { ContactSubmissions1778600000000 } from './migrations/1778600000000-ContactSubmissions';
 import { DoctorRegistrationRequests1778610000000 } from './migrations/1778610000000-DoctorRegistrationRequests';
+import { DoctorRegistrationRequestCountry1778620000000 } from './migrations/1778620000000-DoctorRegistrationRequestCountry';
 import { UserNotification } from './entities/user-notification.entity';
 import { ContactSubmission } from './entities/contact-submission.entity';
 import { DoctorRegistrationRequest } from './entities/doctor-registration-request.entity';
@@ -302,6 +303,7 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
           BackfillBookedViaApp1778590000000,
           ContactSubmissions1778600000000,
           DoctorRegistrationRequests1778610000000,
+          DoctorRegistrationRequestCountry1778620000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',

@@ -14,6 +14,7 @@ export class DoctorRegistrationRequestsController {
       doctor_name?: string;
       email?: string;
       phone?: string;
+      country?: string;
       speciality_id?: string;
     },
   ) {
@@ -21,6 +22,7 @@ export class DoctorRegistrationRequestsController {
       doctorName: body.doctor_name ?? '',
       email: body.email ?? '',
       phone: body.phone ?? '',
+      country: body.country ?? '',
       specialityId: body.speciality_id ?? '',
     });
   }

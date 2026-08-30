@@ -19,6 +19,10 @@ export class DoctorRegistrationRequest {
   @Column({ type: 'varchar', length: 64 })
   phone: string;
 
+  /** Practice country: EG or JO */
+  @Column({ type: 'varchar', length: 2, default: 'EG' })
+  country: string;
+
   @Column({ type: 'uuid' })
   speciality_id: string;
 
