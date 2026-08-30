@@ -192,8 +192,8 @@ export class AuthService {
     currentPassword: string,
     newPassword: string,
   ) {
-    if (typeof newPassword !== 'string' || newPassword.length < 4) {
-      throw new UnauthorizedException('New password must be at least 4 characters');
+    if (typeof newPassword !== 'string' || newPassword.length < 6) {
+      throw new UnauthorizedException('New password must be at least 6 characters');
     }
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new UnauthorizedException('User not found');
