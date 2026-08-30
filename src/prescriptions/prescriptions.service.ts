@@ -30,6 +30,19 @@ import {
 } from './prescription-image-analyzer.service';
 import { MedicalRecordImageAnalyzerService } from '../medical-documents/medical-record-image-analyzer.service';
 import type { MedicalAiInsight } from '../common/medical-ai-insight.types';
+import { UsersService } from '../users/users.service';
+
+export type LinkedConsultationSummary = {
+  id: string;
+  status: Consultation['status'];
+  created_at: Date;
+  closed_at: Date | null;
+  doctor_id: string;
+  patient_id: string;
+  diagnosis_id: string | null;
+  doctor_name: string;
+  patient_name: string;
+};
 
 interface CreatePrescriptionDto {
   patient_id: string;
@@ -154,6 +167,7 @@ export class PrescriptionsService {
     private prescriptionImageAnalyzer: PrescriptionImageAnalyzerService,
     private medicalImageAnalyzer: MedicalRecordImageAnalyzerService,
     private pointsService: PointsService,
+    private users: UsersService,
   ) {}
 
   private normalizeMedicationInputs(
@@ -312,13 +326,85 @@ export class PrescriptionsService {
     (Prescription & { doctor_name?: string | null })[]
   > {
     if (!rows.length) return rows;
-    const doctorIds = [...new Set(rows.map((row) => row.doctor_id))];
+    const doctorIds = [
+      ...new Set(rows.map((row) => row.doctor_id).filter(Boolean)),
+    ] as string[];
+    if (!doctorIds.length) return rows.map((row) => ({ ...row, doctor_name: null }));
     const doctors = await this.doctorRepo.find({ where: { id: In(doctorIds) } });
     const byId = new Map(doctors.map((doctor) => [doctor.id, doctor.name]));
     return rows.map((row) => ({
       ...row,
-      doctor_name: byId.get(row.doctor_id) ?? null,
+      doctor_name: row.doctor_id ? (byId.get(row.doctor_id) ?? null) : null,
     }));
+  }
+
+  private async attachLinkedConsultations(
+    rows: (Prescription & { doctor_name?: string | null })[],
+  ): Promise<
+    (Prescription & {
+      doctor_name?: string | null;
+      linked_consultations: LinkedConsultationSummary[];
+    })[]
+  > {
+    const diagnosisIds = [
+      ...new Set(
+        rows.map((row) => row.diagnosis_id).filter((id): id is string => !!id),
+      ),
+    ];
+    if (!diagnosisIds.length) {
+      return rows.map((row) => ({ ...row, linked_consultations: [] }));
+    }
+
+    const consultations = await this.consultationRepo.find({
+      where: { diagnosis_id: In(diagnosisIds) },
+      order: { created_at: 'DESC' },
+    });
+    if (!consultations.length) {
+      return rows.map((row) => ({ ...row, linked_consultations: [] }));
+    }
+
+    const userIds = new Set<string>();
+    for (const consult of consultations) {
+      userIds.add(consult.doctor_id);
+      userIds.add(consult.patient_id);
+    }
+    const nameEntries = await Promise.all(
+      [...userIds].map(
+        async (userId) => [userId, await this.users.getDisplayName(userId)] as const,
+      ),
+    );
+    const nameByUserId = new Map(nameEntries);
+
+    const byDiagnosis = new Map<string, LinkedConsultationSummary[]>();
+    for (const consult of consultations) {
+      if (!consult.diagnosis_id) continue;
+      const summary: LinkedConsultationSummary = {
+        id: consult.id,
+        status: consult.status,
+        created_at: consult.created_at,
+        closed_at: consult.closed_at,
+        doctor_id: consult.doctor_id,
+        patient_id: consult.patient_id,
+        diagnosis_id: consult.diagnosis_id,
+        doctor_name: nameByUserId.get(consult.doctor_id) ?? 'Doctor',
+        patient_name: nameByUserId.get(consult.patient_id) ?? 'Patient',
+      };
+      const list = byDiagnosis.get(consult.diagnosis_id) ?? [];
+      list.push(summary);
+      byDiagnosis.set(consult.diagnosis_id, list);
+    }
+
+    return rows.map((row) => ({
+      ...row,
+      linked_consultations: row.diagnosis_id
+        ? (byDiagnosis.get(row.diagnosis_id) ?? [])
+        : [],
+    }));
+  }
+
+  private async enrichForPatientUser(rows: Prescription[]) {
+    const withNames = await this.attachDoctorNames(rows);
+    return this.attachLinkedConsultations(withNames);
   }
 
   private async getDoctor(userId: string): Promise<Doctor> {
@@ -422,7 +508,7 @@ export class PrescriptionsService {
       relations: ['medications'],
       order: { created_at: 'DESC' },
     });
-    return this.attachDoctorNames(rows);
+    return this.enrichForPatientUser(rows);
   }
 
   async findOneForPatientUser(id: string, userId: string, role: string) {
@@ -452,7 +538,7 @@ export class PrescriptionsService {
       throw new ForbiddenException('Insufficient role');
     }
 
-    const [enriched] = await this.attachDoctorNames([row]);
+    const [enriched] = await this.enrichForPatientUser([row]);
     return enriched;
   }
 

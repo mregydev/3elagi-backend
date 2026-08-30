@@ -18,6 +18,7 @@ import { DoctorPatientAccessModule } from '../doctor-patient-access/doctor-patie
 import { PatientsModule } from '../patients/patients.module';
 import { MedicalRecordAiModule } from '../medical-documents/medical-record-ai.module';
 import { PointsModule } from '../points/points.module';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { PointsModule } from '../points/points.module';
     PatientsModule,
     PointsModule,
     MedicalRecordAiModule,
+    UsersModule,
   ],
   providers: [PrescriptionsService, PrescriptionImageAnalyzerService],
   controllers: [PrescriptionsController],
