@@ -9,6 +9,7 @@ import { AiModule } from '../ai/ai.module';
 import { PresenceModule } from '../presence/presence.module';
 import { SpecialitiesModule } from '../specialities/specialities.module';
 import { ReviewsModule } from '../reviews/reviews.module';
+import { DoctorTagsModule } from '../doctor-tags/doctor-tags.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { ReviewsModule } from '../reviews/reviews.module';
     PresenceModule,
     SpecialitiesModule,
     ReviewsModule,
+    DoctorTagsModule,
   ],
   controllers: [DoctorsController],
   providers: [DoctorsService],

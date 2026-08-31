@@ -16,6 +16,7 @@ import {
 import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { SpecialitiesService } from '../specialities/specialities.service';
+import { DoctorTagsService } from '../doctor-tags/doctor-tags.service';
 
 /** Money columns arrive from the client as numbers; the entity stores strings. */
 type FeeColumn =
@@ -45,6 +46,7 @@ export class DoctorsService {
     private knowledgeIndexer: KnowledgeIndexerService,
     private presenceGateway: PresenceGateway,
     private specialitiesService: SpecialitiesService,
+    private doctorTagsService: DoctorTagsService,
   ) {}
 
   private withoutBankDetails<T extends Partial<Doctor>>(doctor: T): Omit<
@@ -174,18 +176,7 @@ export class DoctorsService {
         .filter((f) => f.q && f.a);
     }
     if (tags !== undefined) {
-      const list = Array.isArray(tags) ? tags : [];
-      const seen = new Set<string>();
-      safeUpdates.tags = list
-        .map((t) => (typeof t === 'string' ? t.trim().slice(0, 40) : ''))
-        .filter((t) => {
-          if (!t) return false;
-          const key = t.toLowerCase();
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        })
-        .slice(0, 20);
+      safeUpdates.tags = this.doctorTagsService.normalizeTags(tags);
     }
     if (certification_urls !== undefined) {
       const list = Array.isArray(certification_urls) ? certification_urls : [];
@@ -270,6 +261,14 @@ export class DoctorsService {
       safeUpdates.national_id = cleaned || null;
     }
     await this.doctorRepo.update(doctor.id, safeUpdates);
+    if (safeUpdates.tags !== undefined) {
+      const primarySpecialityId =
+        safeUpdates.speciality_id ?? doctor.speciality_id ?? null;
+      await this.doctorTagsService.registerDoctorTags(
+        safeUpdates.tags,
+        primarySpecialityId,
+      );
+    }
     if (nextSpecialities) {
       // Saving the relation rewrites the link rows to exactly this set.
       const withLinks = await this.doctorRepo.findOne({
