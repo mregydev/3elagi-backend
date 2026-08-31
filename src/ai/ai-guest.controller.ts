@@ -7,6 +7,8 @@ type GuestChatBody = {
   message?: string;
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
   locale?: string;
+  attachment?: { data: string; mimeType: string };
+  fileName?: string;
 };
 
 /** Public AI endpoints for logged-out floating widget (capped turns). */
@@ -22,6 +24,8 @@ export class AiGuestController {
       message: body?.message ?? '',
       history: body?.history,
       locale: body?.locale,
+      attachment: body?.attachment,
+      fileName: body?.fileName,
     });
   }
 }

@@ -31,6 +31,7 @@ import type { LlmMessage, LlmMessageAttachment } from './llm/llm.types';
 import {
   resolvePreferredLocale,
   resolveReplyLocale,
+  ATTACHMENT_ONLY_PLACEHOLDER,
   userMessageDisplayContent,
 } from './utils/ai-locale';
 import {
@@ -218,15 +219,25 @@ export class AiChatService {
     message: string;
     history?: Array<{ role: 'user' | 'assistant'; content: string }>;
     locale?: string;
+    attachment?: LlmMessageAttachment;
+    fileName?: string;
   }): Promise<{ content: string; used: number; remaining: number }> {
     const guestId = input.guestId?.trim();
     if (!guestId || guestId.length < 8 || guestId.length > 80) {
       throw new ForbiddenException('Invalid guest session');
     }
-    const message = input.message?.trim() ?? '';
-    if (!message) {
+    const trimmed = input.message?.trim() ?? '';
+    const attachment =
+      input.attachment?.data?.trim() && input.attachment.mimeType?.trim()
+        ? {
+            data: input.attachment.data.trim(),
+            mimeType: input.attachment.mimeType.trim(),
+          }
+        : undefined;
+    if (!trimmed && !attachment) {
       throw new ForbiddenException('Message is required');
     }
+    const message = trimmed || ATTACHMENT_ONLY_PLACEHOLDER;
 
     const used = this.guestMessageCounts.get(guestId) ?? 0;
     if (used >= GUEST_AI_MAX_MESSAGES) {
@@ -287,8 +298,16 @@ export class AiChatService {
       history,
       UserRole.PATIENT,
       replyLocale,
-      false,
+      Boolean(attachment),
     );
+    if (attachment?.data) {
+      for (let i = llmMessages.length - 1; i >= 0; i -= 1) {
+        if (llmMessages[i].role === 'user') {
+          llmMessages[i] = { ...llmMessages[i], attachment };
+          break;
+        }
+      }
+    }
     // Appended to the leading system message, not inserted as a second one:
     // Gemini rejects a system message that is not the first.
     if (llmMessages[0]?.role === 'system') {
