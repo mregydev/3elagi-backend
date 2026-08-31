@@ -1,6 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
+import {
+  doctorTagI18nFor,
+  localizeDoctorTagLabel,
+  normalizeDoctorTagLocale,
+  type DoctorTagLocale,
+} from '../constants/doctor-tag-i18n';
 import {
   normalizeDoctorTagKey,
   normalizeDoctorTagLabel,
@@ -10,8 +16,14 @@ import { DoctorTagCatalog } from '../entities/doctor-tag-catalog.entity';
 export type DoctorTagSuggestion = {
   id: string;
   label: string;
+  label_en: string;
   speciality_id: string | null;
   source: 'speciality' | 'common';
+};
+
+export type ResolvedDoctorTagLabel = {
+  canonical: string;
+  display: string;
 };
 
 @Injectable()
@@ -21,11 +33,32 @@ export class DoctorTagsService {
     private readonly catalogRepo: Repository<DoctorTagCatalog>,
   ) {}
 
+  private pickLocalizedLabel(
+    row: DoctorTagCatalog,
+    locale: DoctorTagLocale,
+  ): string {
+    if (locale === 'ar' && row.label_ar) return row.label_ar;
+    if (locale === 'de' && row.label_de) return row.label_de;
+    if (locale === 'es' && row.label_es) return row.label_es;
+    return row.label;
+  }
+
+  private localizeLabel(
+    canonical: string,
+    row: DoctorTagCatalog | undefined,
+    locale: DoctorTagLocale,
+  ): string {
+    if (row) return this.pickLocalizedLabel(row, locale);
+    return localizeDoctorTagLabel(canonical, locale);
+  }
+
   async listSuggestions(options: {
     specialityIds?: string[];
     q?: string;
     limit?: number;
+    locale?: string;
   }): Promise<DoctorTagSuggestion[]> {
+    const locale = normalizeDoctorTagLocale(options.locale);
     const limit = Math.min(Math.max(options.limit ?? 8, 1), 30);
     const q = (options.q ?? '').trim().toLowerCase();
     const specialityIds = [...new Set((options.specialityIds ?? []).filter(Boolean))];
@@ -33,7 +66,10 @@ export class DoctorTagsService {
 
     const qb = this.catalogRepo.createQueryBuilder('tag');
     if (q) {
-      qb.andWhere('tag.label_normalized LIKE :q', { q: `%${q}%` });
+      qb.andWhere(
+        '(tag.label_normalized LIKE :q OR LOWER(tag.label) LIKE :q OR tag.label_ar LIKE :q OR tag.label_de LIKE :q OR tag.label_es LIKE :q)',
+        { q: `%${q}%` },
+      );
     }
 
     if (specialityIds.length) {
@@ -62,7 +98,8 @@ export class DoctorTagsService {
       seen.add(row.label_normalized);
       results.push({
         id: row.id,
-        label: row.label,
+        label: this.pickLocalizedLabel(row, locale),
+        label_en: row.label,
         speciality_id: row.speciality_id,
         source:
           row.speciality_id && specialitySet.has(row.speciality_id)
@@ -73,6 +110,32 @@ export class DoctorTagsService {
     }
 
     return results;
+  }
+
+  async resolveLabels(
+    labels: string[],
+    localeRaw?: string,
+  ): Promise<ResolvedDoctorTagLabel[]> {
+    const locale = normalizeDoctorTagLocale(localeRaw);
+    const canonicals = labels
+      .map((label) => normalizeDoctorTagLabel(label))
+      .filter(Boolean);
+    if (!canonicals.length) return [];
+
+    const keys = canonicals.map((label) => normalizeDoctorTagKey(label));
+    const rows = await this.catalogRepo.find({
+      where: { label_normalized: In(keys) },
+    });
+    const byKey = new Map(rows.map((row) => [row.label_normalized, row]));
+
+    return canonicals.map((canonical) => ({
+      canonical,
+      display: this.localizeLabel(
+        canonical,
+        byKey.get(normalizeDoctorTagKey(canonical)),
+        locale,
+      ),
+    }));
   }
 
   /** Persist doctor-chosen tags into the shared catalog for future autocomplete. */
@@ -91,10 +154,14 @@ export class DoctorTagsService {
       });
       if (existing) continue;
 
+      const i18n = doctorTagI18nFor(label);
       await this.catalogRepo.save(
         this.catalogRepo.create({
           label,
           label_normalized: labelNormalized,
+          label_ar: i18n?.ar ?? null,
+          label_de: i18n?.de ?? null,
+          label_es: i18n?.es ?? null,
           speciality_id: specId,
           is_seeded: false,
         }),

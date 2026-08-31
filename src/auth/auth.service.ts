@@ -16,6 +16,7 @@ import { Clinic } from '../entities/clinic.entity';
 import { Doctor } from '../entities/doctor.entity';
 import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
+import { RefreshToken } from '../entities/refresh-token.entity';
 import { LoginDto } from './dto/login.dto';
 import { RegisterClinicDto } from './dto/register-clinic.dto';
 import { RegisterDoctorDto } from './dto/register-doctor.dto';
@@ -31,6 +32,10 @@ import { clampConsultationPrice } from '../points/message-price.constants';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { SpecialitiesService } from '../specialities/specialities.service';
 import { MailService } from '../mail/mail.service';
+import {
+  REFRESH_TOKEN_TTL_MS,
+  type AuthClientKind,
+} from './auth-cookies';
 
 const VERIFICATION_TTL_MS = 15 * 60 * 1000;
 const RESET_TTL_MS = 60 * 60 * 1000;
@@ -45,6 +50,8 @@ export class AuthService {
     private specialityRepo: Repository<DoctorSpeciality>,
     @InjectRepository(PatientProfile)
     private patientProfileRepo: Repository<PatientProfile>,
+    @InjectRepository(RefreshToken)
+    private refreshTokenRepo: Repository<RefreshToken>,
     private jwtService: JwtService,
     private presenceGateway: PresenceGateway,
     private specialitiesService: SpecialitiesService,
@@ -84,10 +91,7 @@ export class AuthService {
     return code;
   }
 
-  private async buildAuthResponse(user: User) {
-    const payload = { sub: user.id, email: user.email, role: user.role };
-    const token = this.jwtService.sign(payload);
-
+  private async buildSessionPayload(user: User) {
     let profile: Clinic | Doctor | PatientProfile | null = null;
     if (user.role === UserRole.CLINIC_ADMIN) {
       profile = await this.clinicRepo.findOne({ where: { owner_id: user.id } });
@@ -103,13 +107,112 @@ export class AuthService {
     }
 
     return {
-      access_token: token,
       role: user.role,
       user_id: user.id,
       profile,
       preferred_locale: user.preferred_locale,
       email_verified: this.isEmailVerified(user),
     };
+  }
+
+  private async issueTokenPair(user: User) {
+    const payload = { sub: user.id, email: user.email, role: user.role };
+    const accessToken = this.jwtService.sign(payload, { expiresIn: '1d' });
+    const refreshToken = randomBytes(48).toString('hex');
+    await this.refreshTokenRepo.save(
+      this.refreshTokenRepo.create({
+        user_id: user.id,
+        token_hash: this.hashToken(refreshToken),
+        expires_at: new Date(Date.now() + REFRESH_TOKEN_TTL_MS),
+        revoked_at: null,
+      }),
+    );
+    return { accessToken, refreshToken };
+  }
+
+  private attachNativeTokens<T extends Record<string, unknown>>(
+    payload: T,
+    tokens: { accessToken: string; refreshToken: string },
+    client: AuthClientKind,
+  ) {
+    if (client !== 'native') return payload;
+    return {
+      ...payload,
+      access_token: tokens.accessToken,
+      refresh_token: tokens.refreshToken,
+    };
+  }
+
+  async authenticateUser(user: User, client: AuthClientKind = 'web') {
+    const session = await this.buildSessionPayload(user);
+    const tokens = await this.issueTokenPair(user);
+    return {
+      tokens,
+      body: this.attachNativeTokens(session, tokens, client),
+    };
+  }
+
+  async refreshSession(
+    refreshTokenRaw: string | undefined,
+    client: AuthClientKind = 'web',
+  ) {
+    const raw = (refreshTokenRaw ?? '').trim();
+    if (!raw) throw new UnauthorizedException('Refresh token required');
+
+    const row = await this.refreshTokenRepo.findOne({
+      where: { token_hash: this.hashToken(raw) },
+    });
+    if (
+      !row ||
+      row.revoked_at ||
+      row.expires_at.getTime() < Date.now()
+    ) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    row.revoked_at = new Date();
+    await this.refreshTokenRepo.save(row);
+
+    const user = await this.userRepo.findOne({ where: { id: row.user_id } });
+    if (!user) throw new UnauthorizedException('Invalid refresh token');
+
+    const session = await this.buildSessionPayload(user);
+    const tokens = await this.issueTokenPair(user);
+    return {
+      body: this.attachNativeTokens(session, tokens, client),
+      tokens,
+    };
+  }
+
+  async logout(refreshTokenRaw: string | undefined): Promise<void> {
+    const raw = (refreshTokenRaw ?? '').trim();
+    if (!raw) return;
+    const row = await this.refreshTokenRepo.findOne({
+      where: { token_hash: this.hashToken(raw) },
+    });
+    if (!row || row.revoked_at) return;
+    row.revoked_at = new Date();
+    await this.refreshTokenRepo.save(row);
+  }
+
+  /** Returns a short-lived access token for WebSocket clients that cannot send cookies. */
+  async accessTokenForWebSocket(accessTokenFromCookie: string | undefined) {
+    const raw = (accessTokenFromCookie ?? '').trim();
+    if (!raw) throw new UnauthorizedException('Not authenticated');
+    try {
+      const payload = this.jwtService.verify(raw) as {
+        sub: string;
+        email: string;
+        role: string;
+      };
+      return {
+        access_token: raw,
+        user_id: payload.sub,
+        role: payload.role,
+      };
+    } catch {
+      throw new UnauthorizedException('Not authenticated');
+    }
   }
 
   private appWebUrl(): string {
@@ -119,7 +222,7 @@ export class AuthService {
     );
   }
 
-  async login(dto: LoginDto) {
+  async login(dto: LoginDto, client: AuthClientKind = 'web') {
     const email = this.normalizeEmail(dto.email);
     const user = await this.userRepo.findOne({ where: { email } });
     if (!user) throw new UnauthorizedException('Invalid credentials');
@@ -127,7 +230,7 @@ export class AuthService {
     const valid = await bcrypt.compare(dto.password, user.password_hash);
     if (!valid) throw new UnauthorizedException('Invalid credentials');
 
-    return this.buildAuthResponse(user);
+    return this.authenticateUser(user, client);
   }
 
   /**
@@ -139,13 +242,14 @@ export class AuthService {
   async signInWithGoogle(
     identity: GoogleIdentity,
     consent?: { medicalRecordsStorage?: boolean },
+    client: AuthClientKind = 'web',
   ) {
     if (!identity.emailVerified) {
       throw new UnauthorizedException('Google account email is not verified');
     }
     const email = this.normalizeEmail(identity.email);
     const existing = await this.userRepo.findOne({ where: { email } });
-    if (existing) return this.buildAuthResponse(existing);
+    if (existing) return this.authenticateUser(existing, client);
 
     // Unknown email: never sign in, and never create an account as a side
     // effect of a *login*. Only the signup flow — which sends the GDPR consent
@@ -184,7 +288,7 @@ export class AuthService {
     });
     await this.patientProfileRepo.save(profile);
 
-    return this.buildAuthResponse(user);
+    return this.authenticateUser(user, client);
   }
 
   async changePassword(
@@ -204,7 +308,7 @@ export class AuthService {
     return { ok: true };
   }
 
-  async registerPatient(dto: RegisterPatientDto) {
+  async registerPatient(dto: RegisterPatientDto, client: AuthClientKind = 'web') {
     const email = this.normalizeEmail(dto.email);
     const existing = await this.userRepo.findOne({ where: { email } });
     if (existing) throw new ConflictException('Email already in use');
@@ -238,10 +342,10 @@ export class AuthService {
     });
     await this.patientProfileRepo.save(profile);
 
-    return this.buildAuthResponse(user);
+    return this.authenticateUser(user, client);
   }
 
-  async registerClinic(dto: RegisterClinicDto) {
+  async registerClinic(dto: RegisterClinicDto, client: AuthClientKind = 'web') {
     const email = this.normalizeEmail(dto.email);
     const existing = await this.userRepo.findOne({ where: { email } });
     if (existing) throw new ConflictException('Email already in use');
@@ -266,10 +370,10 @@ export class AuthService {
     });
     await this.clinicRepo.save(clinic);
 
-    return this.buildAuthResponse(user);
+    return this.authenticateUser(user, client);
   }
 
-  async registerDoctor(dto: RegisterDoctorDto) {
+  async registerDoctor(dto: RegisterDoctorDto, client: AuthClientKind = 'web') {
     const email = this.normalizeEmail(dto.email);
     const existing = await this.userRepo.findOne({ where: { email } });
     if (existing) throw new ConflictException('Email already in use');
@@ -347,17 +451,17 @@ export class AuthService {
 
     void this.broadcastDoctorListed(doctor.id);
 
-    return this.buildAuthResponse(user);
+    return this.authenticateUser(user, client);
   }
 
-  async verifyEmail(dto: VerifyEmailDto) {
+  async verifyEmail(dto: VerifyEmailDto, client: AuthClientKind = 'web') {
     const email = this.normalizeEmail(dto.email);
     const user = await this.userRepo.findOne({ where: { email } });
     if (!user) {
       throw new BadRequestException('Invalid verification code');
     }
     if (this.isEmailVerified(user)) {
-      return this.buildAuthResponse(user);
+      return this.authenticateUser(user, client);
     }
     if (
       !user.email_verification_code_hash ||
@@ -375,7 +479,7 @@ export class AuthService {
     user.email_verification_code_hash = null;
     user.email_verification_expires_at = null;
     await this.userRepo.save(user);
-    return this.buildAuthResponse(user);
+    return this.authenticateUser(user, client);
   }
 
   async resendVerification(dto: ResendVerificationDto) {

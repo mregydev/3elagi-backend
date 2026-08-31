@@ -165,11 +165,14 @@ import { DoctorRegistrationRequests1778610000000 } from './migrations/1778610000
 import { DoctorRegistrationRequestCountry1778620000000 } from './migrations/1778620000000-DoctorRegistrationRequestCountry';
 import { AppReviews1778630000000 } from './migrations/1778630000000-AppReviews';
 import { DoctorTagCatalog1778640000000 } from './migrations/1778640000000-DoctorTagCatalog';
+import { DoctorTagCatalogI18n1778650000000 } from './migrations/1778650000000-DoctorTagCatalogI18n';
+import { RefreshTokens1778660000000 } from './migrations/1778660000000-RefreshTokens';
 import { UserNotification } from './entities/user-notification.entity';
 import { ContactSubmission } from './entities/contact-submission.entity';
 import { DoctorRegistrationRequest } from './entities/doctor-registration-request.entity';
 import { AppReview } from './entities/app-review.entity';
 import { DoctorTagCatalog } from './entities/doctor-tag-catalog.entity';
+import { RefreshToken } from './entities/refresh-token.entity';
 import { NotificationsModule } from './notifications/notifications.module';
 import { MedicalDocumentRequestsModule } from './medical-document-requests/medical-document-requests.module';
 
@@ -223,6 +226,7 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
           DoctorRegistrationRequest,
           AppReview,
           DoctorTagCatalog,
+          RefreshToken,
         ],
         synchronize: false,
         migrations: [
@@ -314,6 +318,8 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
           DoctorRegistrationRequestCountry1778620000000,
           AppReviews1778630000000,
           DoctorTagCatalog1778640000000,
+          DoctorTagCatalogI18n1778650000000,
+          RefreshTokens1778660000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',

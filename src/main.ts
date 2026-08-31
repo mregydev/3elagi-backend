@@ -1,9 +1,12 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { json, urlencoded } from 'express';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { RedisIoAdapter } from './presence/redis-io.adapter';
+import { corsOrigins } from './auth/auth-cookies';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
@@ -22,15 +25,17 @@ async function bootstrap() {
 
   app.use(json({ limit: '12mb' }));
   app.use(urlencoded({ extended: true, limit: '12mb' }));
+  app.use(cookieParser());
 
   app.setGlobalPrefix('3eyadahub-api');
 
+  const config = app.get(ConfigService);
   app.enableCors({
-    origin: '*',
+    origin: corsOrigins(config),
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
-    allowedHeaders: '*',
-    exposedHeaders: '*',
-    credentials: false,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Auth-Client'],
+    exposedHeaders: ['Set-Cookie'],
+    credentials: true,
   });
 
   app.useGlobalPipes(

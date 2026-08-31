@@ -11,6 +11,7 @@ import { Clinic } from '../entities/clinic.entity';
 import { Doctor } from '../entities/doctor.entity';
 import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
+import { RefreshToken } from '../entities/refresh-token.entity';
 import { PresenceModule } from '../presence/presence.module';
 import { SpecialitiesModule } from '../specialities/specialities.module';
 import { MailModule } from '../mail/mail.module';
@@ -18,7 +19,14 @@ import { GoogleOAuthService } from './google-oauth.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Clinic, Doctor, DoctorSpeciality, PatientProfile]),
+    TypeOrmModule.forFeature([
+      User,
+      Clinic,
+      Doctor,
+      DoctorSpeciality,
+      PatientProfile,
+      RefreshToken,
+    ]),
     PresenceModule,
     SpecialitiesModule,
     MailModule,
@@ -27,7 +35,7 @@ import { GoogleOAuthService } from './google-oauth.service';
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
         secret: configService.getOrThrow<string>('JWT_SECRET'),
-        signOptions: { expiresIn: '30d' },
+        signOptions: { expiresIn: '1d' },
       }),
       inject: [ConfigService],
     }),

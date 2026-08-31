@@ -19,6 +19,15 @@ export class DoctorTagCatalog {
   @Column({ length: 40, unique: true })
   label_normalized: string;
 
+  @Column({ length: 40, nullable: true })
+  label_ar: string | null;
+
+  @Column({ length: 40, nullable: true })
+  label_de: string | null;
+
+  @Column({ length: 40, nullable: true })
+  label_es: string | null;
+
   @Column({ type: 'uuid', nullable: true })
   speciality_id: string | null;
 
