@@ -27,5 +27,7 @@ export interface DoctorRosterPayload {
   immediate_call_enabled?: boolean;
   /** Doctor's call line is occupied right now. */
   on_call?: boolean;
+  /** Profile tags (canonical English labels). */
+  tags?: string[];
   role: 'doctor';
 }

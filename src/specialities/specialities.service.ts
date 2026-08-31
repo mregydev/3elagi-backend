@@ -221,6 +221,7 @@ export class SpecialitiesService {
       rating_total: rating?.total ?? 0,
       immediate_call_enabled: !!d.immediate_call_enabled,
       on_call: onCall,
+      tags: Array.isArray(d.tags) ? d.tags : [],
       role: UserRole.DOCTOR,
     };
   }

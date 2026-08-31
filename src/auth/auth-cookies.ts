@@ -55,14 +55,22 @@ export function clearAuthCookies(res: Response, config: ConfigService): void {
   });
 }
 
-export function corsOrigins(config: ConfigService): string[] | boolean {
+const DEV_CORS_ORIGINS = [
+  'https://development.3elagi.net',
+  'http://development.3elagi.net',
+  'http://localhost:8081',
+  'http://127.0.0.1:8081',
+];
+
+export function corsOrigins(config: ConfigService): string[] {
+  const allowed = new Set(DEV_CORS_ORIGINS);
+
   const raw = config.get<string>('CORS_ORIGINS')?.trim();
   if (raw) {
-    return raw
-      .split(',')
-      .map((origin) => origin.trim())
-      .filter(Boolean);
+    for (const origin of raw.split(',').map((o) => o.trim()).filter(Boolean)) {
+      allowed.add(origin.replace(/\/$/, ''));
+    }
   }
-  const web = config.get<string>('APP_WEB_URL')?.trim();
-  return web ? [web.replace(/\/$/, '')] : true;
+
+  return [...allowed];
 }
