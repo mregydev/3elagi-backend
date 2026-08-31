@@ -14,7 +14,7 @@ const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const MARKDOWN_LINK_RE =
-  /\[([^\]]+)\]\((\/(?:medical|doctor)\/[0-9a-f-]+)\)/gi;
+  /\[([^\]]+)\]\((\/(?:medical|doctor)\/[0-9a-fA-F-]+)\)/gi;
 
 @Injectable()
 export class AiLinkValidatorService {
@@ -65,7 +65,7 @@ export class AiLinkValidatorService {
 
   private normalizePath(path: string): string {
     const trimmed = path.trim().split('?')[0].split('#')[0];
-    const match = trimmed.match(/^(\/(?:medical|doctor)\/[0-9a-f-]+)/i);
+    const match = trimmed.match(/^(\/(?:medical|doctor)\/[0-9a-fA-F-]+)/i);
     return match?.[1] ?? trimmed;
   }
 
@@ -177,7 +177,7 @@ export class AiLinkValidatorService {
     patientIds: string[],
     cache: Map<string, string | null>,
   ): Promise<string> {
-    const barePathRe = /(^|[\s(])(\/(?:medical|doctor)\/[0-9a-f-]+)/gi;
+    const barePathRe = /(^|[\s(])(\/(?:medical|doctor)\/[0-9a-fA-F-]+)/gi;
     let next = text;
 
     for (const match of text.matchAll(barePathRe)) {

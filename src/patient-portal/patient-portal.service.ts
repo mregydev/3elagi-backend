@@ -138,10 +138,16 @@ export class PatientPortalService {
   }
 
   async getDoctor(id: string) {
-    const doctor = await this.doctorRepo.findOne({
+    let doctor = await this.doctorRepo.findOne({
       where: { id },
       relations: ['speciality'],
     });
+    if (!doctor) {
+      doctor = await this.doctorRepo.findOne({
+        where: { user_id: id },
+        relations: ['speciality'],
+      });
+    }
     if (!doctor) throw new NotFoundException('Doctor not found');
     if (doctor.approval_status !== 'approved') {
       throw new NotFoundException('Doctor not found');
