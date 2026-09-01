@@ -7,6 +7,7 @@ import {
   Req,
   Request,
   Res,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -191,12 +192,28 @@ export class AuthController {
     return { ok: true };
   }
 
-  @Get('access-token')
   @Public()
-  accessToken(@Req() req: ExpressRequest) {
-    return this.authService.accessTokenForWebSocket(
-      req.cookies?.[ACCESS_TOKEN_COOKIE],
-    );
+  @Get('access-token')
+  async accessToken(
+    @Req() req: ExpressRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const accessCookie = req.cookies?.[ACCESS_TOKEN_COOKIE];
+    try {
+      return await this.authService.accessTokenForWebSocket(accessCookie);
+    } catch {
+      const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE];
+      if (!refreshToken) {
+        throw new UnauthorizedException('Not authenticated');
+      }
+      const result = await this.authService.refreshSession(refreshToken, 'web');
+      setAuthCookies(res, this.config, result.tokens);
+      return {
+        access_token: result.tokens.accessToken,
+        user_id: result.body.user_id,
+        role: result.body.role,
+      };
+    }
   }
 
   @Post('change-password')
