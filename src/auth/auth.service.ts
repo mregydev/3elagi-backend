@@ -130,12 +130,10 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  private attachNativeTokens<T extends Record<string, unknown>>(
+  private attachSessionTokens<T extends Record<string, unknown>>(
     payload: T,
     tokens: { accessToken: string; refreshToken: string },
-    client: AuthClientKind,
   ) {
-    if (client !== 'native') return payload;
     return {
       ...payload,
       access_token: tokens.accessToken,
@@ -148,7 +146,7 @@ export class AuthService {
     const tokens = await this.issueTokenPair(user);
     return {
       tokens,
-      body: this.attachNativeTokens(session, tokens, client),
+      body: this.attachSessionTokens(session, tokens),
     };
   }
 
@@ -179,7 +177,7 @@ export class AuthService {
     const session = await this.buildSessionPayload(user);
     const tokens = await this.issueTokenPair(user);
     return {
-      body: this.attachNativeTokens(session, tokens, client),
+      body: this.attachSessionTokens(session, tokens),
       tokens,
     };
   }
