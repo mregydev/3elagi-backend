@@ -26,6 +26,7 @@ import type { SendMarketingEmailBatchDto } from './dto/send-marketing-email-batc
 import {
   buildMarketingEmailHtml,
   getMarketingTemplatePreview,
+  marketingEmailLogoAttachments,
 } from '../mail/marketing-email.template';
 import { resolveMarketingEmailTheme } from '../mail/marketing-email-themes';
 
@@ -315,7 +316,7 @@ export class AdminService {
       subject,
       text,
       html,
-      attachments: [],
+      attachments: marketingEmailLogoAttachments(),
     });
 
     return {

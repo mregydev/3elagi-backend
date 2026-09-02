@@ -197,8 +197,10 @@ export class MailService {
     html: string;
     attachments: Array<{
       filename: string;
-      path: string;
+      path?: string;
+      content?: Buffer;
       cid: string;
+      contentType?: string;
     }>;
   }): Promise<void> {
     await this.sendMail({

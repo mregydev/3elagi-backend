@@ -5,6 +5,8 @@ import {
   rethemeMarketingBodyHtml,
   type MarketingEmailTheme,
 } from './marketing-email-themes';
+import { existsSync, readFileSync } from 'fs';
+import { join } from 'path';
 import {
   MARKETING_SCREENSHOT_URLS,
   type MarketingScreenshotKey,
@@ -14,6 +16,39 @@ const REGISTER_URL = 'https://development.3elagi.net/register-with-us';
 
 function themeColors(theme?: MarketingEmailTheme) {
   return MARKETING_THEME_COLORS[resolveMarketingEmailTheme(theme)];
+}
+
+function marketingHeaderLogoHtml(): string {
+  return `<img src="cid:${MARKETING_LOGO_CID}" alt="3elagi" width="200" height="50" style="display:block;margin:0 auto;border:0;max-width:100%;height:auto;" />`;
+}
+
+const MARKETING_LOGO_CID = '3elagi-logo@3elagi';
+
+export function marketingEmailLogoAttachment(): {
+  filename: string;
+  content: Buffer;
+  cid: string;
+  contentType: string;
+} | null {
+  const path = join(__dirname, 'assets', 'marketing', 'logo-white.svg');
+  if (!existsSync(path)) return null;
+  return {
+    filename: 'logo-white.svg',
+    content: readFileSync(path),
+    cid: MARKETING_LOGO_CID,
+    contentType: 'image/svg+xml',
+  };
+}
+
+/** Prefer embedded CID (always available in Docker); remote URL is the img default for clients that load external images. */
+export function marketingEmailLogoAttachments(): Array<{
+  filename: string;
+  content: Buffer;
+  cid: string;
+  contentType: string;
+}> {
+  const logo = marketingEmailLogoAttachment();
+  return logo ? [logo] : [];
 }
 
 export const MARKETING_SCREENSHOT_FILES = [
@@ -458,8 +493,8 @@ export function buildMarketingEmailHtml(
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(15,23,42,0.08);">
           <tr>
             <td style="background:linear-gradient(135deg,${BRAND} 0%,${BRAND_GRADIENT_END} 100%);padding:28px 32px;text-align:center;">
-              <div style="font-size:32px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">3elagi</div>
-              <div style="font-size:13px;color:rgba(255,255,255,0.9);margin-top:6px;">${copy.signatureTagline}</div>
+              ${marketingHeaderLogoHtml()}
+              <div style="font-size:13px;color:rgba(255,255,255,0.9);margin-top:10px;">${copy.signatureTagline}</div>
             </td>
           </tr>
           <tr>

@@ -54,6 +54,7 @@ const files = [
   'xray-detail.png',
   'skeleton-view.png',
   'ai-assistant.png',
+  'logo-white.svg',
 ];
 
 const s3 = new S3Client({
@@ -67,12 +68,13 @@ for (const file of files) {
   const localPath = join(assetsDir, file);
   const key = `static/marketing/${file}`;
   const body = readFileSync(localPath);
+  const contentType = file.endsWith('.svg') ? 'image/svg+xml' : 'image/png';
   await s3.send(
     new PutObjectCommand({
       Bucket: bucket,
       Key: key,
       Body: body,
-      ContentType: 'image/png',
+      ContentType: contentType,
       CacheControl: 'public, max-age=31536000, immutable',
     }),
   );
