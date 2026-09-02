@@ -34,6 +34,7 @@ import {
   marketingEmailLogoAttachments,
 } from '../mail/marketing-email.template';
 import { resolveMarketingEmailTheme } from '../mail/marketing-email-themes';
+import { DoctorOnboardingService } from '../doctor-onboarding/doctor-onboarding.service';
 
 const APPROVAL_VALUES: ApprovalStatus[] = ['pending', 'approved', 'rejected'];
 
@@ -87,6 +88,7 @@ export class AdminService {
     private specialitiesService: SpecialitiesService,
     private uploadsService: UploadsService,
     private mailService: MailService,
+    private doctorOnboarding: DoctorOnboardingService,
   ) {}
 
   // ----- Specialities (market visibility) -----
@@ -151,6 +153,7 @@ export class AdminService {
       void this.specialitiesService.buildDoctorRosterPayload(id).then((payload) => {
         if (payload) this.presenceGateway.broadcastDoctorRegistered(payload);
       });
+      void this.doctorOnboarding.setupDoctorOnboarding(id).catch(() => undefined);
     }
     return this.doctorRepo.findOne({ where: { id } });
   }

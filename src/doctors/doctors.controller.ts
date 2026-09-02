@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Patch,
+  Post,
   Delete,
   Param,
   Body,
@@ -10,6 +11,7 @@ import {
   Request,
 } from '@nestjs/common';
 import { DoctorsService } from './doctors.service';
+import { DoctorOnboardingService } from '../doctor-onboarding/doctor-onboarding.service';
 import { ReviewsService } from '../reviews/reviews.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -22,6 +24,7 @@ export class DoctorsController {
   constructor(
     private readonly doctorsService: DoctorsService,
     private readonly reviewsService: ReviewsService,
+    private readonly doctorOnboarding: DoctorOnboardingService,
   ) {}
 
   @Get('clinic/:clinicId')
@@ -51,6 +54,21 @@ export class DoctorsController {
   @Get(':id')
   findById(@Param('id') id: string, @Request() req) {
     return this.doctorsService.findById(id, req.user.id, req.user.role);
+  }
+
+  @Patch('me/tours')
+  @Roles('doctor')
+  completeTour(
+    @Body() body: { kind: 'product' | 'profile' },
+    @Request() req,
+  ) {
+    return this.doctorOnboarding.markTourComplete(req.user.id, body.kind);
+  }
+
+  @Post('me/onboarding')
+  @Roles('doctor')
+  ensureOnboarding(@Request() req) {
+    return this.doctorsService.ensureOnboarding(req.user.id);
   }
 
   @Patch('me')

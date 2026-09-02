@@ -17,6 +17,7 @@ import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { SpecialitiesService } from '../specialities/specialities.service';
 import { DoctorTagsService } from '../doctor-tags/doctor-tags.service';
+import { DoctorOnboardingService } from '../doctor-onboarding/doctor-onboarding.service';
 
 /** Money columns arrive from the client as numbers; the entity stores strings. */
 type FeeColumn =
@@ -47,6 +48,7 @@ export class DoctorsService {
     private presenceGateway: PresenceGateway,
     private specialitiesService: SpecialitiesService,
     private doctorTagsService: DoctorTagsService,
+    private doctorOnboarding: DoctorOnboardingService,
   ) {}
 
   private withoutBankDetails<T extends Partial<Doctor>>(doctor: T): Omit<
@@ -98,7 +100,18 @@ export class DoctorsService {
       speciality_name_ar: doctor.speciality?.name_ar ?? null,
       // Primary first, so a client showing only one still shows the right one.
       speciality_ids: sortPrimaryFirst(doctor),
+      onboarding_test_patient_user_id: doctor.onboarding_test_patient_user_id ?? null,
+      product_tour_completed_at: doctor.product_tour_completed_at ?? null,
+      profile_tour_completed_at: doctor.profile_tour_completed_at ?? null,
     };
+  }
+
+  async ensureOnboarding(userId: string) {
+    const doctor = await this.doctorRepo.findOne({ where: { user_id: userId } });
+    if (!doctor || doctor.approval_status !== 'approved') {
+      return { test_patient_user_id: null };
+    }
+    return this.doctorOnboarding.setupDoctorOnboarding(doctor.id);
   }
 
   async removeFromClinic(doctorId: string, clinicId: string) {

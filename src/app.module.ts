@@ -58,6 +58,7 @@ import { AppReviewsModule } from './app-reviews/app-reviews.module';
 import { DoctorTagsModule } from './doctor-tags/doctor-tags.module';
 import { ClinicsModule } from './clinics/clinics.module';
 import { DoctorsModule } from './doctors/doctors.module';
+import { DoctorOnboardingModule } from './doctor-onboarding/doctor-onboarding.module';
 import { JoinRequestsModule } from './join-requests/join-requests.module';
 import { PatientsModule } from './patients/patients.module';
 import { AppointmentsModule } from './appointments/appointments.module';
@@ -167,6 +168,10 @@ import { AppReviews1778630000000 } from './migrations/1778630000000-AppReviews';
 import { DoctorTagCatalog1778640000000 } from './migrations/1778640000000-DoctorTagCatalog';
 import { DoctorTagCatalogI18n1778650000000 } from './migrations/1778650000000-DoctorTagCatalogI18n';
 import { RefreshTokens1778660000000 } from './migrations/1778660000000-RefreshTokens';
+import { EntSpeciality1778670000000 } from './migrations/1778670000000-EntSpeciality';
+import { DoctorProductTour1778680000000 } from './migrations/1778680000000-DoctorProductTour';
+import { SpecialtyTestAccounts1778690000000 } from './migrations/1778690000000-SpecialtyTestAccounts';
+import { SpecialtyTestAccount } from './entities/specialty-test-account.entity';
 import { UserNotification } from './entities/user-notification.entity';
 import { ContactSubmission } from './entities/contact-submission.entity';
 import { DoctorRegistrationRequest } from './entities/doctor-registration-request.entity';
@@ -227,6 +232,7 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
           AppReview,
           DoctorTagCatalog,
           RefreshToken,
+          SpecialtyTestAccount,
         ],
         synchronize: false,
         migrations: [
@@ -320,6 +326,9 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
           DoctorTagCatalog1778640000000,
           DoctorTagCatalogI18n1778650000000,
           RefreshTokens1778660000000,
+          EntSpeciality1778670000000,
+          DoctorProductTour1778680000000,
+          SpecialtyTestAccounts1778690000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
@@ -337,6 +346,7 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
     DoctorTagsModule,
     ClinicsModule,
     DoctorsModule,
+    DoctorOnboardingModule,
     JoinRequestsModule,
     PatientsModule,
     AppointmentsModule,

@@ -10,6 +10,7 @@ import { PresenceModule } from '../presence/presence.module';
 import { SpecialitiesModule } from '../specialities/specialities.module';
 import { ReviewsModule } from '../reviews/reviews.module';
 import { DoctorTagsModule } from '../doctor-tags/doctor-tags.module';
+import { DoctorOnboardingModule } from '../doctor-onboarding/doctor-onboarding.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { DoctorTagsModule } from '../doctor-tags/doctor-tags.module';
     SpecialitiesModule,
     ReviewsModule,
     DoctorTagsModule,
+    DoctorOnboardingModule,
   ],
   controllers: [DoctorsController],
   providers: [DoctorsService],

@@ -167,4 +167,16 @@ export class Doctor {
 
   @UpdateDateColumn()
   updated_at: Date;
+
+  /** Set when the doctor finishes the main product walkthrough. */
+  @Column({ type: 'timestamptz', nullable: true })
+  product_tour_completed_at: Date | null;
+
+  /** Set when the doctor finishes the profile / pricing walkthrough. */
+  @Column({ type: 'timestamptz', nullable: true })
+  profile_tour_completed_at: Date | null;
+
+  /** Linked specialty test patient for the onboarding tour. */
+  @Column({ type: 'uuid', nullable: true })
+  onboarding_test_patient_user_id: string | null;
 }

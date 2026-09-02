@@ -21,6 +21,7 @@ import { ContactModule } from '../contact/contact.module';
 import { DoctorRegistrationRequestsModule } from '../doctor-registration-requests/doctor-registration-requests.module';
 import { AppReviewsModule } from '../app-reviews/app-reviews.module';
 import { MailModule } from '../mail/mail.module';
+import { DoctorOnboardingModule } from '../doctor-onboarding/doctor-onboarding.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { MailModule } from '../mail/mail.module';
     DoctorRegistrationRequestsModule,
     AppReviewsModule,
     MailModule,
+    DoctorOnboardingModule,
   ],
   controllers: [AdminController],
   providers: [AdminService],

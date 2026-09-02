@@ -62,6 +62,10 @@ export class PatientProfile {
   @Column({ type: 'timestamp', nullable: true })
   medical_records_storage_consent_at: Date | null;
 
+  /** System-owned demo patient for a speciality onboarding tour. */
+  @Column({ type: 'boolean', default: false })
+  is_specialty_test_account: boolean;
+
   @CreateDateColumn()
   created_at: Date;
 
