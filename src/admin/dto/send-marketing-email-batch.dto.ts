@@ -16,6 +16,7 @@ import {
   type MarketingEmailLanguage,
   type MarketingEmailTheme,
 } from './send-marketing-email.dto';
+import { MarketingEmailSectionDto } from './marketing-email-section.dto';
 
 export class MarketingEmailRecipientDto {
   @IsEmail()
@@ -41,6 +42,11 @@ export class SendMarketingEmailBatchDto {
   @IsString()
   @MaxLength(100_000)
   bodyHtml?: string;
+
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => MarketingEmailSectionDto)
+  sections?: MarketingEmailSectionDto[];
 
   @IsOptional()
   @IsIn(MARKETING_EMAIL_THEMES)

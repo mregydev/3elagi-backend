@@ -24,6 +24,11 @@ import { MailService } from '../mail/mail.service';
 import type { SendMarketingEmailDto } from './dto/send-marketing-email.dto';
 import type { SendMarketingEmailBatchDto } from './dto/send-marketing-email-batch.dto';
 import {
+  compileMarketingSections,
+  getDefaultMarketingSections,
+} from '../mail/marketing-email-sections';
+import type { MarketingEmailSection } from '../mail/marketing-email-sections';
+import {
   buildMarketingEmailHtml,
   getMarketingTemplatePreview,
   marketingEmailLogoAttachments,
@@ -232,8 +237,9 @@ export class AdminService {
   }
 
   async sendMarketingEmailBatch(dto: SendMarketingEmailBatchDto) {
-    const trimmedBody = dto.bodyHtml?.trim();
-    if (!trimmedBody) {
+    const themeColor = resolveMarketingEmailTheme(dto.themeColor);
+    const bodyHtml = this.resolveMarketingBodyHtml(dto, themeColor);
+    if (!bodyHtml) {
       throw new BadRequestException('Email body cannot be empty');
     }
 
@@ -251,7 +257,6 @@ export class AdminService {
       throw new BadRequestException('At least one valid recipient is required');
     }
 
-    const themeColor = resolveMarketingEmailTheme(dto.themeColor);
     const results: Array<{
       email: string;
       name: string;
@@ -265,7 +270,8 @@ export class AdminService {
           name: recipient.name,
           email: recipient.email,
           language: dto.language,
-          bodyHtml: trimmedBody,
+          bodyHtml,
+          sections: dto.sections as MarketingEmailSection[] | undefined,
           themeColor,
         });
         results.push({
@@ -297,11 +303,36 @@ export class AdminService {
     };
   }
 
+  private resolveMarketingBodyHtml(
+    dto: {
+      language: SendMarketingEmailDto['language'];
+      bodyHtml?: string;
+      sections?: MarketingEmailSection[];
+    },
+    themeColor: ReturnType<typeof resolveMarketingEmailTheme>,
+  ): string {
+    if (dto.sections?.length) {
+      return compileMarketingSections(
+        dto.sections,
+        dto.language,
+        themeColor,
+      ).trim();
+    }
+    const trimmed = dto.bodyHtml?.trim();
+    if (trimmed) return trimmed;
+    return compileMarketingSections(
+      getDefaultMarketingSections(dto.language),
+      dto.language,
+      themeColor,
+    ).trim();
+  }
+
   private async sendOneMarketingEmail(input: {
     name: string;
     email: string;
     language: SendMarketingEmailDto['language'];
     bodyHtml?: string;
+    sections?: MarketingEmailSection[];
     themeColor?: SendMarketingEmailDto['themeColor'];
   }) {
     const { subject, html, text } = buildMarketingEmailHtml(
@@ -309,6 +340,7 @@ export class AdminService {
       input.name,
       input.bodyHtml,
       input.themeColor,
+      input.sections,
     );
     await this.mailService.sendDoctorMarketingInvite({
       to: input.email,

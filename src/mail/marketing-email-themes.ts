@@ -18,12 +18,12 @@ export const MARKETING_THEME_COLORS: Record<
   MarketingEmailThemeColors
 > = {
   blue: {
-    brand: '#3057F2',
+    brand: '#3057f2',
     gradientEnd: '#38BDF8',
-    brandDark: '#2546C4',
-    tint: '#E8EFFE',
-    tintSoft: '#F0F5FF',
-    highlightBorder: '#C7D7FE',
+    brandDark: '#2546c4',
+    tint: '#e8effe',
+    tintSoft: '#eef2f8',
+    highlightBorder: '#c7d7fe',
   },
   green: {
     brand: '#0F766E',

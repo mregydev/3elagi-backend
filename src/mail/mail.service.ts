@@ -47,8 +47,9 @@ export class MailService {
     }
   }
 
-  private fromAddress(displayName?: string): string {
+  private fromAddress(displayName?: string, emailOverride?: string): string {
     const email =
+      emailOverride?.trim() ||
       this.config.get<string>('MAIL_FROM')?.trim() ||
       this.emailUser ||
       'noreply@3elagi.com';
@@ -66,6 +67,8 @@ export class MailService {
     html?: string;
     replyTo?: string;
     fromName?: string;
+    /** Overrides MAIL_FROM — marketing uses SMTP_USER. */
+    fromEmail?: string;
     attachments?: Array<{
       filename: string;
       content?: Buffer;
@@ -86,7 +89,7 @@ export class MailService {
 
     try {
       const info = await this.transporter.sendMail({
-        from: this.fromAddress(options.fromName),
+        from: this.fromAddress(options.fromName, options.fromEmail),
         to: options.to,
         replyTo: options.replyTo,
         subject: options.subject,
@@ -189,6 +192,7 @@ export class MailService {
     await this.sendMail({ to: email, subject, text, html });
   }
 
+  /** SMTP auth user is the sender address for marketing mail (not MAIL_FROM). */
   async sendDoctorMarketingInvite(input: {
     to: string;
     recipientName: string;
@@ -203,12 +207,19 @@ export class MailService {
       contentType?: string;
     }>;
   }): Promise<void> {
+    const fromEmail =
+      this.config.get<string>('SMTP_USER')?.trim() ||
+      this.config.get<string>('EMAIL_USER')?.trim() ||
+      this.emailUser ||
+      'noreply@3elagi.com';
+
     await this.sendMail({
       to: input.to,
       subject: input.subject,
       text: input.text,
       html: input.html,
       fromName: '3elagi Marketing Team',
+      fromEmail,
       attachments: input.attachments,
     });
   }

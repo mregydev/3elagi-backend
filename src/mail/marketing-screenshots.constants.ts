@@ -14,3 +14,20 @@ export const MARKETING_SCREENSHOT_URLS = {
 export const MARKETING_LOGO_WHITE_URL = `${MARKETING_SCREENSHOTS_PUBLIC_BASE}/logo-white.svg`;
 
 export type MarketingScreenshotKey = keyof typeof MARKETING_SCREENSHOT_URLS;
+
+const LEGACY_CID_BY_KEY: Record<MarketingScreenshotKey, string> = {
+  chat: 'shot-chat@3elagi',
+  xrayRecord: 'shot-xray-record@3elagi',
+  xrayDetail: 'shot-xray-detail@3elagi',
+  skeleton: 'shot-skeleton@3elagi',
+  ai: 'shot-ai@3elagi',
+};
+
+/** Replace legacy cid: references with Supabase public URLs (editor + sent mail). */
+export function resolveMarketingImageUrls(html: string): string {
+  let out = html;
+  for (const key of Object.keys(MARKETING_SCREENSHOT_URLS) as MarketingScreenshotKey[]) {
+    out = out.split(`cid:${LEGACY_CID_BY_KEY[key]}`).join(MARKETING_SCREENSHOT_URLS[key]);
+  }
+  return out;
+}

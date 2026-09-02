@@ -1,5 +1,10 @@
 import type { MarketingEmailLanguage } from '../admin/dto/send-marketing-email.dto';
 import {
+  compileMarketingSections,
+  getDefaultMarketingSections,
+  type MarketingEmailSection,
+} from './marketing-email-sections';
+import {
   MARKETING_THEME_COLORS,
   resolveMarketingEmailTheme,
   rethemeMarketingBodyHtml,
@@ -9,6 +14,7 @@ import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import {
   MARKETING_SCREENSHOT_URLS,
+  resolveMarketingImageUrls,
   type MarketingScreenshotKey,
 } from './marketing-screenshots.constants';
 
@@ -58,25 +64,6 @@ export const MARKETING_SCREENSHOT_FILES = [
   { file: 'skeleton-view.png', key: 'skeleton' as MarketingScreenshotKey },
   { file: 'ai-assistant.png', key: 'ai' as MarketingScreenshotKey },
 ] as const;
-
-const LEGACY_CID_BY_KEY: Record<MarketingScreenshotKey, string> = {
-  chat: 'shot-chat@3elagi',
-  xrayRecord: 'shot-xray-record@3elagi',
-  xrayDetail: 'shot-xray-detail@3elagi',
-  skeleton: 'shot-skeleton@3elagi',
-  ai: 'shot-ai@3elagi',
-};
-
-/** Replace legacy cid: references with Supabase public URLs (editor + sent mail). */
-export function resolveMarketingImageUrls(html: string): string {
-  let out = html;
-  for (const shot of MARKETING_SCREENSHOT_FILES) {
-    const url = MARKETING_SCREENSHOT_URLS[shot.key];
-    const cid = LEGACY_CID_BY_KEY[shot.key];
-    out = out.split(`cid:${cid}`).join(url);
-  }
-  return out;
-}
 
 interface MarketingCopy {
   dir: 'ltr' | 'rtl';
@@ -366,52 +353,15 @@ export function getDefaultMarketingBodyHtml(
   language: MarketingEmailLanguage,
   theme: MarketingEmailTheme = 'blue',
 ): string {
-  const copy = COPY[language];
-  const dir = copy.dir;
-  const align = dir === 'rtl' ? 'right' : 'left';
-  const {
-    brand: BRAND,
-    brandDark: BRAND_DARK,
-    tint: BRAND_TINT,
-    tintSoft: BRAND_TINT_SOFT,
-    highlightBorder: HIGHLIGHT_BORDER,
-  } = themeColors(theme);
-
-  return `
-              <p style="margin:0 0 16px;font-size:17px;font-weight:700;color:#0f172a;text-align:${align};">${copy.greeting('{{name}}')}</p>
-              <p style="margin:0 0 14px;font-size:15px;line-height:1.7;color:#334155;text-align:${align};">${copy.intro}</p>
-              <p style="margin:0 0 22px;font-size:15px;line-height:1.7;color:#334155;text-align:${align};">${copy.valueProp}</p>
-
-              <div style="background:${BRAND_TINT};border-${dir === 'rtl' ? 'right' : 'left'}:4px solid ${BRAND};border-radius:12px;padding:18px 20px;margin-bottom:22px;">
-                <h2 style="margin:0 0 12px;font-size:17px;color:${BRAND_DARK};text-align:${align};">${copy.featuresTitle}</h2>
-                ${featureList(copy.features, dir)}
-              </div>
-
-              <div style="background:${BRAND_TINT_SOFT};border-radius:12px;padding:18px 20px;margin-bottom:18px;">
-                <h3 style="margin:0 0 8px;font-size:16px;color:${BRAND_DARK};text-align:${align};">${copy.testingTitle}</h3>
-                <p style="margin:0;font-size:14px;line-height:1.65;color:#334155;text-align:${align};">${copy.testingBody}</p>
-              </div>
-
-              <div style="background:${BRAND_TINT};border-radius:12px;padding:18px 20px;margin-bottom:24px;border:1px solid ${HIGHLIGHT_BORDER};">
-                <h3 style="margin:0 0 8px;font-size:16px;color:${BRAND};text-align:${align};">${copy.earlyAdopterTitle}</h3>
-                <p style="margin:0;font-size:14px;line-height:1.65;color:#334155;text-align:${align};">${copy.earlyAdopterBody}</p>
-              </div>
-
-              ${screenshotGrid(copy, dir, theme)}
-
-              <p style="margin:28px 0 18px;font-size:15px;line-height:1.7;color:#334155;text-align:${align};">${copy.cta}</p>
-              <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 auto 24px;">
-                <tr>
-                  <td style="border-radius:12px;background:${BRAND};">
-                    <a href="${REGISTER_URL}" style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:800;color:#ffffff;text-decoration:none;border-radius:12px;">${copy.ctaButton}</a>
-                  </td>
-                </tr>
-              </table>
-              <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#64748b;text-align:center;word-break:break-all;">
-                <a href="${REGISTER_URL}" style="color:${BRAND_DARK};">${REGISTER_URL}</a>
-              </p>
-              <p style="margin:0 0 24px;font-size:15px;line-height:1.65;color:#334155;text-align:${align};">${copy.closing}</p>`.trim();
+  return compileMarketingSections(
+    getDefaultMarketingSections(language),
+    language,
+    theme,
+  );
 }
+
+export { getDefaultMarketingSections, compileMarketingSections };
+export type { MarketingEmailSection };
 
 export function getMarketingTemplatePreview(
   language: MarketingEmailLanguage,
@@ -419,14 +369,16 @@ export function getMarketingTemplatePreview(
 ) {
   const resolvedTheme = resolveMarketingEmailTheme(theme);
   const copy = COPY[language];
+  const sections = getDefaultMarketingSections(language);
   return {
     language,
     themeColor: resolvedTheme,
     dir: copy.dir,
     subjectTemplate: copy.subject('{{name}}'),
     preheader: copy.preheader,
+    sections,
     bodyHtml: resolveMarketingImageUrls(
-      getDefaultMarketingBodyHtml(language, resolvedTheme),
+      compileMarketingSections(sections, language, resolvedTheme, copy.dir),
     ),
   };
 }
@@ -454,24 +406,28 @@ export function buildMarketingEmailHtml(
   recipientName: string,
   customBodyHtml?: string,
   theme?: MarketingEmailTheme,
+  sections?: MarketingEmailSection[],
 ): { subject: string; html: string; text: string } {
   const resolvedTheme = resolveMarketingEmailTheme(theme);
   const colors = themeColors(resolvedTheme);
   const {
     brand: BRAND,
     gradientEnd: BRAND_GRADIENT_END,
-    brandDark: BRAND_DARK,
   } = colors;
   const copy = COPY[language];
   const dir = copy.dir;
   const align = dir === 'rtl' ? 'right' : 'left';
   const name = recipientName.trim() || 'Doctor';
-  const rawBody =
-    customBodyHtml?.trim() ||
-    getDefaultMarketingBodyHtml(language, resolvedTheme);
+  const compiledFromSections =
+    sections?.length &&
+    compileMarketingSections(sections, language, resolvedTheme, dir);
+  const rawBody = compiledFromSections
+    ? compiledFromSections
+    : customBodyHtml?.trim() ||
+      getDefaultMarketingBodyHtml(language, resolvedTheme);
   const bodyInner = applyNamePlaceholders(
     resolveMarketingImageUrls(
-      customBodyHtml?.trim()
+      customBodyHtml?.trim() && !compiledFromSections
         ? rethemeMarketingBodyHtml(rawBody, resolvedTheme)
         : rawBody,
     ),
