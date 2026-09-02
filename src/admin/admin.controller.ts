@@ -28,6 +28,7 @@ import { AppReviewsService } from '../app-reviews/app-reviews.service';
 import type { PointMarket } from '../entities/point-pricing.entity';
 import { TrainRagDocumentChunkDto } from './dto/train-rag-document-chunk.dto';
 import { SendMarketingEmailDto, MARKETING_EMAIL_LANGUAGES } from './dto/send-marketing-email.dto';
+import { SendMarketingEmailBatchDto } from './dto/send-marketing-email-batch.dto';
 import { resolveMarketingEmailTheme } from '../mail/marketing-email-themes';
 import { IntakeQuestion } from '../entities/intake-test.entity';
 import type { ApprovalStatus } from '../entities/doctor.entity';
@@ -237,6 +238,11 @@ export class AdminController {
   @Post('marketing/send')
   sendMarketingEmail(@Body() body: SendMarketingEmailDto) {
     return this.service.sendMarketingEmail(body);
+  }
+
+  @Post('marketing/send-batch')
+  sendMarketingEmailBatch(@Body() body: SendMarketingEmailBatchDto) {
+    return this.service.sendMarketingEmailBatch(body);
   }
 
   @Post('sendNotf')

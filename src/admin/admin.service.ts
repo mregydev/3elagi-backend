@@ -22,6 +22,7 @@ import { SpecialitiesService } from '../specialities/specialities.service';
 import { UploadsService } from '../uploads/uploads.service';
 import { MailService } from '../mail/mail.service';
 import type { SendMarketingEmailDto } from './dto/send-marketing-email.dto';
+import type { SendMarketingEmailBatchDto } from './dto/send-marketing-email-batch.dto';
 import {
   buildMarketingEmailHtml,
   getMarketingTemplatePreview,
@@ -220,15 +221,97 @@ export class AdminService {
       throw new BadRequestException('Recipient name and email are required');
     }
 
-    const { subject, html, text } = buildMarketingEmailHtml(
-      dto.language,
+    return this.sendOneMarketingEmail({
       name,
-      dto.bodyHtml,
-      dto.themeColor,
+      email,
+      language: dto.language,
+      bodyHtml: dto.bodyHtml,
+      themeColor: dto.themeColor,
+    });
+  }
+
+  async sendMarketingEmailBatch(dto: SendMarketingEmailBatchDto) {
+    const trimmedBody = dto.bodyHtml?.trim();
+    if (!trimmedBody) {
+      throw new BadRequestException('Email body cannot be empty');
+    }
+
+    const seen = new Set<string>();
+    const uniqueRecipients: { name: string; email: string }[] = [];
+    for (const recipient of dto.recipients) {
+      const email = recipient.email.trim().toLowerCase();
+      const name = recipient.name.trim();
+      if (!email || !name || seen.has(email)) continue;
+      seen.add(email);
+      uniqueRecipients.push({ email, name });
+    }
+
+    if (!uniqueRecipients.length) {
+      throw new BadRequestException('At least one valid recipient is required');
+    }
+
+    const themeColor = resolveMarketingEmailTheme(dto.themeColor);
+    const results: Array<{
+      email: string;
+      name: string;
+      ok: boolean;
+      error?: string;
+    }> = [];
+
+    for (const recipient of uniqueRecipients) {
+      try {
+        await this.sendOneMarketingEmail({
+          name: recipient.name,
+          email: recipient.email,
+          language: dto.language,
+          bodyHtml: trimmedBody,
+          themeColor,
+        });
+        results.push({
+          email: recipient.email,
+          name: recipient.name,
+          ok: true,
+        });
+      } catch (err) {
+        results.push({
+          email: recipient.email,
+          name: recipient.name,
+          ok: false,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    const sent = results.filter((row) => row.ok).length;
+    const failed = results.length - sent;
+
+    return {
+      ok: failed === 0,
+      sent,
+      failed,
+      total: results.length,
+      language: dto.language,
+      themeColor,
+      results,
+    };
+  }
+
+  private async sendOneMarketingEmail(input: {
+    name: string;
+    email: string;
+    language: SendMarketingEmailDto['language'];
+    bodyHtml?: string;
+    themeColor?: SendMarketingEmailDto['themeColor'];
+  }) {
+    const { subject, html, text } = buildMarketingEmailHtml(
+      input.language,
+      input.name,
+      input.bodyHtml,
+      input.themeColor,
     );
     await this.mailService.sendDoctorMarketingInvite({
-      to: email,
-      recipientName: name,
+      to: input.email,
+      recipientName: input.name,
       subject,
       text,
       html,
@@ -237,9 +320,9 @@ export class AdminService {
 
     return {
       ok: true,
-      to: email,
-      language: dto.language,
-      themeColor: resolveMarketingEmailTheme(dto.themeColor),
+      to: input.email,
+      language: input.language,
+      themeColor: resolveMarketingEmailTheme(input.themeColor),
       subject,
     };
   }
