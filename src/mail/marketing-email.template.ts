@@ -14,6 +14,7 @@ import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import {
   MARKETING_SCREENSHOT_URLS,
+  MARKETING_LOGO_WHITE_URL,
   resolveMarketingImageUrls,
   type MarketingScreenshotKey,
 } from './marketing-screenshots.constants';
@@ -24,8 +25,11 @@ function themeColors(theme?: MarketingEmailTheme) {
   return MARKETING_THEME_COLORS[resolveMarketingEmailTheme(theme)];
 }
 
-function marketingHeaderLogoHtml(): string {
-  return `<img src="cid:${MARKETING_LOGO_CID}" alt="3elagi" width="200" height="50" style="display:block;margin:0 auto;border:0;max-width:100%;height:auto;" />`;
+function marketingHeaderLogoHtml(forPreview = false): string {
+  const src = forPreview
+    ? MARKETING_LOGO_WHITE_URL
+    : `cid:${MARKETING_LOGO_CID}`;
+  return `<img src="${src}" alt="3elagi" width="200" height="50" style="display:block;margin:0 auto;border:0;max-width:100%;height:auto;" />`;
 }
 
 const MARKETING_LOGO_CID = '3elagi-logo@3elagi';
@@ -407,6 +411,7 @@ export function buildMarketingEmailHtml(
   customBodyHtml?: string,
   theme?: MarketingEmailTheme,
   sections?: MarketingEmailSection[],
+  forPreview = false,
 ): { subject: string; html: string; text: string } {
   const resolvedTheme = resolveMarketingEmailTheme(theme);
   const colors = themeColors(resolvedTheme);
@@ -449,7 +454,7 @@ export function buildMarketingEmailHtml(
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(15,23,42,0.08);">
           <tr>
             <td style="background:linear-gradient(135deg,${BRAND} 0%,${BRAND_GRADIENT_END} 100%);padding:28px 32px;text-align:center;">
-              ${marketingHeaderLogoHtml()}
+              ${marketingHeaderLogoHtml(forPreview)}
               <div style="font-size:13px;color:rgba(255,255,255,0.9);margin-top:10px;">${copy.signatureTagline}</div>
             </td>
           </tr>

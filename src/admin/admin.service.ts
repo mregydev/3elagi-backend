@@ -220,6 +220,30 @@ export class AdminService {
     return getMarketingTemplatePreview(language, theme);
   }
 
+  previewMarketingEmail(dto: {
+    language: SendMarketingEmailDto['language'];
+    themeColor?: SendMarketingEmailDto['themeColor'];
+    previewName?: string;
+    sections: MarketingEmailSection[];
+  }) {
+    const themeColor = resolveMarketingEmailTheme(dto.themeColor);
+    const name = dto.previewName?.trim() || 'Doctor';
+    const { subject, html } = buildMarketingEmailHtml(
+      dto.language,
+      name,
+      undefined,
+      themeColor,
+      dto.sections,
+      true,
+    );
+    return {
+      subject,
+      html,
+      dir: dto.language === 'ar' ? ('rtl' as const) : ('ltr' as const),
+      themeColor,
+    };
+  }
+
   async sendMarketingEmail(dto: SendMarketingEmailDto) {
     const email = dto.email.trim().toLowerCase();
     const name = dto.name.trim();
