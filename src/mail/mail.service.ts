@@ -14,8 +14,14 @@ export class MailService {
   private readonly emailUser: string | null;
 
   constructor(private readonly config: ConfigService) {
-    const user = this.config.get<string>('EMAIL_USER')?.trim() || null;
-    const pass = this.config.get<string>('EMAIL_PASSWORD')?.trim() || null;
+    const user =
+      this.config.get<string>('EMAIL_USER')?.trim() ||
+      this.config.get<string>('SMTP_USER')?.trim() ||
+      null;
+    const pass =
+      this.config.get<string>('EMAIL_PASSWORD')?.trim() ||
+      this.config.get<string>('SMTP_PASS')?.trim() ||
+      null;
     this.emailUser = user;
 
     if (user && pass) {
@@ -41,25 +47,30 @@ export class MailService {
     }
   }
 
-  private fromAddress(): string {
-    // Gmail requires From to match the authenticated account (or an alias).
-    return (
+  private fromAddress(displayName?: string): string {
+    const email =
       this.config.get<string>('MAIL_FROM')?.trim() ||
       this.emailUser ||
-      'noreply@3elagi.com'
-    );
+      'noreply@3elagi.com';
+    if (displayName?.trim()) {
+      return `"${displayName.replace(/"/g, '')}" <${email}>`;
+    }
+    return email;
   }
 
-  /** Shared send path — used by verification, reset, and contact. */
+  /** Shared send path — used by verification, reset, contact, and marketing. */
   async sendMail(options: {
     to: string;
     subject: string;
     text: string;
     html?: string;
     replyTo?: string;
+    fromName?: string;
     attachments?: Array<{
       filename: string;
-      content: Buffer;
+      content?: Buffer;
+      path?: string;
+      cid?: string;
       contentType?: string;
     }>;
   }): Promise<void> {
@@ -75,7 +86,7 @@ export class MailService {
 
     try {
       const info = await this.transporter.sendMail({
-        from: this.fromAddress(),
+        from: this.fromAddress(options.fromName),
         to: options.to,
         replyTo: options.replyTo,
         subject: options.subject,
@@ -84,6 +95,8 @@ export class MailService {
         attachments: options.attachments?.map((a) => ({
           filename: a.filename,
           content: a.content,
+          path: a.path,
+          cid: a.cid,
           contentType: a.contentType,
         })),
       });
@@ -174,5 +187,27 @@ export class MailService {
       '</div>',
     ].join('');
     await this.sendMail({ to: email, subject, text, html });
+  }
+
+  async sendDoctorMarketingInvite(input: {
+    to: string;
+    recipientName: string;
+    subject: string;
+    text: string;
+    html: string;
+    attachments: Array<{
+      filename: string;
+      path: string;
+      cid: string;
+    }>;
+  }): Promise<void> {
+    await this.sendMail({
+      to: input.to,
+      subject: input.subject,
+      text: input.text,
+      html: input.html,
+      fromName: '3elagi Marketing Team',
+      attachments: input.attachments,
+    });
   }
 }

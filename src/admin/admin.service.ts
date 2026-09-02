@@ -20,6 +20,13 @@ import { PresenceGateway } from '../presence/presence.gateway';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 import { SpecialitiesService } from '../specialities/specialities.service';
 import { UploadsService } from '../uploads/uploads.service';
+import { MailService } from '../mail/mail.service';
+import type { SendMarketingEmailDto } from './dto/send-marketing-email.dto';
+import {
+  buildMarketingEmailHtml,
+  getMarketingTemplatePreview,
+  marketingEmailAttachments,
+} from '../mail/marketing-email.template';
 
 const APPROVAL_VALUES: ApprovalStatus[] = ['pending', 'approved', 'rejected'];
 
@@ -72,6 +79,7 @@ export class AdminService {
     private pushNotifications: PushNotificationsService,
     private specialitiesService: SpecialitiesService,
     private uploadsService: UploadsService,
+    private mailService: MailService,
   ) {}
 
   // ----- Specialities (market visibility) -----
@@ -196,6 +204,39 @@ export class AdminService {
     await this.patientRepo.delete(userId);
     await this.userRepo.delete(userId);
     return { ok: true };
+  }
+
+  async getMarketingTemplate(language: SendMarketingEmailDto['language']) {
+    return getMarketingTemplatePreview(language);
+  }
+
+  async sendMarketingEmail(dto: SendMarketingEmailDto) {
+    const email = dto.email.trim().toLowerCase();
+    const name = dto.name.trim();
+    if (!email || !name) {
+      throw new BadRequestException('Recipient name and email are required');
+    }
+
+    const { subject, html, text } = buildMarketingEmailHtml(
+      dto.language,
+      name,
+      dto.bodyHtml,
+    );
+    await this.mailService.sendDoctorMarketingInvite({
+      to: email,
+      recipientName: name,
+      subject,
+      text,
+      html,
+      attachments: marketingEmailAttachments(),
+    });
+
+    return {
+      ok: true,
+      to: email,
+      language: dto.language,
+      subject,
+    };
   }
 
   async sendNotf() {

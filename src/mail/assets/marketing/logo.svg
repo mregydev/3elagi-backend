@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="420" height="100" viewBox="0 0 420 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="55" cy="50" r="42" fill="rgba(15,118,110,0.08)" stroke="#0F766E" stroke-width="3"/>
+  <path d="M 38,43 C 30,43 27,35 32,29 C 36,24 44,25 44,32" stroke="#0F766E" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+  <path d="M 72,43 C 80,43 83,35 78,29 C 74,24 66,25 66,32" stroke="#0F766E" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+  <path d="M 38,43 C 38,53 55,55 55,63" stroke="#0F766E" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+  <path d="M 72,43 C 72,53 55,55 55,63" stroke="#0F766E" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+  <circle cx="55" cy="70" r="7" stroke="#0F766E" stroke-width="4" fill="none"/>
+  <circle cx="55" cy="70" r="2.5" fill="#0F766E"/>
+  <text x="108" y="67" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="58" fill="#0F766E">3elagi</text>
+</svg>

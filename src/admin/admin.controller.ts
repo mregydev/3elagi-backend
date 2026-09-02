@@ -26,6 +26,7 @@ import { DoctorRegistrationRequestsService } from '../doctor-registration-reques
 import { AppReviewsService } from '../app-reviews/app-reviews.service';
 import type { PointMarket } from '../entities/point-pricing.entity';
 import { TrainRagDocumentChunkDto } from './dto/train-rag-document-chunk.dto';
+import { SendMarketingEmailDto, MARKETING_EMAIL_LANGUAGES } from './dto/send-marketing-email.dto';
 import { IntakeQuestion } from '../entities/intake-test.entity';
 import type { ApprovalStatus } from '../entities/doctor.entity';
 
@@ -210,6 +211,26 @@ export class AdminController {
   @Delete('rag-sources/:id')
   deleteRagSource(@Param('id') id: string) {
     return this.service.deleteRagSource(id);
+  }
+
+  @Get('marketing/template/:language')
+  getMarketingTemplate(@Param('language') language: string) {
+    const normalized = language.trim().toLowerCase();
+    if (
+      !MARKETING_EMAIL_LANGUAGES.includes(
+        normalized as (typeof MARKETING_EMAIL_LANGUAGES)[number],
+      )
+    ) {
+      throw new HttpException('Invalid language', HttpStatus.BAD_REQUEST);
+    }
+    return this.service.getMarketingTemplate(
+      normalized as (typeof MARKETING_EMAIL_LANGUAGES)[number],
+    );
+  }
+
+  @Post('marketing/send')
+  sendMarketingEmail(@Body() body: SendMarketingEmailDto) {
+    return this.service.sendMarketingEmail(body);
   }
 
   @Post('sendNotf')

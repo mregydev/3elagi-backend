@@ -20,6 +20,7 @@ import { UploadsModule } from '../uploads/uploads.module';
 import { ContactModule } from '../contact/contact.module';
 import { DoctorRegistrationRequestsModule } from '../doctor-registration-requests/doctor-registration-requests.module';
 import { AppReviewsModule } from '../app-reviews/app-reviews.module';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { AppReviewsModule } from '../app-reviews/app-reviews.module';
     ContactModule,
     DoctorRegistrationRequestsModule,
     AppReviewsModule,
+    MailModule,
   ],
   controllers: [AdminController],
   providers: [AdminService],
