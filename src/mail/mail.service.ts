@@ -4,47 +4,81 @@ import * as nodemailer from 'nodemailer';
 import type Transporter from 'nodemailer/lib/mailer';
 
 /**
- * Single nodemailer transporter for all transactional mail
- * (verification, password reset, contact us).
+ * Transactional mail (verification, password reset, contact) uses EMAIL_USER.
+ * Marketing mail uses its own SMTP_USER / SMTP_PASS pair so the From address
+ * matches marketing@3elagi.net (or whatever SMTP_USER is set to).
  */
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
   private transporter: Transporter | null = null;
+  private marketingTransporter: Transporter | null = null;
   private readonly emailUser: string | null;
+  private readonly marketingFromEmail: string | null;
 
   constructor(private readonly config: ConfigService) {
-    const user =
-      this.config.get<string>('EMAIL_USER')?.trim() ||
-      this.config.get<string>('SMTP_USER')?.trim() ||
-      null;
-    const pass =
-      this.config.get<string>('EMAIL_PASSWORD')?.trim() ||
-      this.config.get<string>('SMTP_PASS')?.trim() ||
-      null;
-    this.emailUser = user;
+    const emailUser = this.config.get<string>('EMAIL_USER')?.trim() || null;
+    const emailPass = this.config.get<string>('EMAIL_PASSWORD')?.trim() || null;
+    this.emailUser = emailUser;
 
-    if (user && pass) {
-      // 587 = STARTTLS (default), 465 = SSL
-      const port = Number(this.config.get<string>('SMTP_PORT') ?? '587');
-      const useSsl = port === 465;
-      this.transporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: useSsl ? 465 : 587,
-        secure: useSsl,
-        auth: {
-          user,
-          pass,
-        },
-      });
+    const marketingUser = this.config.get<string>('SMTP_USER')?.trim() || null;
+    const marketingPass = this.config.get<string>('SMTP_PASS')?.trim() || null;
+    this.marketingFromEmail = marketingUser;
+
+    const smtpPort = Number(this.config.get<string>('SMTP_PORT') ?? '587');
+    const smtpHost =
+      this.config.get<string>('SMTP_HOST')?.trim() || 'smtp.gmail.com';
+
+    if (emailUser && emailPass) {
+      this.transporter = this.createSmtpTransporter(
+        smtpHost,
+        smtpPort,
+        emailUser,
+        emailPass,
+      );
       this.logger.log(
-        `Nodemailer ready (smtp.gmail.com:${useSsl ? 465 : 587} as ${user})`,
+        `Transactional mail ready (${smtpHost}:${smtpPort} as ${emailUser})`,
       );
     } else {
       this.logger.warn(
-        'EMAIL_USER / EMAIL_PASSWORD not set. Emails will be logged only.',
+        'EMAIL_USER / EMAIL_PASSWORD not set. Transactional emails will be logged only.',
       );
     }
+
+    if (marketingUser && marketingPass) {
+      this.marketingTransporter = this.createSmtpTransporter(
+        smtpHost,
+        smtpPort,
+        marketingUser,
+        marketingPass,
+      );
+      this.logger.log(
+        `Marketing mail ready (${smtpHost}:${smtpPort} as ${marketingUser})`,
+      );
+    } else if (marketingUser) {
+      this.logger.warn(
+        `SMTP_USER=${marketingUser} but SMTP_PASS is missing. Marketing emails will fail.`,
+      );
+    } else {
+      this.logger.warn(
+        'SMTP_USER / SMTP_PASS not set. Marketing emails will fail until configured.',
+      );
+    }
+  }
+
+  private createSmtpTransporter(
+    host: string,
+    port: number,
+    user: string,
+    pass: string,
+  ): Transporter {
+    const useSsl = port === 465;
+    return nodemailer.createTransport({
+      host,
+      port: useSsl ? 465 : port,
+      secure: useSsl,
+      auth: { user, pass },
+    });
   }
 
   private fromAddress(displayName?: string, emailOverride?: string): string {
@@ -59,7 +93,7 @@ export class MailService {
     return email;
   }
 
-  /** Shared send path — used by verification, reset, contact, and marketing. */
+  /** Shared send path for transactional mail. */
   async sendMail(options: {
     to: string;
     subject: string;
@@ -67,7 +101,6 @@ export class MailService {
     html?: string;
     replyTo?: string;
     fromName?: string;
-    /** Overrides MAIL_FROM — marketing uses SMTP_USER. */
     fromEmail?: string;
     attachments?: Array<{
       filename: string;
@@ -192,7 +225,7 @@ export class MailService {
     await this.sendMail({ to: email, subject, text, html });
   }
 
-  /** SMTP auth user is the sender address for marketing mail (not MAIL_FROM). */
+  /** Marketing mail always sends from SMTP_USER (e.g. marketing@3elagi.net). */
   async sendDoctorMarketingInvite(input: {
     to: string;
     recipientName: string;
@@ -207,20 +240,50 @@ export class MailService {
       contentType?: string;
     }>;
   }): Promise<void> {
-    const fromEmail =
-      this.config.get<string>('SMTP_USER')?.trim() ||
-      this.config.get<string>('EMAIL_USER')?.trim() ||
-      this.emailUser ||
-      'noreply@3elagi.com';
+    const fromEmail = this.marketingFromEmail;
+    if (!fromEmail) {
+      throw new Error(
+        'SMTP_USER is not configured. Set SMTP_USER=marketing@3elagi.net and SMTP_PASS in the API environment.',
+      );
+    }
 
-    await this.sendMail({
-      to: input.to,
-      subject: input.subject,
-      text: input.text,
-      html: input.html,
-      fromName: '3elagi Marketing Team',
-      fromEmail,
-      attachments: input.attachments,
-    });
+    const from = this.fromAddress('3elagi Marketing Team', fromEmail);
+
+    if (!this.marketingTransporter) {
+      this.logger.log(
+        `[dev-mail] marketing from=${from} to=${input.to} subject=${input.subject}\n${input.text}` +
+          (input.attachments?.length
+            ? `\nattachments=${input.attachments.map((a) => a.filename).join(', ')}`
+            : ''),
+      );
+      return;
+    }
+
+    try {
+      const info = await this.marketingTransporter.sendMail({
+        from,
+        sender: fromEmail,
+        to: input.to,
+        subject: input.subject,
+        text: input.text,
+        html: input.html,
+        attachments: input.attachments.map((a) => ({
+          filename: a.filename,
+          content: a.content,
+          path: a.path,
+          cid: a.cid,
+          contentType: a.contentType,
+        })),
+      });
+      this.logger.log(
+        `Marketing email sent from=${fromEmail} to=${input.to} subject="${input.subject}" id=${info.messageId}`,
+      );
+    } catch (err) {
+      this.logger.error(
+        `Marketing send failed from=${fromEmail} to=${input.to} subject="${input.subject}"`,
+        err instanceof Error ? err.stack : String(err),
+      );
+      throw err;
+    }
   }
 }
