@@ -10,8 +10,9 @@ export const MARKETING_SCREENSHOT_URLS = {
   ai: `${MARKETING_SCREENSHOTS_PUBLIC_BASE}/ai-assistant.png`,
 } as const;
 
-/** White Logo3elagi wordmark for the gradient email header. */
-export const MARKETING_LOGO_WHITE_URL = `${MARKETING_SCREENSHOTS_PUBLIC_BASE}/logo-white.svg`;
+/** White Logo3elagi wordmark for the gradient email header (PNG — SVG blocked on Gmail mobile). */
+export const MARKETING_LOGO_WHITE_URL = `${MARKETING_SCREENSHOTS_PUBLIC_BASE}/logo-white.png`;
+export const MARKETING_LOGO_MARK_WHITE_URL = `${MARKETING_SCREENSHOTS_PUBLIC_BASE}/logo-mark-white.png`;
 
 export type MarketingScreenshotKey = keyof typeof MARKETING_SCREENSHOT_URLS;
 

@@ -14,7 +14,7 @@ import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import {
   MARKETING_SCREENSHOT_URLS,
-  MARKETING_LOGO_WHITE_URL,
+  MARKETING_LOGO_MARK_WHITE_URL,
   resolveMarketingImageUrls,
   type MarketingScreenshotKey,
 } from './marketing-screenshots.constants';
@@ -25,40 +25,68 @@ function themeColors(theme?: MarketingEmailTheme) {
   return MARKETING_THEME_COLORS[resolveMarketingEmailTheme(theme)];
 }
 
+const MARKETING_LOGO_MARK_CID = '3elagi-logo-mark@3elagi';
+const MARKETING_LOGO_WORDMARK_CID = '3elagi-logo@3elagi';
+
+/** Table layout: PNG mark + styled wordmark (Gmail mobile blocks SVG). */
 function marketingHeaderLogoHtml(forPreview = false): string {
-  const src = forPreview
-    ? MARKETING_LOGO_WHITE_URL
-    : `cid:${MARKETING_LOGO_CID}`;
-  return `<img src="${src}" alt="3elagi" width="200" height="50" style="display:block;margin:0 auto;border:0;max-width:100%;height:auto;" />`;
+  const markSrc = forPreview
+    ? MARKETING_LOGO_MARK_WHITE_URL
+    : `cid:${MARKETING_LOGO_MARK_CID}`;
+
+  return `
+              <table role="presentation" cellspacing="0" cellpadding="0" align="center" style="margin:0 auto;">
+                <tr>
+                  <td style="vertical-align:middle;padding-right:12px;">
+                    <img src="${markSrc}" alt="" width="48" height="48" style="display:block;border:0;width:48px;height:48px;" />
+                  </td>
+                  <td style="vertical-align:middle;">
+                    <span style="font-family:'Segoe UI',Tahoma,Arial,Helvetica,sans-serif;font-size:38px;font-weight:800;color:#ffffff;letter-spacing:-0.02em;line-height:1;">3elagi</span>
+                  </td>
+                </tr>
+              </table>`;
 }
 
-const MARKETING_LOGO_CID = '3elagi-logo@3elagi';
-
-export function marketingEmailLogoAttachment(): {
-  filename: string;
-  content: Buffer;
-  cid: string;
-  contentType: string;
-} | null {
-  const path = join(__dirname, 'assets', 'marketing', 'logo-white.svg');
+function readMarketingAsset(filename: string): Buffer | null {
+  const path = join(__dirname, 'assets', 'marketing', filename);
   if (!existsSync(path)) return null;
-  return {
-    filename: 'logo-white.svg',
-    content: readFileSync(path),
-    cid: MARKETING_LOGO_CID,
-    contentType: 'image/svg+xml',
-  };
+  return readFileSync(path);
 }
 
-/** Prefer embedded CID (always available in Docker); remote URL is the img default for clients that load external images. */
 export function marketingEmailLogoAttachments(): Array<{
   filename: string;
   content: Buffer;
   cid: string;
   contentType: string;
 }> {
-  const logo = marketingEmailLogoAttachment();
-  return logo ? [logo] : [];
+  const attachments: Array<{
+    filename: string;
+    content: Buffer;
+    cid: string;
+    contentType: string;
+  }> = [];
+
+  const mark = readMarketingAsset('logo-mark-white.png');
+  if (mark) {
+    attachments.push({
+      filename: 'logo-mark-white.png',
+      content: mark,
+      cid: MARKETING_LOGO_MARK_CID,
+      contentType: 'image/png',
+    });
+  }
+
+  const wordmark = readMarketingAsset('logo-white.png');
+  if (wordmark) {
+    attachments.push({
+      filename: 'logo-white.png',
+      content: wordmark,
+      cid: MARKETING_LOGO_WORDMARK_CID,
+      contentType: 'image/png',
+    });
+  }
+
+  return attachments;
 }
 
 export const MARKETING_SCREENSHOT_FILES = [

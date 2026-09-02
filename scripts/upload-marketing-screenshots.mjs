@@ -54,7 +54,10 @@ const files = [
   'xray-detail.png',
   'skeleton-view.png',
   'ai-assistant.png',
+  'logo-white.png',
+  'logo-mark-white.png',
   'logo-white.svg',
+  'logo-mark-white.svg',
 ];
 
 const s3 = new S3Client({
