@@ -25,7 +25,6 @@ import type { SendMarketingEmailDto } from './dto/send-marketing-email.dto';
 import {
   buildMarketingEmailHtml,
   getMarketingTemplatePreview,
-  marketingEmailAttachments,
 } from '../mail/marketing-email.template';
 
 const APPROVAL_VALUES: ApprovalStatus[] = ['pending', 'approved', 'rejected'];
@@ -228,7 +227,7 @@ export class AdminService {
       subject,
       text,
       html,
-      attachments: marketingEmailAttachments(),
+      attachments: [],
     });
 
     return {

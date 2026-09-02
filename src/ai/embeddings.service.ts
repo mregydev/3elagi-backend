@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { EmbeddingsProvider } from './llm/llm.types';
 import { GeminiEmbeddingsProvider } from './llm/gemini.provider';
-import { withTimeout } from './utils/with-timeout';
+import { TimeoutError, withTimeout } from './utils/with-timeout';
 
 export const EMBEDDINGS_PROVIDER = 'EMBEDDINGS_PROVIDER';
 
@@ -16,7 +16,20 @@ export class EmbeddingsService {
     private readonly provider: EmbeddingsProvider,
     config: ConfigService,
   ) {
-    this.timeoutMs = Number(config.get('GEMINI_EMBED_TIMEOUT_MS') ?? 15_000);
+    this.timeoutMs = Number(config.get('GEMINI_EMBED_TIMEOUT_MS') ?? 60_000);
+  }
+
+  private async withEmbedTimeout<T>(
+    operation: () => Promise<T>,
+    label: string,
+  ): Promise<T> {
+    try {
+      return await withTimeout(operation(), this.timeoutMs, label);
+    } catch (err) {
+      if (!(err instanceof TimeoutError)) throw err;
+      this.logger.warn(`${label} timed out; retrying once`);
+      return withTimeout(operation(), this.timeoutMs, label);
+    }
   }
 
   get dimensions(): number {
@@ -25,9 +38,8 @@ export class EmbeddingsService {
 
   async embedQuery(text: string): Promise<number[]> {
     try {
-      return await withTimeout(
-        this.provider.embedQuery(text),
-        this.timeoutMs,
+      return await this.withEmbedTimeout(
+        () => this.provider.embedQuery(text),
         'embedQuery',
       );
     } catch (err) {
@@ -40,9 +52,8 @@ export class EmbeddingsService {
 
   async embedDocuments(texts: string[]): Promise<number[][]> {
     try {
-      return await withTimeout(
-        this.provider.embedDocuments(texts),
-        this.timeoutMs,
+      return await this.withEmbedTimeout(
+        () => this.provider.embedDocuments(texts),
         'embedDocuments',
       );
     } catch (err) {

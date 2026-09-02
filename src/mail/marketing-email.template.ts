@@ -1,20 +1,38 @@
-import { join } from 'path';
 import type { MarketingEmailLanguage } from '../admin/dto/send-marketing-email.dto';
+import {
+  MARKETING_SCREENSHOT_URLS,
+  type MarketingScreenshotKey,
+} from './marketing-screenshots.constants';
 
 const REGISTER_URL = 'https://development.3elagi.net/register-with-us';
 const BRAND = '#0F766E';
 const ACCENT = '#0B6E99';
 
 export const MARKETING_SCREENSHOT_FILES = [
-  { file: 'chat-consultation.png', cid: 'shot-chat@3elagi', key: 'chat' },
-  { file: 'xray-record.png', cid: 'shot-xray-record@3elagi', key: 'xrayRecord' },
-  { file: 'xray-detail.png', cid: 'shot-xray-detail@3elagi', key: 'xrayDetail' },
-  { file: 'skeleton-view.png', cid: 'shot-skeleton@3elagi', key: 'skeleton' },
-  { file: 'ai-assistant.png', cid: 'shot-ai@3elagi', key: 'ai' },
+  { file: 'chat-consultation.png', key: 'chat' as MarketingScreenshotKey },
+  { file: 'xray-record.png', key: 'xrayRecord' as MarketingScreenshotKey },
+  { file: 'xray-detail.png', key: 'xrayDetail' as MarketingScreenshotKey },
+  { file: 'skeleton-view.png', key: 'skeleton' as MarketingScreenshotKey },
+  { file: 'ai-assistant.png', key: 'ai' as MarketingScreenshotKey },
 ] as const;
 
-export function marketingAssetsDir(): string {
-  return join(__dirname, 'assets', 'marketing');
+const LEGACY_CID_BY_KEY: Record<MarketingScreenshotKey, string> = {
+  chat: 'shot-chat@3elagi',
+  xrayRecord: 'shot-xray-record@3elagi',
+  xrayDetail: 'shot-xray-detail@3elagi',
+  skeleton: 'shot-skeleton@3elagi',
+  ai: 'shot-ai@3elagi',
+};
+
+/** Replace legacy cid: references with Supabase public URLs (editor + sent mail). */
+export function resolveMarketingImageUrls(html: string): string {
+  let out = html;
+  for (const shot of MARKETING_SCREENSHOT_FILES) {
+    const url = MARKETING_SCREENSHOT_URLS[shot.key];
+    const cid = LEGACY_CID_BY_KEY[shot.key];
+    out = out.split(`cid:${cid}`).join(url);
+  }
+  return out;
 }
 
 interface MarketingCopy {
@@ -283,7 +301,7 @@ function screenshotGrid(
     return `
       <td style="padding:8px;width:50%;vertical-align:top;">
         <div style="border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;background:#f8fafc;">
-          <img src="cid:${shot.cid}" alt="${caption}" width="100%" style="display:block;width:100%;height:auto;border:0;" />
+          <img src="${MARKETING_SCREENSHOT_URLS[shot.key]}" alt="${caption}" width="100%" style="display:block;width:100%;height:auto;border:0;" />
           <p style="margin:0;padding:10px 12px;font-size:12px;color:#64748b;text-align:center;">${caption}</p>
         </div>
       </td>`;
@@ -351,7 +369,7 @@ export function getMarketingTemplatePreview(
     dir: copy.dir,
     subjectTemplate: copy.subject('{{name}}'),
     preheader: copy.preheader,
-    bodyHtml: getDefaultMarketingBodyHtml(language),
+    bodyHtml: resolveMarketingImageUrls(getDefaultMarketingBodyHtml(language)),
   };
 }
 
@@ -383,7 +401,9 @@ export function buildMarketingEmailHtml(
   const align = dir === 'rtl' ? 'right' : 'left';
   const name = recipientName.trim() || 'Doctor';
   const bodyInner = applyNamePlaceholders(
-    customBodyHtml?.trim() || getDefaultMarketingBodyHtml(language),
+    resolveMarketingImageUrls(
+      customBodyHtml?.trim() || getDefaultMarketingBodyHtml(language),
+    ),
     name,
   );
 
@@ -434,17 +454,4 @@ export function buildMarketingEmailHtml(
     html,
     text,
   };
-}
-
-export function marketingEmailAttachments(): Array<{
-  filename: string;
-  path: string;
-  cid: string;
-}> {
-  const base = marketingAssetsDir();
-  return MARKETING_SCREENSHOT_FILES.map((shot) => ({
-    filename: shot.file,
-    path: join(base, shot.file),
-    cid: shot.cid,
-  }));
 }
