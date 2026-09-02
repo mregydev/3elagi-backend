@@ -1,12 +1,20 @@
 import type { MarketingEmailLanguage } from '../admin/dto/send-marketing-email.dto';
 import {
+  MARKETING_THEME_COLORS,
+  resolveMarketingEmailTheme,
+  rethemeMarketingBodyHtml,
+  type MarketingEmailTheme,
+} from './marketing-email-themes';
+import {
   MARKETING_SCREENSHOT_URLS,
   type MarketingScreenshotKey,
 } from './marketing-screenshots.constants';
 
 const REGISTER_URL = 'https://development.3elagi.net/register-with-us';
-const BRAND = '#0F766E';
-const ACCENT = '#0B6E99';
+
+function themeColors(theme?: MarketingEmailTheme) {
+  return MARKETING_THEME_COLORS[resolveMarketingEmailTheme(theme)];
+}
 
 export const MARKETING_SCREENSHOT_FILES = [
   { file: 'chat-consultation.png', key: 'chat' as MarketingScreenshotKey },
@@ -295,7 +303,9 @@ function featureList(items: string[], dir: 'ltr' | 'rtl'): string {
 function screenshotGrid(
   copy: MarketingCopy,
   dir: 'ltr' | 'rtl',
+  theme: MarketingEmailTheme,
 ): string {
+  const { brand: BRAND } = themeColors(theme);
   const shots = MARKETING_SCREENSHOT_FILES.map((shot) => {
     const caption = copy.screenshotCaptions[shot.key];
     return `
@@ -319,32 +329,40 @@ function screenshotGrid(
 
 export function getDefaultMarketingBodyHtml(
   language: MarketingEmailLanguage,
+  theme: MarketingEmailTheme = 'blue',
 ): string {
   const copy = COPY[language];
   const dir = copy.dir;
   const align = dir === 'rtl' ? 'right' : 'left';
+  const {
+    brand: BRAND,
+    brandDark: BRAND_DARK,
+    tint: BRAND_TINT,
+    tintSoft: BRAND_TINT_SOFT,
+    highlightBorder: HIGHLIGHT_BORDER,
+  } = themeColors(theme);
 
   return `
               <p style="margin:0 0 16px;font-size:17px;font-weight:700;color:#0f172a;text-align:${align};">${copy.greeting('{{name}}')}</p>
               <p style="margin:0 0 14px;font-size:15px;line-height:1.7;color:#334155;text-align:${align};">${copy.intro}</p>
               <p style="margin:0 0 22px;font-size:15px;line-height:1.7;color:#334155;text-align:${align};">${copy.valueProp}</p>
 
-              <div style="background:#f0fdfa;border-${dir === 'rtl' ? 'right' : 'left'}:4px solid ${BRAND};border-radius:12px;padding:18px 20px;margin-bottom:22px;">
-                <h2 style="margin:0 0 12px;font-size:17px;color:${BRAND};text-align:${align};">${copy.featuresTitle}</h2>
+              <div style="background:${BRAND_TINT};border-${dir === 'rtl' ? 'right' : 'left'}:4px solid ${BRAND};border-radius:12px;padding:18px 20px;margin-bottom:22px;">
+                <h2 style="margin:0 0 12px;font-size:17px;color:${BRAND_DARK};text-align:${align};">${copy.featuresTitle}</h2>
                 ${featureList(copy.features, dir)}
               </div>
 
-              <div style="background:#eff6ff;border-radius:12px;padding:18px 20px;margin-bottom:18px;">
-                <h3 style="margin:0 0 8px;font-size:16px;color:${ACCENT};text-align:${align};">${copy.testingTitle}</h3>
+              <div style="background:${BRAND_TINT_SOFT};border-radius:12px;padding:18px 20px;margin-bottom:18px;">
+                <h3 style="margin:0 0 8px;font-size:16px;color:${BRAND_DARK};text-align:${align};">${copy.testingTitle}</h3>
                 <p style="margin:0;font-size:14px;line-height:1.65;color:#334155;text-align:${align};">${copy.testingBody}</p>
               </div>
 
-              <div style="background:#fefce8;border-radius:12px;padding:18px 20px;margin-bottom:24px;">
-                <h3 style="margin:0 0 8px;font-size:16px;color:#a16207;text-align:${align};">${copy.earlyAdopterTitle}</h3>
+              <div style="background:${BRAND_TINT};border-radius:12px;padding:18px 20px;margin-bottom:24px;border:1px solid ${HIGHLIGHT_BORDER};">
+                <h3 style="margin:0 0 8px;font-size:16px;color:${BRAND};text-align:${align};">${copy.earlyAdopterTitle}</h3>
                 <p style="margin:0;font-size:14px;line-height:1.65;color:#334155;text-align:${align};">${copy.earlyAdopterBody}</p>
               </div>
 
-              ${screenshotGrid(copy, dir)}
+              ${screenshotGrid(copy, dir, theme)}
 
               <p style="margin:28px 0 18px;font-size:15px;line-height:1.7;color:#334155;text-align:${align};">${copy.cta}</p>
               <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 auto 24px;">
@@ -355,21 +373,26 @@ export function getDefaultMarketingBodyHtml(
                 </tr>
               </table>
               <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#64748b;text-align:center;word-break:break-all;">
-                <a href="${REGISTER_URL}" style="color:${ACCENT};">${REGISTER_URL}</a>
+                <a href="${REGISTER_URL}" style="color:${BRAND_DARK};">${REGISTER_URL}</a>
               </p>
               <p style="margin:0 0 24px;font-size:15px;line-height:1.65;color:#334155;text-align:${align};">${copy.closing}</p>`.trim();
 }
 
 export function getMarketingTemplatePreview(
   language: MarketingEmailLanguage,
+  theme: MarketingEmailTheme = 'blue',
 ) {
+  const resolvedTheme = resolveMarketingEmailTheme(theme);
   const copy = COPY[language];
   return {
     language,
+    themeColor: resolvedTheme,
     dir: copy.dir,
     subjectTemplate: copy.subject('{{name}}'),
     preheader: copy.preheader,
-    bodyHtml: resolveMarketingImageUrls(getDefaultMarketingBodyHtml(language)),
+    bodyHtml: resolveMarketingImageUrls(
+      getDefaultMarketingBodyHtml(language, resolvedTheme),
+    ),
   };
 }
 
@@ -395,14 +418,27 @@ export function buildMarketingEmailHtml(
   language: MarketingEmailLanguage,
   recipientName: string,
   customBodyHtml?: string,
+  theme?: MarketingEmailTheme,
 ): { subject: string; html: string; text: string } {
+  const resolvedTheme = resolveMarketingEmailTheme(theme);
+  const colors = themeColors(resolvedTheme);
+  const {
+    brand: BRAND,
+    gradientEnd: BRAND_GRADIENT_END,
+    brandDark: BRAND_DARK,
+  } = colors;
   const copy = COPY[language];
   const dir = copy.dir;
   const align = dir === 'rtl' ? 'right' : 'left';
   const name = recipientName.trim() || 'Doctor';
+  const rawBody =
+    customBodyHtml?.trim() ||
+    getDefaultMarketingBodyHtml(language, resolvedTheme);
   const bodyInner = applyNamePlaceholders(
     resolveMarketingImageUrls(
-      customBodyHtml?.trim() || getDefaultMarketingBodyHtml(language),
+      customBodyHtml?.trim()
+        ? rethemeMarketingBodyHtml(rawBody, resolvedTheme)
+        : rawBody,
     ),
     name,
   );
@@ -414,14 +450,14 @@ export function buildMarketingEmailHtml(
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${copy.subject(name)}</title>
 </head>
-<body style="margin:0;padding:0;background:#f1f5f9;font-family:'Segoe UI',Tahoma,Arial,sans-serif;">
+<body style="margin:0;padding:0;background:#f5f7fa;font-family:'Segoe UI',Tahoma,Arial,sans-serif;">
   <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${copy.preheader}</div>
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f1f5f9;padding:24px 12px;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f5f7fa;padding:24px 12px;">
     <tr>
       <td align="center">
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(15,23,42,0.08);">
           <tr>
-            <td style="background:linear-gradient(135deg,${BRAND} 0%,${ACCENT} 100%);padding:28px 32px;text-align:center;">
+            <td style="background:linear-gradient(135deg,${BRAND} 0%,${BRAND_GRADIENT_END} 100%);padding:28px 32px;text-align:center;">
               <div style="font-size:32px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">3elagi</div>
               <div style="font-size:13px;color:rgba(255,255,255,0.9);margin-top:6px;">${copy.signatureTagline}</div>
             </td>

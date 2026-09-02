@@ -26,6 +26,7 @@ import {
   buildMarketingEmailHtml,
   getMarketingTemplatePreview,
 } from '../mail/marketing-email.template';
+import { resolveMarketingEmailTheme } from '../mail/marketing-email-themes';
 
 const APPROVAL_VALUES: ApprovalStatus[] = ['pending', 'approved', 'rejected'];
 
@@ -205,8 +206,11 @@ export class AdminService {
     return { ok: true };
   }
 
-  async getMarketingTemplate(language: SendMarketingEmailDto['language']) {
-    return getMarketingTemplatePreview(language);
+  async getMarketingTemplate(
+    language: SendMarketingEmailDto['language'],
+    theme?: SendMarketingEmailDto['themeColor'],
+  ) {
+    return getMarketingTemplatePreview(language, theme);
   }
 
   async sendMarketingEmail(dto: SendMarketingEmailDto) {
@@ -220,6 +224,7 @@ export class AdminService {
       dto.language,
       name,
       dto.bodyHtml,
+      dto.themeColor,
     );
     await this.mailService.sendDoctorMarketingInvite({
       to: email,
@@ -234,6 +239,7 @@ export class AdminService {
       ok: true,
       to: email,
       language: dto.language,
+      themeColor: resolveMarketingEmailTheme(dto.themeColor),
       subject,
     };
   }

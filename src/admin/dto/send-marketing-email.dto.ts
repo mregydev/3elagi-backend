@@ -1,7 +1,13 @@
 import { IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  MARKETING_EMAIL_THEMES,
+  type MarketingEmailTheme,
+} from '../../mail/marketing-email-themes';
 
 export const MARKETING_EMAIL_LANGUAGES = ['en', 'ar', 'es', 'de'] as const;
 export type MarketingEmailLanguage = (typeof MARKETING_EMAIL_LANGUAGES)[number];
+
+export { MARKETING_EMAIL_THEMES, type MarketingEmailTheme };
 
 export class SendMarketingEmailDto {
   @IsEmail()
@@ -20,4 +26,8 @@ export class SendMarketingEmailDto {
   @IsString()
   @MaxLength(100_000)
   bodyHtml?: string;
+
+  @IsOptional()
+  @IsIn(MARKETING_EMAIL_THEMES)
+  themeColor?: MarketingEmailTheme;
 }
