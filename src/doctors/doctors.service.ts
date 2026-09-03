@@ -130,6 +130,7 @@ export class DoctorsService {
   async updateSelf(userId: string, updates: DoctorSelfUpdate) {
     const doctor = await this.doctorRepo.findOne({ where: { user_id: userId } });
     if (!doctor) throw new NotFoundException('Doctor profile not found');
+    const previousPrimarySpecialityId = doctor.speciality_id;
     // Whitelist: doctors must not be able to change privilege-sensitive fields
     const {
       name, phone, country, age, email, photo_url,
@@ -294,6 +295,16 @@ export class DoctorsService {
       }
     }
     void this.knowledgeIndexer.indexDoctor(doctor.id).catch(() => undefined);
+
+    const nextPrimarySpecialityId =
+      safeUpdates.speciality_id ??
+      (nextSpecialities?.[0]?.id ?? previousPrimarySpecialityId);
+    if (
+      nextPrimarySpecialityId &&
+      nextPrimarySpecialityId !== previousPrimarySpecialityId
+    ) {
+      await this.doctorOnboarding.setupDoctorOnboarding(doctor.id);
+    }
 
     return this.findByUserId(userId);
   }

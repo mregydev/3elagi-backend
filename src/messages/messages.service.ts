@@ -461,12 +461,18 @@ export class MessagesService {
 
     await this.assertCanChat(userId, dto.recipient_id);
 
-    // Doctor↔patient messaging is only open while a consultation is active.
+    // Doctor↔patient messaging is only open while a consultation is active,
+    // except for the AI demo patient (no consultation required).
     const { sender, recipient } = await this.assertChatParticipants(
       userId,
       dto.recipient_id,
     );
+    const isDemoPatientChat = await this.testPatientAi.involvesSpecialtyTestPatient(
+      userId,
+      dto.recipient_id,
+    );
     if (
+      !isDemoPatientChat &&
       !this.isDoctorDoctorPair(sender, recipient) &&
       !this.involvesAdmin(sender, recipient)
     ) {
@@ -479,6 +485,13 @@ export class MessagesService {
           'Start a consultation before sending messages',
         );
       }
+    }
+
+    if (isDemoPatientChat && sender.role === UserRole.DOCTOR) {
+      await this.testPatientAi.ensureDoctorCanChatWithTestPatient(
+        userId,
+        dto.recipient_id,
+      );
     }
 
     if (

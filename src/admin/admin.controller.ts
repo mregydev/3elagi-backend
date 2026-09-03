@@ -110,6 +110,11 @@ export class AdminController {
     return this.service.listDeletedAccounts();
   }
 
+  @Get('analytics/logins')
+  listLoginAnalytics() {
+    return this.service.listLoginAnalytics();
+  }
+
   // Clinics
   @Get('clinics')
   listClinics() {

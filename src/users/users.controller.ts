@@ -19,6 +19,7 @@ import { RegisterPushTokenDto } from './dto/register-push-token.dto';
 import { DeviceTokensService } from '../push-notifications/device-tokens.service';
 import { AccountDeletionService } from '../account-deletion/account-deletion.service';
 import { DeleteOwnAccountDto } from './dto/delete-own-account.dto';
+import { UserAnalyticsService } from '../analytics/user-analytics.service';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
@@ -27,11 +28,19 @@ export class UsersController {
     private readonly usersService: UsersService,
     private readonly deviceTokens: DeviceTokensService,
     private readonly accountDeletion: AccountDeletionService,
+    private readonly userAnalytics: UserAnalyticsService,
   ) {}
 
   @Get('me')
   getMe(@Request() req: { user: { id: string } }) {
     return this.usersService.getMe(req.user.id);
+  }
+
+  /** Home tab / app open — increments the user's visit counter. */
+  @Post('me/visit')
+  recordVisit(@Request() req: { user: { id: string } }) {
+    void this.userAnalytics.recordVisit(req.user.id);
+    return { ok: true };
   }
 
   @Get('contacts')

@@ -13,6 +13,7 @@ import {
 import { DoctorsService } from './doctors.service';
 import { DoctorOnboardingService } from '../doctor-onboarding/doctor-onboarding.service';
 import { TestPatientAiService } from '../doctor-onboarding/test-patient-ai.service';
+import { DEFAULT_TEST_PATIENT_DISPLAY_NAME } from '../doctor-onboarding/specialty-test.constants';
 import { ReviewsService } from '../reviews/reviews.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -71,6 +72,26 @@ export class DoctorsController {
   @Roles('doctor')
   ensureOnboarding(@Request() req) {
     return this.doctorsService.ensureOnboarding(req.user.id);
+  }
+
+  @Get('me/demo-patient')
+  @Roles('doctor')
+  async demoPatient(@Request() req) {
+    const patientUserId = await this.testPatientAi.resolveDemoPatientUserIdForDoctor(
+      req.user.id,
+    );
+    if (!patientUserId) {
+      return { patient_user_id: null, chat_open: false };
+    }
+    await this.testPatientAi.ensureDoctorCanChatWithTestPatient(
+      req.user.id,
+      patientUserId,
+    );
+    return {
+      patient_user_id: patientUserId,
+      chat_open: true,
+      display_name: DEFAULT_TEST_PATIENT_DISPLAY_NAME,
+    };
   }
 
   @Get('me/test-patient-chat/:patientUserId')

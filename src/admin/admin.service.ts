@@ -42,6 +42,7 @@ import { DoctorOnboardingService } from '../doctor-onboarding/doctor-onboarding.
 import { AuthService } from '../auth/auth.service';
 import { CreateAdminDoctorDto } from './dto/create-admin-doctor.dto';
 import { AccountDeletionService } from '../account-deletion/account-deletion.service';
+import { UserAnalyticsService } from '../analytics/user-analytics.service';
 
 const APPROVAL_VALUES: ApprovalStatus[] = ['pending', 'approved', 'rejected'];
 
@@ -98,6 +99,7 @@ export class AdminService {
     private doctorOnboarding: DoctorOnboardingService,
     private authService: AuthService,
     private accountDeletion: AccountDeletionService,
+    private userAnalytics: UserAnalyticsService,
   ) {}
 
   // ----- Specialities (market visibility) -----
@@ -268,6 +270,10 @@ export class AdminService {
 
   listDeletedAccounts() {
     return this.accountDeletion.listDeletedAccounts();
+  }
+
+  listLoginAnalytics() {
+    return this.userAnalytics.listLoginStats();
   }
 
   async getMarketingTemplate(

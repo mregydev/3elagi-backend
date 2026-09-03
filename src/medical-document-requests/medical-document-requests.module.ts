@@ -18,6 +18,7 @@ import { MedicalRecordAiModule } from '../medical-documents/medical-record-ai.mo
 import { PresenceModule } from '../presence/presence.module';
 import { PushNotificationsModule } from '../push-notifications/push-notifications.module';
 import { UsersModule } from '../users/users.module';
+import { DoctorOnboardingModule } from '../doctor-onboarding/doctor-onboarding.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { UsersModule } from '../users/users.module';
     PresenceModule,
     PushNotificationsModule,
     UsersModule,
+    DoctorOnboardingModule,
   ],
   controllers: [MedicalDocumentRequestsController, PatientMedicalDocumentRequestsController],
   providers: [MedicalDocumentRequestsService],

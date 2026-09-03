@@ -36,6 +36,7 @@ import {
   REFRESH_TOKEN_TTL_MS,
   type AuthClientKind,
 } from './auth-cookies';
+import { UserAnalyticsService } from '../analytics/user-analytics.service';
 
 const VERIFICATION_TTL_MS = 15 * 60 * 1000;
 const RESET_TTL_MS = 60 * 60 * 1000;
@@ -57,6 +58,7 @@ export class AuthService {
     private specialitiesService: SpecialitiesService,
     private mailService: MailService,
     private config: ConfigService,
+    private userAnalytics: UserAnalyticsService,
   ) {}
 
   private async broadcastDoctorListed(doctorId: string): Promise<void> {
@@ -144,6 +146,7 @@ export class AuthService {
   async authenticateUser(user: User, client: AuthClientKind = 'web') {
     const session = await this.buildSessionPayload(user);
     const tokens = await this.issueTokenPair(user);
+    void this.userAnalytics.recordVisit(user.id).catch(() => undefined);
     return {
       tokens,
       body: this.attachSessionTokens(session, tokens),

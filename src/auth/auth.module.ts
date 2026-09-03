@@ -16,6 +16,7 @@ import { PresenceModule } from '../presence/presence.module';
 import { SpecialitiesModule } from '../specialities/specialities.module';
 import { MailModule } from '../mail/mail.module';
 import { GoogleOAuthService } from './google-oauth.service';
+import { AnalyticsModule } from '../analytics/analytics.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { GoogleOAuthService } from './google-oauth.service';
     PresenceModule,
     SpecialitiesModule,
     MailModule,
+    AnalyticsModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

@@ -14,7 +14,7 @@ import { DEFAULT_MESSAGE_POINTS } from '../points/points.constants';
 import {
   DEFAULT_TEST_PATIENT_DISPLAY_NAME,
   DEFAULT_TEST_PATIENT_PASSWORD,
-  SPECIALTY_TEST_RECORDS,
+  seedsForSpeciality,
   TEST_PATIENT_WELCOME_MESSAGE,
   testPatientEmail,
 } from './specialty-test.constants';
@@ -54,67 +54,71 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
   /** Idempotent — one demo patient per speciality with sample medical records. */
   async ensureSpecialtyTestAccounts(): Promise<void> {
     const specialities = await this.specialityRepo.find({ order: { name_en: 'ASC' } });
-    const hash = await bcrypt.hash(this.testPassword(), 10);
-
     for (const spec of specialities) {
-      const existing = await this.testAccountRepo.findOne({
-        where: { speciality_id: spec.id },
-      });
-      if (existing) {
-        await this.patientProfileRepo.update(
-          { user_id: existing.patient_user_id },
-          { name: DEFAULT_TEST_PATIENT_DISPLAY_NAME },
-        );
-        await this.ensureRecordsForPatient(existing.patient_user_id, spec.name_en);
-        continue;
-      }
-
-      const email = testPatientEmail(spec.name_en);
-      let user = await this.userRepo.findOne({ where: { email } });
-      if (!user) {
-        user = await this.userRepo.save(
-          this.userRepo.create({
-            email,
-            password_hash: hash,
-            role: UserRole.PATIENT,
-            preferred_locale: 'en',
-            message_points: DEFAULT_MESSAGE_POINTS,
-            email_verified_at: new Date(),
-          }),
-        );
-
-        await this.patientProfileRepo.save(
-          this.patientProfileRepo.create({
-            user_id: user.id,
-            name: DEFAULT_TEST_PATIENT_DISPLAY_NAME,
-            phone: '+20000000000',
-            country: 'EG',
-            medical_records_storage_consent: true,
-            medical_records_storage_consent_at: new Date(),
-            is_specialty_test_account: true,
-          }),
-        );
-      } else {
-        await this.patientProfileRepo.update(
-          { user_id: user.id },
-          { name: DEFAULT_TEST_PATIENT_DISPLAY_NAME },
-        );
-      }
-
-      await this.testAccountRepo.save(
-        this.testAccountRepo.create({
-          speciality_id: spec.id,
-          patient_user_id: user.id,
-        }),
-      );
-
-      await this.ensureRecordsForPatient(user.id, spec.name_en);
-      this.logger.log(`Specialty test account ready: ${spec.name_en} → ${email}`);
+      await this.ensureTestAccountForSpeciality(spec);
     }
   }
 
+  /** Creates or refreshes the demo patient for one speciality. */
+  async ensureTestAccountForSpeciality(spec: DoctorSpeciality): Promise<void> {
+    const hash = await bcrypt.hash(this.testPassword(), 10);
+    const existing = await this.testAccountRepo.findOne({
+      where: { speciality_id: spec.id },
+    });
+    if (existing) {
+      await this.patientProfileRepo.update(
+        { user_id: existing.patient_user_id },
+        { name: DEFAULT_TEST_PATIENT_DISPLAY_NAME },
+      );
+      await this.ensureRecordsForPatient(existing.patient_user_id, spec.name_en);
+      return;
+    }
+
+    const email = testPatientEmail(spec.name_en);
+    let user = await this.userRepo.findOne({ where: { email } });
+    if (!user) {
+      user = await this.userRepo.save(
+        this.userRepo.create({
+          email,
+          password_hash: hash,
+          role: UserRole.PATIENT,
+          preferred_locale: 'en',
+          message_points: DEFAULT_MESSAGE_POINTS,
+          email_verified_at: new Date(),
+        }),
+      );
+
+      await this.patientProfileRepo.save(
+        this.patientProfileRepo.create({
+          user_id: user.id,
+          name: DEFAULT_TEST_PATIENT_DISPLAY_NAME,
+          phone: '+20000000000',
+          country: 'EG',
+          medical_records_storage_consent: true,
+          medical_records_storage_consent_at: new Date(),
+          is_specialty_test_account: true,
+        }),
+      );
+    } else {
+      await this.patientProfileRepo.update(
+        { user_id: user.id },
+        { name: DEFAULT_TEST_PATIENT_DISPLAY_NAME, is_specialty_test_account: true },
+      );
+    }
+
+    await this.testAccountRepo.save(
+      this.testAccountRepo.create({
+        speciality_id: spec.id,
+        patient_user_id: user.id,
+      }),
+    );
+
+    await this.ensureRecordsForPatient(user.id, spec.name_en);
+    this.logger.log(`Specialty test account ready: ${spec.name_en} → ${email}`);
+  }
+
   private async ensureRecordsForPatient(patientUserId: string, specialityName: string) {
-    const seeds = SPECIALTY_TEST_RECORDS[specialityName] ?? SPECIALTY_TEST_RECORDS['General Medicine'];
+    const seeds = seedsForSpeciality(specialityName);
 
     for (const seed of seeds) {
       const existing = await this.medicalDocRepo.findOne({
@@ -150,6 +154,40 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
         }),
       );
     }
+
+    await this.ensureMinimumLabAndXray(patientUserId, specialityName);
+  }
+
+  /** Backfill lab + x-ray when older demo accounts are missing either type. */
+  private async ensureMinimumLabAndXray(
+    patientUserId: string,
+    specialityName: string,
+  ): Promise<void> {
+    const docs = await this.medicalDocRepo.find({ where: { patient_id: patientUserId } });
+    const hasLab = docs.some((doc) => doc.type === 'lab');
+    const hasXray = docs.some((doc) => doc.type === 'xray');
+    if (hasLab && hasXray) return;
+
+    const fallbackSeeds = seedsForSpeciality(specialityName);
+    for (const seed of fallbackSeeds) {
+      if (seed.type === 'lab' && hasLab) continue;
+      if (seed.type === 'xray' && hasXray) continue;
+      const exists = docs.some(
+        (doc) => doc.type === seed.type && doc.title === seed.title,
+      );
+      if (exists) continue;
+      await this.medicalDocRepo.save(
+        this.medicalDocRepo.create({
+          patient_id: patientUserId,
+          type: seed.type,
+          title: seed.title,
+          notes: seed.notes,
+          body_part: seed.body_part,
+          file_url: seed.file_url,
+          file_name: seed.file_name,
+        }),
+      );
+    }
   }
 
   async resolveTestPatientForDoctor(doctor: Doctor): Promise<string | null> {
@@ -164,6 +202,15 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
     const doctor = await this.doctorRepo.findOne({ where: { id: doctorId } });
     if (!doctor || doctor.approval_status !== 'approved') {
       return { test_patient_user_id: null };
+    }
+
+    if (doctor.speciality_id) {
+      const spec = await this.specialityRepo.findOne({
+        where: { id: doctor.speciality_id },
+      });
+      if (spec) {
+        await this.ensureTestAccountForSpeciality(spec);
+      }
     }
 
     const testPatientUserId = await this.resolveTestPatientForDoctor(doctor);

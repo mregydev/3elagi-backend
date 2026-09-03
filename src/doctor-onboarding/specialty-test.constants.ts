@@ -87,6 +87,14 @@ export const SPECIALTY_TEST_RECORDS: Record<string, SpecialtyRecordSeed[]> = {
       file_url: TEST_DERMATOLOGY_MOLE_REPORT,
       file_name: 'dermatology-molesafe-report.png',
     },
+    {
+      type: 'xray' as DocumentType,
+      title: 'Skin mapping overview',
+      notes: 'Full-body dermoscopy map — two lesions flagged for follow-up.',
+      body_part: 'general',
+      file_url: DEMO_XRAY_REVIEW,
+      file_name: 'dermatology-skin-map.png',
+    },
   ],
   Pediatrics: [
     {
@@ -96,6 +104,14 @@ export const SPECIALTY_TEST_RECORDS: Record<string, SpecialtyRecordSeed[]> = {
       body_part: 'general',
       file_url: DEMO_LAB_CMP,
       file_name: 'growth-chart-labs.jpg',
+    },
+    {
+      type: 'xray' as DocumentType,
+      title: 'Chest X-ray',
+      notes: 'Clear lung fields — no pneumonia.',
+      body_part: 'chest',
+      file_url: DEMO_XRAY_CHEST,
+      file_name: 'pediatric-chest-xray.jpg',
     },
   ],
   Orthopedics: [
@@ -107,6 +123,14 @@ export const SPECIALTY_TEST_RECORDS: Record<string, SpecialtyRecordSeed[]> = {
       file_url: TEST_ORTHOPEDICS_FOREARM_ORIF,
       file_name: 'orthopedics-forearm-orif.png',
     },
+    {
+      type: 'lab' as DocumentType,
+      title: 'Bone chemistry panel',
+      notes: 'Calcium and vitamin D within range pre-op.',
+      body_part: 'general',
+      file_url: DEMO_LAB_REPORT,
+      file_name: 'bone-chemistry.png',
+    },
   ],
   Neurology: [
     {
@@ -116,6 +140,14 @@ export const SPECIALTY_TEST_RECORDS: Record<string, SpecialtyRecordSeed[]> = {
       body_part: 'head',
       file_url: DEMO_XRAY_REVIEW,
       file_name: 'brain-mri-review.png',
+    },
+    {
+      type: 'lab' as DocumentType,
+      title: 'Metabolic screening',
+      notes: 'Electrolytes and glucose normal; B12 adequate.',
+      body_part: 'head',
+      file_url: DEMO_LAB_CMP,
+      file_name: 'neurology-metabolic.jpg',
     },
   ],
   Ophthalmology: [
@@ -127,6 +159,14 @@ export const SPECIALTY_TEST_RECORDS: Record<string, SpecialtyRecordSeed[]> = {
       file_url: DEMO_XRAY_RECORDS,
       file_name: 'retinal-imaging.png',
     },
+    {
+      type: 'lab' as DocumentType,
+      title: 'HbA1c screening',
+      notes: '5.4% — no diabetic retinopathy risk from glycemic control.',
+      body_part: 'eyes',
+      file_url: DEMO_LAB_REPORT,
+      file_name: 'hba1c-report.png',
+    },
   ],
   Dentistry: [
     {
@@ -136,6 +176,14 @@ export const SPECIALTY_TEST_RECORDS: Record<string, SpecialtyRecordSeed[]> = {
       body_part: 'head',
       file_url: TEST_DENTISTRY_PANORAMIC,
       file_name: 'dentistry-panoramic-xray.png',
+    },
+    {
+      type: 'lab' as DocumentType,
+      title: 'Pre-procedure blood work',
+      notes: 'CBC normal — cleared for extraction.',
+      body_part: 'general',
+      file_url: DEMO_LAB_CMP,
+      file_name: 'dental-preop-labs.jpg',
     },
   ],
   Surgery: [
@@ -147,6 +195,14 @@ export const SPECIALTY_TEST_RECORDS: Record<string, SpecialtyRecordSeed[]> = {
       file_url: DEMO_XRAY_CHEST,
       file_name: 'post-op-chest-xray.jpg',
     },
+    {
+      type: 'lab' as DocumentType,
+      title: 'Pre-operative panel',
+      notes: 'Coagulation and CBC within normal limits.',
+      body_part: 'general',
+      file_url: DEMO_LAB_REPORT,
+      file_name: 'preop-labs.png',
+    },
   ],
   Emergency: [
     {
@@ -156,6 +212,14 @@ export const SPECIALTY_TEST_RECORDS: Record<string, SpecialtyRecordSeed[]> = {
       body_part: 'general',
       file_url: DEMO_LAB_CMP,
       file_name: 'triage-labs.jpg',
+    },
+    {
+      type: 'xray' as DocumentType,
+      title: 'Trauma chest X-ray',
+      notes: 'No pneumothorax; ribs intact.',
+      body_part: 'chest',
+      file_url: DEMO_XRAY_CHEST_ALT,
+      file_name: 'trauma-chest-xray.jpg',
     },
   ],
   Gynaecology: [
@@ -167,6 +231,14 @@ export const SPECIALTY_TEST_RECORDS: Record<string, SpecialtyRecordSeed[]> = {
       file_url: DEMO_XRAY_REVIEW,
       file_name: 'pelvic-us-report.png',
     },
+    {
+      type: 'lab' as DocumentType,
+      title: 'Pregnancy hormone panel',
+      notes: 'Beta-hCG and progesterone consistent with early pregnancy.',
+      body_part: 'reproductive',
+      file_url: DEMO_LAB_REPORT,
+      file_name: 'pregnancy-hormones.png',
+    },
   ],
   Nutritionist: [
     {
@@ -176,6 +248,14 @@ export const SPECIALTY_TEST_RECORDS: Record<string, SpecialtyRecordSeed[]> = {
       body_part: 'general',
       file_url: DEMO_LAB_REPORT,
       file_name: 'metabolic-panel.png',
+    },
+    {
+      type: 'xray' as DocumentType,
+      title: 'Body composition scan',
+      notes: 'DEXA summary — BMI 27, visceral fat mildly elevated.',
+      body_part: 'general',
+      file_url: DEMO_XRAY_RECORDS,
+      file_name: 'body-composition.png',
     },
   ],
   ENT: [
@@ -226,3 +306,29 @@ export const TEST_PATIENT_WELCOME_MESSAGE =
   'Hi doctor! I am your AI demo patient. Ask me up to 20 questions about my symptoms and history, request lab or X-ray results like a real consultation, and explore my medical records anytime.';
 
 export const DEFAULT_TEST_PATIENT_PASSWORD = 'TestPatient123!';
+
+const GENERAL_MEDICINE_SEEDS = SPECIALTY_TEST_RECORDS['General Medicine'];
+
+/** Ensures every speciality seed list includes at least one lab and one x-ray. */
+export function seedsForSpeciality(nameEn: string): SpecialtyRecordSeed[] {
+  const base = SPECIALTY_TEST_RECORDS[nameEn] ?? GENERAL_MEDICINE_SEEDS;
+  const hasLab = base.some((seed) => seed.type === 'lab');
+  const hasXray = base.some((seed) => seed.type === 'xray');
+  const extras: SpecialtyRecordSeed[] = [];
+  const fallbackLab = GENERAL_MEDICINE_SEEDS.find((seed) => seed.type === 'lab');
+  const fallbackXray = GENERAL_MEDICINE_SEEDS.find((seed) => seed.type === 'xray');
+
+  if (!hasLab && fallbackLab) {
+    extras.push({
+      ...fallbackLab,
+      title: `${nameEn} demo lab`,
+    });
+  }
+  if (!hasXray && fallbackXray) {
+    extras.push({
+      ...fallbackXray,
+      title: `${nameEn} demo X-ray`,
+    });
+  }
+  return [...base, ...extras];
+}

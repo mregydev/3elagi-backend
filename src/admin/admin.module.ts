@@ -24,6 +24,7 @@ import { MailModule } from '../mail/mail.module';
 import { DoctorOnboardingModule } from '../doctor-onboarding/doctor-onboarding.module';
 import { AuthModule } from '../auth/auth.module';
 import { AccountDeletionModule } from '../account-deletion/account-deletion.module';
+import { AnalyticsModule } from '../analytics/analytics.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { AccountDeletionModule } from '../account-deletion/account-deletion.modu
     DoctorOnboardingModule,
     AuthModule,
     AccountDeletionModule,
+    AnalyticsModule,
   ],
   controllers: [AdminController],
   providers: [AdminService],

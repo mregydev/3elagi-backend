@@ -31,6 +31,7 @@ import { MedicalRecordImageAnalyzerService } from '../medical-documents/medical-
 import { PresenceGateway } from '../presence/presence.gateway';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 import { UsersService } from '../users/users.service';
+import { TestPatientAiService } from '../doctor-onboarding/test-patient-ai.service';
 import { CreateMedicalDocumentRequestDto } from './dto/create-medical-document-request.dto';
 import { AiDraftRequestDescriptionDto } from './dto/ai-draft-request-description.dto';
 
@@ -131,6 +132,7 @@ export class MedicalDocumentRequestsService {
     private presence: PresenceGateway,
     private pushNotifications: PushNotificationsService,
     private users: UsersService,
+    private testPatientAi: TestPatientAiService,
   ) {}
 
   private readonly logger = new Logger(MedicalDocumentRequestsService.name);
@@ -258,6 +260,10 @@ export class MedicalDocumentRequestsService {
     );
     await this.doctorPatientAccessService.assertPatientUser(patientUserId);
     await this.patientConsentService.assertMedicalRecordsStorageConsent(patientUserId);
+    await this.testPatientAi.ensureDoctorCanChatWithTestPatient(
+      doctorUserId,
+      patientUserId,
+    );
 
     const row = this.repo.create({
       doctor_id: doctor.id,

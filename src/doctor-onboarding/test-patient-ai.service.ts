@@ -9,6 +9,8 @@ import { Repository } from 'typeorm';
 import { LLM_PROVIDER } from '../ai/llm/llm.tokens';
 import type { LlmProvider } from '../ai/llm/llm.types';
 import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
+import { Doctor } from '../entities/doctor.entity';
+import { DoctorPatientAccess } from '../entities/doctor-patient-access.entity';
 import { MedicalDocument } from '../entities/medical-document.entity';
 import { Message } from '../entities/message.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
@@ -20,7 +22,7 @@ import { UsersService } from '../users/users.service';
 import {
   DEFAULT_TEST_PATIENT_DISPLAY_NAME,
   MAX_TEST_PATIENT_DOCTOR_QUESTIONS,
-  SPECIALTY_TEST_RECORDS,
+  seedsForSpeciality,
   TEST_PATIENT_WELCOME_MESSAGE,
 } from './specialty-test.constants';
 
@@ -36,6 +38,9 @@ export class TestPatientAiService {
     @InjectRepository(Message) private messageRepo: Repository<Message>,
     @InjectRepository(SpecialtyTestAccount)
     private testAccountRepo: Repository<SpecialtyTestAccount>,
+    @InjectRepository(Doctor) private doctorRepo: Repository<Doctor>,
+    @InjectRepository(DoctorPatientAccess)
+    private accessRepo: Repository<DoctorPatientAccess>,
     @InjectRepository(DoctorSpeciality)
     private specialityRepo: Repository<DoctorSpeciality>,
     @InjectRepository(MedicalDocument)
@@ -88,8 +93,12 @@ export class TestPatientAiService {
         is_test_patient: false,
         questions_asked: 0,
         max_questions: MAX_TEST_PATIENT_DOCTOR_QUESTIONS,
+        chat_open: false,
       };
     }
+
+    await this.ensureDoctorCanChatWithTestPatient(doctorUserId, patientUserId);
+
     const questionsAsked = await this.countDoctorTextQuestions(
       doctorUserId,
       patientUserId,
@@ -99,7 +108,74 @@ export class TestPatientAiService {
       questions_asked: questionsAsked,
       max_questions: MAX_TEST_PATIENT_DOCTOR_QUESTIONS,
       display_name: DEFAULT_TEST_PATIENT_DISPLAY_NAME,
+      chat_open: true,
     };
+  }
+
+  /** Demo patient chats skip consultations — grant access and a welcome message on first open. */
+  async ensureDoctorCanChatWithTestPatient(
+    doctorUserId: string,
+    patientUserId: string,
+  ): Promise<void> {
+    if (!(await this.isSpecialtyTestPatient(patientUserId))) return;
+
+    const doctor = await this.doctorRepo.findOne({ where: { user_id: doctorUserId } });
+    if (!doctor) return;
+
+    let access = await this.accessRepo.findOne({
+      where: { patient_user_id: patientUserId, doctor_id: doctor.id },
+    });
+    if (!access) {
+      access = await this.accessRepo.save(
+        this.accessRepo.create({
+          patient_user_id: patientUserId,
+          doctor_id: doctor.id,
+          records_allowed: true,
+          records_allowed_at: new Date(),
+          blocked_by_patient: false,
+          blocked_by_doctor: false,
+        }),
+      );
+    } else if (!access.records_allowed) {
+      access.records_allowed = true;
+      access.records_allowed_at = new Date();
+      await this.accessRepo.save(access);
+    }
+
+    const existingWelcome = await this.messageRepo.findOne({
+      where: {
+        creator: patientUserId,
+        recipient: doctorUserId,
+        content: TEST_PATIENT_WELCOME_MESSAGE,
+      },
+    });
+    if (!existingWelcome) {
+      await this.messageRepo.save(
+        this.messageRepo.create({
+          type: 'text',
+          content: TEST_PATIENT_WELCOME_MESSAGE,
+          creator: patientUserId,
+          recipient: doctorUserId,
+          datetime: new Date(),
+        }),
+      );
+    }
+  }
+
+  async involvesSpecialtyTestPatient(userA: string, userB: string): Promise<boolean> {
+    return (
+      (await this.isSpecialtyTestPatient(userA)) ||
+      (await this.isSpecialtyTestPatient(userB))
+    );
+  }
+
+  async resolveDemoPatientUserIdForDoctor(doctorUserId: string): Promise<string | null> {
+    const doctor = await this.doctorRepo.findOne({ where: { user_id: doctorUserId } });
+    if (!doctor?.speciality_id) return null;
+    const row = await this.testAccountRepo.findOne({
+      where: { speciality_id: doctor.speciality_id },
+    });
+    return row?.patient_user_id ?? null;
   }
 
   /** Fire-and-forget Gemini reply after a doctor text message to the demo patient. */
@@ -217,7 +293,7 @@ export class TestPatientAiService {
       if (spec?.name_en) specialityName = spec.name_en;
     }
 
-    const seeds = SPECIALTY_TEST_RECORDS[specialityName] ?? SPECIALTY_TEST_RECORDS['General Medicine'];
+    const seeds = seedsForSpeciality(specialityName);
     const docs = await this.medicalDocRepo.find({
       where: { patient_id: patientUserId },
       order: { created_at: 'ASC' },
