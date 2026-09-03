@@ -26,6 +26,7 @@ import { UpdateMessageDto } from './dto/update-message.dto';
 import { MessageEmotionsService } from '../message-emotions/message-emotions.service';
 import { AppointmentsChatService } from '../appointments/appointments-chat.service';
 import { ConsultationsService } from '../consultations/consultations.service';
+import { TestPatientAiService } from '../doctor-onboarding/test-patient-ai.service';
 import { resolvePricingCountry, type RequestLike } from '../common/request-country';
 import { stripOrphanedAppointmentMessages } from '../appointments/appointment-chat-messages';
 
@@ -79,6 +80,7 @@ export class MessagesService {
     private messageEmotionsService: MessageEmotionsService,
     private appointmentsChatService: AppointmentsChatService,
     private consultationsService: ConsultationsService,
+    private testPatientAi: TestPatientAiService,
   ) {}
 
   private mapMessage(row: Message, pointsBalance?: number, messageCost?: number) {
@@ -479,6 +481,17 @@ export class MessagesService {
       }
     }
 
+    if (
+      type === 'text' &&
+      sender.role === UserRole.DOCTOR &&
+      recipient.role === UserRole.PATIENT
+    ) {
+      await this.testPatientAi.assertDoctorCanAskTestPatient(
+        userId,
+        dto.recipient_id,
+      );
+    }
+
     const created = this.messageRepo.create({
       type,
       content,
@@ -513,6 +526,19 @@ export class MessagesService {
       type: mapped.type as MessageType,
       content: mapped.content,
     });
+
+    if (
+      type === 'text' &&
+      sender.role === UserRole.DOCTOR &&
+      recipient.role === UserRole.PATIENT &&
+      (await this.testPatientAi.isSpecialtyTestPatient(dto.recipient_id))
+    ) {
+      this.testPatientAi.voidReplyToDoctor(
+        userId,
+        dto.recipient_id,
+        content,
+      );
+    }
 
     return mapped;
   }

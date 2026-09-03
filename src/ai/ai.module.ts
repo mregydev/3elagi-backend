@@ -113,6 +113,6 @@ import { UploadsModule } from '../uploads/uploads.module';
       useClass: GeminiLlmProvider,
     },
   ],
-  exports: [KnowledgeIndexerService, AiService, AiChatService],
+  exports: [KnowledgeIndexerService, AiService, AiChatService, LLM_PROVIDER],
 })
 export class AiModule {}

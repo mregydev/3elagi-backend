@@ -19,9 +19,13 @@ export class DoctorRegistrationRequest {
   @Column({ type: 'varchar', length: 64 })
   phone: string;
 
-  /** Practice country: EG or JO */
+  /** Practice country: EG, JO, US, or GB */
   @Column({ type: 'varchar', length: 2, default: 'EG' })
   country: string;
+
+  /** Optional clinic address or city when provided at signup. */
+  @Column({ type: 'varchar', length: 512, nullable: true })
+  clinic_location: string | null;
 
   @Column({ type: 'uuid' })
   speciality_id: string;

@@ -393,7 +393,7 @@ export class AuthService {
     const personalClinic = this.clinicRepo.create({
       name: dto.name,
       phone: dto.phone ?? '',
-      location: '',
+      location: dto.clinic_location?.trim() || '',
       owner_id: user.id,
       is_personal: true,
       // Mirrors the doctor: an admin approving the doctor approves this too.

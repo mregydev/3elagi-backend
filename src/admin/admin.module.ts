@@ -22,6 +22,8 @@ import { DoctorRegistrationRequestsModule } from '../doctor-registration-request
 import { AppReviewsModule } from '../app-reviews/app-reviews.module';
 import { MailModule } from '../mail/mail.module';
 import { DoctorOnboardingModule } from '../doctor-onboarding/doctor-onboarding.module';
+import { AuthModule } from '../auth/auth.module';
+import { AccountDeletionModule } from '../account-deletion/account-deletion.module';
 
 @Module({
   imports: [
@@ -49,6 +51,8 @@ import { DoctorOnboardingModule } from '../doctor-onboarding/doctor-onboarding.m
     AppReviewsModule,
     MailModule,
     DoctorOnboardingModule,
+    AuthModule,
+    AccountDeletionModule,
   ],
   controllers: [AdminController],
   providers: [AdminService],

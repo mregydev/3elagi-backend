@@ -18,14 +18,20 @@ import {
   type PatientCountryCode,
 } from './world-countries';
 
-/** Live markets for doctor signup, browse, and currency (Egypt & Jordan). */
+/** Live markets for doctor browse and currency (Egypt & Jordan). */
 export const MARKET_COUNTRY_CODES = ['EG', 'JO'] as const;
 export type MarketCountryCode = (typeof MARKET_COUNTRY_CODES)[number];
+
+/** Countries offered on doctor signup and register-with-us forms. */
+export const DOCTOR_SIGNUP_COUNTRY_CODES = ['EG', 'JO', 'US', 'GB'] as const;
+export type DoctorSignupCountryCode =
+  (typeof DOCTOR_SIGNUP_COUNTRY_CODES)[number];
 
 export const DEFAULT_PATIENT_COUNTRY: MarketCountryCode = 'EG';
 
 const COUNTRY_SET = new Set<string>(PATIENT_COUNTRY_CODES);
 const MARKET_SET = new Set<string>(MARKET_COUNTRY_CODES);
+const DOCTOR_SIGNUP_SET = new Set<string>(DOCTOR_SIGNUP_COUNTRY_CODES);
 
 export function isPatientCountryCode(
   value: string,
@@ -35,6 +41,12 @@ export function isPatientCountryCode(
 
 export function isMarketCountryCode(value: string): value is MarketCountryCode {
   return MARKET_SET.has(value.trim().toUpperCase());
+}
+
+export function isDoctorSignupCountryCode(
+  value: string,
+): value is DoctorSignupCountryCode {
+  return DOCTOR_SIGNUP_SET.has(value.trim().toUpperCase());
 }
 
 /** Normalize free-text / DTO country to a supported code; default Egypt. */

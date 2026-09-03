@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { DoctorsService } from './doctors.service';
 import { DoctorOnboardingService } from '../doctor-onboarding/doctor-onboarding.service';
+import { TestPatientAiService } from '../doctor-onboarding/test-patient-ai.service';
 import { ReviewsService } from '../reviews/reviews.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -25,6 +26,7 @@ export class DoctorsController {
     private readonly doctorsService: DoctorsService,
     private readonly reviewsService: ReviewsService,
     private readonly doctorOnboarding: DoctorOnboardingService,
+    private readonly testPatientAi: TestPatientAiService,
   ) {}
 
   @Get('clinic/:clinicId')
@@ -69,6 +71,15 @@ export class DoctorsController {
   @Roles('doctor')
   ensureOnboarding(@Request() req) {
     return this.doctorsService.ensureOnboarding(req.user.id);
+  }
+
+  @Get('me/test-patient-chat/:patientUserId')
+  @Roles('doctor')
+  testPatientChatStatus(
+    @Request() req,
+    @Param('patientUserId') patientUserId: string,
+  ) {
+    return this.testPatientAi.getChatStatus(req.user.id, patientUserId);
   }
 
   @Patch('me')

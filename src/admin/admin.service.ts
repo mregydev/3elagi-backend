@@ -33,8 +33,15 @@ import {
   getMarketingTemplatePreview,
   marketingEmailLogoAttachments,
 } from '../mail/marketing-email.template';
+import {
+  buildDoctorWelcomeEmailHtml,
+  getDoctorWelcomeTemplatePreview,
+} from '../mail/doctor-welcome-email.template';
 import { resolveMarketingEmailTheme } from '../mail/marketing-email-themes';
 import { DoctorOnboardingService } from '../doctor-onboarding/doctor-onboarding.service';
+import { AuthService } from '../auth/auth.service';
+import { CreateAdminDoctorDto } from './dto/create-admin-doctor.dto';
+import { AccountDeletionService } from '../account-deletion/account-deletion.service';
 
 const APPROVAL_VALUES: ApprovalStatus[] = ['pending', 'approved', 'rejected'];
 
@@ -89,6 +96,8 @@ export class AdminService {
     private uploadsService: UploadsService,
     private mailService: MailService,
     private doctorOnboarding: DoctorOnboardingService,
+    private authService: AuthService,
+    private accountDeletion: AccountDeletionService,
   ) {}
 
   // ----- Specialities (market visibility) -----
@@ -109,6 +118,55 @@ export class AdminService {
       relations: ['speciality'],
       order: { created_at: 'DESC' },
     });
+  }
+
+  /** Admin-created doctors skip the pending queue and go live immediately. */
+  async createDoctor(dto: CreateAdminDoctorDto) {
+    const result = await this.authService.registerDoctor(dto, 'web');
+    const profile = result.body.profile as Doctor | undefined;
+    const doctorId =
+      profile?.id ??
+      (
+        await this.doctorRepo.findOne({
+          where: { user_id: result.body.user_id as string },
+        })
+      )?.id;
+    if (!doctorId) {
+      throw new BadRequestException('Doctor account was created but could not be loaded');
+    }
+    await this.setDoctorApproval(doctorId, 'approved');
+    const approved = await this.doctorRepo.findOne({
+      where: { id: doctorId },
+      relations: ['speciality'],
+    });
+
+    let welcomeEmail: { ok: boolean; error?: string } | undefined;
+    if (dto.send_welcome_email) {
+      try {
+        await this.sendDoctorWelcomeEmail({
+          name: dto.name.trim(),
+          email: dto.email.trim().toLowerCase(),
+          password: dto.password,
+          language: dto.welcome_email_language ?? 'en',
+          themeColor: dto.welcome_email_theme,
+          sections: dto.welcome_email_sections as MarketingEmailSection[] | undefined,
+        });
+        welcomeEmail = { ok: true };
+      } catch (err) {
+        welcomeEmail = {
+          ok: false,
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+    }
+
+    return {
+      ...result.body,
+      profile: approved ?? profile,
+      access_token: result.tokens.accessToken,
+      refresh_token: result.tokens.refreshToken,
+      welcome_email: welcomeEmail,
+    };
   }
 
   async updateDoctor(id: string, dto: UpdateDoctorDto) {
@@ -174,12 +232,7 @@ export class AdminService {
   }
 
   async deleteDoctor(id: string) {
-    const doc = await this.doctorRepo.findOne({ where: { id } });
-    if (!doc) throw new NotFoundException('Doctor not found');
-    await this.doctorRepo.delete(id);
-    if (doc.user_id) {
-      await this.userRepo.delete(doc.user_id);
-    }
+    await this.accountDeletion.deleteDoctorAccount(id, 'admin');
     return { ok: true };
   }
 
@@ -209,11 +262,12 @@ export class AdminService {
   }
 
   async deletePatient(userId: string) {
-    const p = await this.patientRepo.findOne({ where: { user_id: userId } });
-    if (!p) throw new NotFoundException('Patient not found');
-    await this.patientRepo.delete(userId);
-    await this.userRepo.delete(userId);
+    await this.accountDeletion.deletePatientAccount(userId, 'admin');
     return { ok: true };
+  }
+
+  listDeletedAccounts() {
+    return this.accountDeletion.listDeletedAccounts();
   }
 
   async getMarketingTemplate(
@@ -245,6 +299,70 @@ export class AdminService {
       dir: dto.language === 'ar' ? ('rtl' as const) : ('ltr' as const),
       themeColor,
     };
+  }
+
+  getDoctorWelcomeTemplate(
+    language: SendMarketingEmailDto['language'],
+    theme?: SendMarketingEmailDto['themeColor'],
+  ) {
+    return getDoctorWelcomeTemplatePreview(language, theme);
+  }
+
+  previewDoctorWelcomeEmail(dto: {
+    language: SendMarketingEmailDto['language'];
+    themeColor?: SendMarketingEmailDto['themeColor'];
+    previewName?: string;
+    previewEmail?: string;
+    previewPassword?: string;
+    sections: MarketingEmailSection[];
+  }) {
+    const themeColor = resolveMarketingEmailTheme(dto.themeColor);
+    const { subject, html, text } = buildDoctorWelcomeEmailHtml({
+      language: dto.language,
+      theme: themeColor,
+      sections: dto.sections,
+      placeholders: {
+        name: dto.previewName?.trim() || 'Doctor',
+        email: dto.previewEmail?.trim() || 'doctor@example.com',
+        password: dto.previewPassword?.trim() || 'YourPassword123',
+      },
+      forPreview: true,
+    });
+    return {
+      subject,
+      html,
+      text,
+      dir: dto.language === 'ar' ? ('rtl' as const) : ('ltr' as const),
+      themeColor,
+    };
+  }
+
+  private async sendDoctorWelcomeEmail(input: {
+    name: string;
+    email: string;
+    password: string;
+    language: SendMarketingEmailDto['language'];
+    themeColor?: SendMarketingEmailDto['themeColor'];
+    sections?: MarketingEmailSection[];
+  }) {
+    const { subject, html, text } = buildDoctorWelcomeEmailHtml({
+      language: input.language,
+      theme: input.themeColor,
+      sections: input.sections,
+      placeholders: {
+        name: input.name,
+        email: input.email,
+        password: input.password,
+      },
+    });
+    await this.mailService.sendDoctorMarketingInvite({
+      to: input.email,
+      recipientName: input.name,
+      subject,
+      text,
+      html,
+      attachments: marketingEmailLogoAttachments(),
+    });
   }
 
   async sendMarketingEmail(dto: SendMarketingEmailDto) {

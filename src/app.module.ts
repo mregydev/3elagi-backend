@@ -172,7 +172,10 @@ import { EntSpeciality1778670000000 } from './migrations/1778670000000-EntSpecia
 import { DoctorProductTour1778680000000 } from './migrations/1778680000000-DoctorProductTour';
 import { SpecialtyTestAccounts1778690000000 } from './migrations/1778690000000-SpecialtyTestAccounts';
 import { RefreshSpecialtyTestAttachments1778700000000 } from './migrations/1778700000000-RefreshSpecialtyTestAttachments';
+import { SpecialtyTestAttachmentsRealistic1778720000000 } from './migrations/1778720000000-SpecialtyTestAttachmentsRealistic';
+import { DeletedAccounts1778730000000 } from './migrations/1778730000000-DeletedAccounts';
 import { SpecialtyTestAccount } from './entities/specialty-test-account.entity';
+import { DeletedAccount } from './entities/deleted-account.entity';
 import { UserNotification } from './entities/user-notification.entity';
 import { ContactSubmission } from './entities/contact-submission.entity';
 import { DoctorRegistrationRequest } from './entities/doctor-registration-request.entity';
@@ -234,6 +237,7 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
           DoctorTagCatalog,
           RefreshToken,
           SpecialtyTestAccount,
+          DeletedAccount,
         ],
         synchronize: false,
         migrations: [
@@ -331,6 +335,8 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
           DoctorProductTour1778680000000,
           SpecialtyTestAccounts1778690000000,
           RefreshSpecialtyTestAttachments1778700000000,
+          SpecialtyTestAttachmentsRealistic1778720000000,
+          DeletedAccounts1778730000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',

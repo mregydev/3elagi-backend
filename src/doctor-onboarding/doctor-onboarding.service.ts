@@ -12,6 +12,7 @@ import { SpecialtyTestAccount } from '../entities/specialty-test-account.entity'
 import { User, UserRole } from '../entities/user.entity';
 import { DEFAULT_MESSAGE_POINTS } from '../points/points.constants';
 import {
+  DEFAULT_TEST_PATIENT_DISPLAY_NAME,
   DEFAULT_TEST_PATIENT_PASSWORD,
   SPECIALTY_TEST_RECORDS,
   TEST_PATIENT_WELCOME_MESSAGE,
@@ -60,6 +61,10 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
         where: { speciality_id: spec.id },
       });
       if (existing) {
+        await this.patientProfileRepo.update(
+          { user_id: existing.patient_user_id },
+          { name: DEFAULT_TEST_PATIENT_DISPLAY_NAME },
+        );
         await this.ensureRecordsForPatient(existing.patient_user_id, spec.name_en);
         continue;
       }
@@ -81,13 +86,18 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
         await this.patientProfileRepo.save(
           this.patientProfileRepo.create({
             user_id: user.id,
-            name: `${spec.name_en} Test Patient`,
+            name: DEFAULT_TEST_PATIENT_DISPLAY_NAME,
             phone: '+20000000000',
             country: 'EG',
             medical_records_storage_consent: true,
             medical_records_storage_consent_at: new Date(),
             is_specialty_test_account: true,
           }),
+        );
+      } else {
+        await this.patientProfileRepo.update(
+          { user_id: user.id },
+          { name: DEFAULT_TEST_PATIENT_DISPLAY_NAME },
         );
       }
 

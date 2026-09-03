@@ -21,6 +21,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
 import { AdminService } from './admin.service';
+import { CreateAdminDoctorDto } from './dto/create-admin-doctor.dto';
 import { PointPricingService } from '../points/point-pricing.service';
 import { ContactService } from '../contact/contact.service';
 import { DoctorRegistrationRequestsService } from '../doctor-registration-requests/doctor-registration-requests.service';
@@ -30,6 +31,7 @@ import { TrainRagDocumentChunkDto } from './dto/train-rag-document-chunk.dto';
 import { SendMarketingEmailDto, MARKETING_EMAIL_LANGUAGES } from './dto/send-marketing-email.dto';
 import { SendMarketingEmailBatchDto } from './dto/send-marketing-email-batch.dto';
 import { PreviewMarketingEmailDto } from './dto/preview-marketing-email.dto';
+import { PreviewDoctorWelcomeEmailDto } from './dto/preview-doctor-welcome-email.dto';
 import { resolveMarketingEmailTheme } from '../mail/marketing-email-themes';
 import { IntakeQuestion } from '../entities/intake-test.entity';
 import type { ApprovalStatus } from '../entities/doctor.entity';
@@ -69,6 +71,10 @@ export class AdminController {
   listDoctors() {
     return this.service.listDoctors();
   }
+  @Post('doctors')
+  createDoctor(@Body() dto: CreateAdminDoctorDto) {
+    return this.service.createDoctor(dto);
+  }
   @Patch('doctors/:id')
   updateDoctor(
     @Param('id') id: string,
@@ -97,6 +103,11 @@ export class AdminController {
   @Delete('doctors/:id')
   deleteDoctor(@Param('id') id: string) {
     return this.service.deleteDoctor(id);
+  }
+
+  @Get('deleted-accounts')
+  listDeletedAccounts() {
+    return this.service.listDeletedAccounts();
   }
 
   // Clinics
@@ -239,6 +250,30 @@ export class AdminController {
   @Post('marketing/preview')
   previewMarketingEmail(@Body() body: PreviewMarketingEmailDto) {
     return this.service.previewMarketingEmail(body);
+  }
+
+  @Get('doctor-welcome/template/:language')
+  getDoctorWelcomeTemplate(
+    @Param('language') language: string,
+    @Query('theme') theme?: string,
+  ) {
+    const normalized = language.trim().toLowerCase();
+    if (
+      !MARKETING_EMAIL_LANGUAGES.includes(
+        normalized as (typeof MARKETING_EMAIL_LANGUAGES)[number],
+      )
+    ) {
+      throw new HttpException('Invalid language', HttpStatus.BAD_REQUEST);
+    }
+    return this.service.getDoctorWelcomeTemplate(
+      normalized as (typeof MARKETING_EMAIL_LANGUAGES)[number],
+      resolveMarketingEmailTheme(theme),
+    );
+  }
+
+  @Post('doctor-welcome/preview')
+  previewDoctorWelcomeEmail(@Body() body: PreviewDoctorWelcomeEmailDto) {
+    return this.service.previewDoctorWelcomeEmail(body);
   }
 
   @Post('marketing/send')

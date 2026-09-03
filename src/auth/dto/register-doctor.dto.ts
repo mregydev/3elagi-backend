@@ -11,7 +11,7 @@ import {
   IsNotEmpty,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
-import { MARKET_COUNTRY_CODES } from '../../common/patient-countries';
+import { DOCTOR_SIGNUP_COUNTRY_CODES } from '../../common/patient-countries';
 
 export class RegisterDoctorDto {
   @IsEmail()
@@ -37,10 +37,14 @@ export class RegisterDoctorDto {
     typeof value === 'string' ? value.trim().toUpperCase() : value,
   )
   @IsString()
-  @IsIn([...MARKET_COUNTRY_CODES], {
-    message: `country must be one of: ${MARKET_COUNTRY_CODES.join(', ')}`,
+  @IsIn([...DOCTOR_SIGNUP_COUNTRY_CODES], {
+    message: `country must be one of: ${DOCTOR_SIGNUP_COUNTRY_CODES.join(', ')}`,
   })
   country: string;
+
+  @IsString()
+  @IsOptional()
+  clinic_location?: string;
 
   @IsString()
   @IsOptional()

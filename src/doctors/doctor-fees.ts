@@ -15,11 +15,12 @@ export type ConsultationKind = 'text' | 'video';
  * from their profile; these are only the defaults.
  */
 export const DEFAULT_DOCTOR_FEES: Record<
-  'EG' | 'JO',
+  'EG' | 'JO' | 'INTL',
   { local: number; usd: number }
 > = {
   EG: { local: 200, usd: 50 },
   JO: { local: 15, usd: 50 },
+  INTL: { local: 50, usd: 50 },
 };
 
 /** The four fee columns a newly created doctor starts with. */
@@ -31,7 +32,11 @@ export function defaultDoctorFeeColumns(country?: string | null): {
 } {
   const code = country?.trim().toUpperCase();
   const fees =
-    code === 'JO' ? DEFAULT_DOCTOR_FEES.JO : DEFAULT_DOCTOR_FEES.EG;
+    code === 'JO'
+      ? DEFAULT_DOCTOR_FEES.JO
+      : code === 'EG'
+        ? DEFAULT_DOCTOR_FEES.EG
+        : DEFAULT_DOCTOR_FEES.INTL;
   return {
     text_price_local: fees.local.toFixed(2),
     text_price_usd: fees.usd.toFixed(2),

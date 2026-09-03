@@ -13,6 +13,15 @@ export type SpecialtyRecordSeed = {
 const DEMO_MARKETING_BASE =
   'https://hjluqxfmvpvtjvwzqxgi.supabase.co/storage/v1/object/public/files/static/marketing';
 
+/** Realistic demo imaging uploaded to Supabase (see scripts/upload-test-attachments.mjs). */
+const DEMO_TEST_ATTACHMENTS_BASE =
+  'https://hjluqxfmvpvtjvwzqxgi.supabase.co/storage/v1/object/public/files/static/test-attachments';
+
+const TEST_CARDIOLOGY_CHEST_XRAY = `${DEMO_TEST_ATTACHMENTS_BASE}/cardiology-chest-xray.png`;
+const TEST_DENTISTRY_PANORAMIC = `${DEMO_TEST_ATTACHMENTS_BASE}/dentistry-panoramic-xray.png`;
+const TEST_DERMATOLOGY_MOLE_REPORT = `${DEMO_TEST_ATTACHMENTS_BASE}/dermatology-molesafe-report.png`;
+const TEST_ORTHOPEDICS_FOREARM_ORIF = `${DEMO_TEST_ATTACHMENTS_BASE}/orthopedics-forearm-orif.png`;
+
 /** Comprehensive metabolic panel on-screen lab report (Wikimedia, CC BY-SA). */
 const DEMO_LAB_CMP =
   'https://upload.wikimedia.org/wikipedia/commons/f/f8/CMP_report.JPG';
@@ -53,11 +62,11 @@ export const SPECIALTY_TEST_RECORDS: Record<string, SpecialtyRecordSeed[]> = {
   Cardiology: [
     {
       type: 'xray' as DocumentType,
-      title: 'Echocardiogram snapshot',
-      notes: 'Normal ejection fraction, mild trace regurgitation.',
+      title: 'Chest X-ray',
+      notes: 'Cardiomegaly noted — enlarged cardiac silhouette; correlate with echo and BNP.',
       body_part: 'heart',
-      file_url: DEMO_XRAY_REVIEW,
-      file_name: 'echo-review.png',
+      file_url: TEST_CARDIOLOGY_CHEST_XRAY,
+      file_name: 'cardiology-chest-xray.png',
     },
     {
       type: 'lab' as DocumentType,
@@ -70,12 +79,13 @@ export const SPECIALTY_TEST_RECORDS: Record<string, SpecialtyRecordSeed[]> = {
   ],
   Dermatology: [
     {
-      type: 'xray' as DocumentType,
-      title: 'Dermoscopy — forearm lesion',
-      notes: 'Benign-appearing macule, monitor in 6 months.',
-      body_part: 'left_arm',
-      file_url: DEMO_XRAY_REVIEW,
-      file_name: 'dermoscopy-imaging.png',
+      type: 'lab' as DocumentType,
+      title: 'Mole analysis report',
+      notes:
+        '6×7 mm lesion on right lower leg — asymmetry and pigment network; excision recommended (melanoma vs atypical naevus).',
+      body_part: 'right_leg',
+      file_url: TEST_DERMATOLOGY_MOLE_REPORT,
+      file_name: 'dermatology-molesafe-report.png',
     },
   ],
   Pediatrics: [
@@ -91,11 +101,11 @@ export const SPECIALTY_TEST_RECORDS: Record<string, SpecialtyRecordSeed[]> = {
   Orthopedics: [
     {
       type: 'xray' as DocumentType,
-      title: 'Left knee X-ray',
-      notes: 'Mild osteoarthritis, no fracture.',
-      body_part: 'left_leg',
-      file_url: DEMO_XRAY_CHEST_ALT,
-      file_name: 'knee-xray.jpg',
+      title: 'Forearm X-ray — post ORIF',
+      notes: 'Radius mid-shaft fracture treated with plate and screws; alignment satisfactory at 6-week follow-up.',
+      body_part: 'left_arm',
+      file_url: TEST_ORTHOPEDICS_FOREARM_ORIF,
+      file_name: 'orthopedics-forearm-orif.png',
     },
   ],
   Neurology: [
@@ -122,10 +132,10 @@ export const SPECIALTY_TEST_RECORDS: Record<string, SpecialtyRecordSeed[]> = {
     {
       type: 'xray' as DocumentType,
       title: 'Panoramic dental X-ray',
-      notes: 'Wisdom teeth erupted; no caries on molars.',
+      notes: 'Full dentition visible; lower-right molar shows prior root canal treatment.',
       body_part: 'head',
-      file_url: DEMO_XRAY_CHEST,
-      file_name: 'dental-pano.jpg',
+      file_url: TEST_DENTISTRY_PANORAMIC,
+      file_name: 'dentistry-panoramic-xray.png',
     },
   ],
   Surgery: [
@@ -208,7 +218,11 @@ export function testPatientEmail(nameEn: string): string {
   return `test.${specialtyEmailSlug(nameEn)}@3elagi.patient`;
 }
 
+export const DEFAULT_TEST_PATIENT_DISPLAY_NAME = '3elagi patient -- default patient';
+
+export const MAX_TEST_PATIENT_DOCTOR_QUESTIONS = 20;
+
 export const TEST_PATIENT_WELCOME_MESSAGE =
-  'Hi doctor! I am your test account. Open my medical records to explore sample lab results and X-ray attachments for your specialty.';
+  'Hi doctor! I am your AI demo patient. Ask me up to 20 questions about my symptoms and history, request lab or X-ray results like a real consultation, and explore my medical records anytime.';
 
 export const DEFAULT_TEST_PATIENT_PASSWORD = 'TestPatient123!';

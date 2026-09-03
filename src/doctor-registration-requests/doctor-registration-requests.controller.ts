@@ -16,6 +16,7 @@ export class DoctorRegistrationRequestsController {
       phone?: string;
       country?: string;
       speciality_id?: string;
+      clinic_location?: string;
     },
   ) {
     return this.service.submit({
@@ -24,6 +25,7 @@ export class DoctorRegistrationRequestsController {
       phone: body.phone ?? '',
       country: body.country ?? '',
       specialityId: body.speciality_id ?? '',
+      clinicLocation: body.clinic_location ?? '',
     });
   }
 }

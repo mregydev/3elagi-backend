@@ -7,9 +7,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DoctorRegistrationRequest } from '../entities/doctor-registration-request.entity';
 import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
+import { DOCTOR_SIGNUP_COUNTRY_CODES } from '../common/patient-countries';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const ALLOWED_COUNTRIES = new Set(['EG', 'JO']);
+const ALLOWED_COUNTRIES = new Set<string>(DOCTOR_SIGNUP_COUNTRY_CODES);
 
 @Injectable()
 export class DoctorRegistrationRequestsService {
@@ -26,6 +27,7 @@ export class DoctorRegistrationRequestsService {
     phone: string;
     country: string;
     specialityId: string;
+    clinicLocation?: string;
   }) {
     const doctorName = (input.doctorName || '').trim();
     const email = (input.email || '').trim().toLowerCase();
@@ -46,7 +48,9 @@ export class DoctorRegistrationRequestsService {
       throw new BadRequestException('Phone number is required');
     }
     if (!ALLOWED_COUNTRIES.has(country)) {
-      throw new BadRequestException('Country must be Egypt or Jordan');
+      throw new BadRequestException(
+        'Country must be Egypt, Jordan, United States, or United Kingdom',
+      );
     }
     if (!specialityId) {
       throw new BadRequestException('Speciality is required');
@@ -59,12 +63,15 @@ export class DoctorRegistrationRequestsService {
       throw new BadRequestException('Speciality not found');
     }
 
+    const clinicLocation = (input.clinicLocation || '').trim() || null;
+
     const saved = await this.requestRepo.save(
       this.requestRepo.create({
         doctor_name: doctorName,
         email,
         phone,
         country,
+        clinic_location: clinicLocation,
         speciality_id: speciality.id,
         speciality_name_en: speciality.name_en,
         speciality_name_ar: speciality.name_ar,
@@ -107,6 +114,7 @@ export class DoctorRegistrationRequestsService {
       email: row.email,
       phone: row.phone,
       country: row.country,
+      clinic_location: row.clinic_location,
       speciality_id: row.speciality_id,
       speciality_name_en: row.speciality_name_en,
       speciality_name_ar: row.speciality_name_ar,

@@ -18,7 +18,7 @@ import {
 import { Doctor } from '../entities/doctor.entity';
 import { Clinic } from '../entities/clinic.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
-import { MedicalDocument } from '../entities/medical-document.entity';
+import { MedicalDocument, DocumentType } from '../entities/medical-document.entity';
 import {
   DocumentRequestMeta,
   Message,
@@ -278,7 +278,46 @@ export class MedicalDocumentRequestsService {
       console.error('[medical-document-requests] chat notify failed', e);
     }
 
+    void this.autoFulfillForTestPatient(saved, doctorUserId).catch((err) => {
+      this.logger.error('Test patient auto-fulfill failed', err);
+    });
+
     return saved;
+  }
+
+  /** Demo patients automatically upload matching lab/X-ray records from their file. */
+  private async autoFulfillForTestPatient(
+    row: MedicalDocumentRequest,
+    doctorUserId: string,
+  ): Promise<void> {
+    const profile = await this.patientProfileRepo.findOne({
+      where: { user_id: row.patient_user_id },
+      select: { is_specialty_test_account: true },
+    });
+    if (!profile?.is_specialty_test_account) return;
+
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+
+    const docType =
+      row.type === MedicalDocumentRequestType.XRAY ? DocumentType.XRAY : DocumentType.LAB;
+    const docs = await this.docRepo.find({
+      where: { patient_id: row.patient_user_id, type: docType },
+      order: { created_at: 'ASC' },
+    });
+    if (!docs.length) return;
+
+    const titleNeedle = row.title.trim().toLowerCase();
+    const doc =
+      docs.find((d) => d.title.toLowerCase().includes(titleNeedle)) ??
+      docs.find((d) => titleNeedle.includes(d.title.toLowerCase())) ??
+      docs[0];
+
+    const stillPending = await this.repo.findOne({ where: { id: row.id } });
+    if (!stillPending || stillPending.status !== MedicalDocumentRequestStatus.PENDING) {
+      return;
+    }
+
+    await this.fulfill(row.id, row.patient_user_id, doc.id);
   }
 
   async draftDescription(
