@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 import { DoctorPatientAccess } from '../entities/doctor-patient-access.entity';
 import { Doctor } from '../entities/doctor.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
+import { SpecialtyTestAccount } from '../entities/specialty-test-account.entity';
 import { User, UserRole } from '../entities/user.entity';
 
 export type AccessActionType =
@@ -39,6 +40,8 @@ export class DoctorPatientAccessService {
     @InjectRepository(User) private userRepo: Repository<User>,
     @InjectRepository(PatientProfile)
     private patientProfileRepo: Repository<PatientProfile>,
+    @InjectRepository(SpecialtyTestAccount)
+    private testAccountRepo: Repository<SpecialtyTestAccount>,
   ) {}
 
   private async isSpecialtyTestPatient(patientUserId: string): Promise<boolean> {
@@ -46,7 +49,10 @@ export class DoctorPatientAccessService {
       where: { user_id: patientUserId },
       select: { is_specialty_test_account: true },
     });
-    return profile?.is_specialty_test_account === true;
+    if (profile?.is_specialty_test_account) return true;
+    return this.testAccountRepo.exists({
+      where: { patient_user_id: patientUserId },
+    });
   }
 
   private grantedTestPatientStatus(
