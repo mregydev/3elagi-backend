@@ -33,6 +33,7 @@ import { SendMarketingEmailDto, MARKETING_EMAIL_LANGUAGES } from './dto/send-mar
 import { SendMarketingEmailBatchDto } from './dto/send-marketing-email-batch.dto';
 import { PreviewMarketingEmailDto } from './dto/preview-marketing-email.dto';
 import { PreviewDoctorWelcomeEmailDto } from './dto/preview-doctor-welcome-email.dto';
+import { SendDoctorWelcomeEmailDto } from './dto/send-doctor-welcome-email.dto';
 import { SendInvitedDoctorEmailDto } from './dto/send-invited-doctor-email.dto';
 import { resolveMarketingEmailTheme } from '../mail/marketing-email-themes';
 import { IntakeQuestion } from '../entities/intake-test.entity';
@@ -282,6 +283,11 @@ export class AdminController {
   @Post('doctor-welcome/preview')
   previewDoctorWelcomeEmail(@Body() body: PreviewDoctorWelcomeEmailDto) {
     return this.service.previewDoctorWelcomeEmail(body);
+  }
+
+  @Post('doctor-welcome/send')
+  sendDoctorWelcomeEmail(@Body() body: SendDoctorWelcomeEmailDto) {
+    return this.service.sendDoctorWelcomeEmail(body);
   }
 
   @Get('invited-doctors/template/:language')

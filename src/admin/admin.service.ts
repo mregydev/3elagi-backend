@@ -149,7 +149,7 @@ export class AdminService {
     let welcomeEmail: { ok: boolean; error?: string } | undefined;
     if (dto.send_welcome_email) {
       try {
-        await this.sendDoctorWelcomeEmail({
+        await this.sendDoctorWelcomeEmailOnCreate({
           name: dto.name.trim(),
           email: dto.email.trim().toLowerCase(),
           password: dto.password,
@@ -424,7 +424,41 @@ export class AdminService {
     return { ok: true, email };
   }
 
-  private async sendDoctorWelcomeEmail(input: {
+  async sendDoctorWelcomeEmail(dto: {
+    name: string;
+    email: string;
+    password: string;
+    language: SendMarketingEmailDto['language'];
+    themeColor?: SendMarketingEmailDto['themeColor'];
+    sections: MarketingEmailSection[];
+  }) {
+    const name = dto.name.trim();
+    const email = dto.email.trim().toLowerCase();
+    if (!name || !email) {
+      throw new BadRequestException('Doctor name and email are required');
+    }
+    const { subject, html, text } = buildDoctorWelcomeEmailHtml({
+      language: dto.language,
+      theme: dto.themeColor,
+      sections: dto.sections,
+      placeholders: {
+        name,
+        email,
+        password: dto.password,
+      },
+    });
+    await this.mailService.sendDoctorMarketingInvite({
+      to: email,
+      recipientName: name,
+      subject,
+      text,
+      html,
+      attachments: marketingEmailLogoAttachments(),
+    });
+    return { ok: true, email };
+  }
+
+  private async sendDoctorWelcomeEmailOnCreate(input: {
     name: string;
     email: string;
     password: string;
