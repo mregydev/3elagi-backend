@@ -10,12 +10,25 @@ export type SpecialtyRecordSeed = {
   file_name: string;
 };
 
-const SAMPLE_XRAY =
-  'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=800&h=600&fit=crop';
-const SAMPLE_LAB =
-  'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&h=600&fit=crop';
-const SAMPLE_SCAN =
-  'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=800&h=600&fit=crop';
+const DEMO_MARKETING_BASE =
+  'https://hjluqxfmvpvtjvwzqxgi.supabase.co/storage/v1/object/public/files/static/marketing';
+
+/** Comprehensive metabolic panel on-screen lab report (Wikimedia, CC BY-SA). */
+const DEMO_LAB_CMP =
+  'https://upload.wikimedia.org/wikipedia/commons/f/f8/CMP_report.JPG';
+/** Printed lab report layout (Wikimedia, CC BY-SA). */
+const DEMO_LAB_REPORT =
+  'https://upload.wikimedia.org/wikipedia/commons/4/40/Gnuhealth_lab_test_report.png';
+/** Normal PA chest radiograph (Wikimedia, CC0). */
+const DEMO_XRAY_CHEST =
+  'https://upload.wikimedia.org/wikipedia/commons/a/a1/Normal_posteroanterior_%28PA%29_chest_radiograph_%28X-ray%29.jpg';
+/** Chest X-ray PA view (Wikimedia). */
+const DEMO_XRAY_CHEST_ALT =
+  'https://upload.wikimedia.org/wikipedia/commons/5/53/X-ray_lung_consolidation.jpg';
+/** 3elagi product screenshot — clinical X-ray review. */
+const DEMO_XRAY_REVIEW = `${DEMO_MARKETING_BASE}/xray-detail.png`;
+/** 3elagi product screenshot — records list with imaging. */
+const DEMO_XRAY_RECORDS = `${DEMO_MARKETING_BASE}/xray-record.png`;
 
 /** Demo records per speciality name_en (matches doctor_specialities.name_en). */
 export const SPECIALTY_TEST_RECORDS: Record<string, SpecialtyRecordSeed[]> = {
@@ -25,7 +38,7 @@ export const SPECIALTY_TEST_RECORDS: Record<string, SpecialtyRecordSeed[]> = {
       title: 'Complete blood count',
       notes: 'Routine annual check — all values within normal range.',
       body_part: 'general',
-      file_url: SAMPLE_LAB,
+      file_url: DEMO_LAB_CMP,
       file_name: 'cbc-results.jpg',
     },
     {
@@ -33,7 +46,7 @@ export const SPECIALTY_TEST_RECORDS: Record<string, SpecialtyRecordSeed[]> = {
       title: 'Chest X-ray',
       notes: 'Clear lung fields, no acute findings.',
       body_part: 'chest',
-      file_url: SAMPLE_XRAY,
+      file_url: DEMO_XRAY_CHEST,
       file_name: 'chest-xray.jpg',
     },
   ],
@@ -43,16 +56,16 @@ export const SPECIALTY_TEST_RECORDS: Record<string, SpecialtyRecordSeed[]> = {
       title: 'Echocardiogram snapshot',
       notes: 'Normal ejection fraction, mild trace regurgitation.',
       body_part: 'heart',
-      file_url: SAMPLE_SCAN,
-      file_name: 'echo.jpg',
+      file_url: DEMO_XRAY_REVIEW,
+      file_name: 'echo-review.png',
     },
     {
       type: 'lab' as DocumentType,
       title: 'Lipid panel',
       notes: 'Total cholesterol slightly elevated — lifestyle advice given.',
       body_part: 'heart',
-      file_url: SAMPLE_LAB,
-      file_name: 'lipid-panel.jpg',
+      file_url: DEMO_LAB_REPORT,
+      file_name: 'lipid-panel.png',
     },
   ],
   Dermatology: [
@@ -61,18 +74,18 @@ export const SPECIALTY_TEST_RECORDS: Record<string, SpecialtyRecordSeed[]> = {
       title: 'Dermoscopy — forearm lesion',
       notes: 'Benign-appearing macule, monitor in 6 months.',
       body_part: 'left_arm',
-      file_url: SAMPLE_SCAN,
-      file_name: 'dermoscopy.jpg',
+      file_url: DEMO_XRAY_REVIEW,
+      file_name: 'dermoscopy-imaging.png',
     },
   ],
   Pediatrics: [
     {
       type: 'lab' as DocumentType,
       title: 'Pediatric growth chart',
-      notes: 'Height and weight tracking at 50th percentile.',
+      notes: 'Height and weight tracking at 50th percentile; labs normal.',
       body_part: 'general',
-      file_url: SAMPLE_LAB,
-      file_name: 'growth-chart.jpg',
+      file_url: DEMO_LAB_CMP,
+      file_name: 'growth-chart-labs.jpg',
     },
   ],
   Orthopedics: [
@@ -81,7 +94,7 @@ export const SPECIALTY_TEST_RECORDS: Record<string, SpecialtyRecordSeed[]> = {
       title: 'Left knee X-ray',
       notes: 'Mild osteoarthritis, no fracture.',
       body_part: 'left_leg',
-      file_url: SAMPLE_XRAY,
+      file_url: DEMO_XRAY_CHEST_ALT,
       file_name: 'knee-xray.jpg',
     },
   ],
@@ -91,18 +104,18 @@ export const SPECIALTY_TEST_RECORDS: Record<string, SpecialtyRecordSeed[]> = {
       title: 'Brain MRI summary',
       notes: 'No mass lesion; age-appropriate changes only.',
       body_part: 'head',
-      file_url: SAMPLE_SCAN,
-      file_name: 'brain-mri.jpg',
+      file_url: DEMO_XRAY_REVIEW,
+      file_name: 'brain-mri-review.png',
     },
   ],
   Ophthalmology: [
     {
       type: 'xray' as DocumentType,
-      title: 'Retinal fundus photo',
+      title: 'Retinal imaging report',
       notes: 'Healthy optic disc, no diabetic retinopathy.',
       body_part: 'eyes',
-      file_url: SAMPLE_SCAN,
-      file_name: 'fundus.jpg',
+      file_url: DEMO_XRAY_RECORDS,
+      file_name: 'retinal-imaging.png',
     },
   ],
   Dentistry: [
@@ -111,7 +124,7 @@ export const SPECIALTY_TEST_RECORDS: Record<string, SpecialtyRecordSeed[]> = {
       title: 'Panoramic dental X-ray',
       notes: 'Wisdom teeth erupted; no caries on molars.',
       body_part: 'head',
-      file_url: SAMPLE_XRAY,
+      file_url: DEMO_XRAY_CHEST,
       file_name: 'dental-pano.jpg',
     },
   ],
@@ -119,10 +132,10 @@ export const SPECIALTY_TEST_RECORDS: Record<string, SpecialtyRecordSeed[]> = {
     {
       type: 'xray' as DocumentType,
       title: 'Abdominal ultrasound',
-      notes: 'Post-op follow-up — healing well.',
+      notes: 'Post-op follow-up — healing well; post-op chest film clear.',
       body_part: 'abdomen',
-      file_url: SAMPLE_SCAN,
-      file_name: 'abdominal-us.jpg',
+      file_url: DEMO_XRAY_CHEST,
+      file_name: 'post-op-chest-xray.jpg',
     },
   ],
   Emergency: [
@@ -131,7 +144,7 @@ export const SPECIALTY_TEST_RECORDS: Record<string, SpecialtyRecordSeed[]> = {
       title: 'Emergency triage labs',
       notes: 'Stable vitals; electrolytes normal.',
       body_part: 'general',
-      file_url: SAMPLE_LAB,
+      file_url: DEMO_LAB_CMP,
       file_name: 'triage-labs.jpg',
     },
   ],
@@ -141,8 +154,8 @@ export const SPECIALTY_TEST_RECORDS: Record<string, SpecialtyRecordSeed[]> = {
       title: 'Pelvic ultrasound',
       notes: 'Normal uterine contour, regular cycle.',
       body_part: 'reproductive',
-      file_url: SAMPLE_SCAN,
-      file_name: 'pelvic-us.jpg',
+      file_url: DEMO_XRAY_REVIEW,
+      file_name: 'pelvic-us-report.png',
     },
   ],
   Nutritionist: [
@@ -151,8 +164,8 @@ export const SPECIALTY_TEST_RECORDS: Record<string, SpecialtyRecordSeed[]> = {
       title: 'Metabolic panel',
       notes: 'Vitamin D low — supplementation recommended.',
       body_part: 'general',
-      file_url: SAMPLE_LAB,
-      file_name: 'metabolic-panel.jpg',
+      file_url: DEMO_LAB_REPORT,
+      file_name: 'metabolic-panel.png',
     },
   ],
   ENT: [
@@ -161,24 +174,24 @@ export const SPECIALTY_TEST_RECORDS: Record<string, SpecialtyRecordSeed[]> = {
       title: 'Ear examination photo',
       notes: 'Mild otitis externa — topical treatment started.',
       body_part: 'ears',
-      file_url: SAMPLE_SCAN,
-      file_name: 'ear-exam.jpg',
+      file_url: DEMO_XRAY_CHEST_ALT,
+      file_name: 'ear-xray.jpg',
     },
     {
       type: 'lab' as DocumentType,
       title: 'Audiometry results',
       notes: 'Bilateral mild high-frequency hearing loss.',
       body_part: 'ears',
-      file_url: SAMPLE_LAB,
-      file_name: 'audiometry.jpg',
+      file_url: DEMO_LAB_REPORT,
+      file_name: 'audiometry-report.png',
     },
     {
       type: 'xray' as DocumentType,
       title: 'Sinus CT summary',
       notes: 'Chronic sinusitis — follow-up in 4 weeks.',
       body_part: 'throat',
-      file_url: SAMPLE_XRAY,
-      file_name: 'sinus-ct.jpg',
+      file_url: DEMO_XRAY_REVIEW,
+      file_name: 'sinus-imaging.png',
     },
   ],
 };
@@ -196,6 +209,6 @@ export function testPatientEmail(nameEn: string): string {
 }
 
 export const TEST_PATIENT_WELCOME_MESSAGE =
-  'Hi doctor! I am your test account. Open my medical records to explore sample files and attachments for your specialty.';
+  'Hi doctor! I am your test account. Open my medical records to explore sample lab results and X-ray attachments for your specialty.';
 
 export const DEFAULT_TEST_PATIENT_PASSWORD = 'TestPatient123!';

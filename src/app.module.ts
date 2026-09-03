@@ -171,6 +171,7 @@ import { RefreshTokens1778660000000 } from './migrations/1778660000000-RefreshTo
 import { EntSpeciality1778670000000 } from './migrations/1778670000000-EntSpeciality';
 import { DoctorProductTour1778680000000 } from './migrations/1778680000000-DoctorProductTour';
 import { SpecialtyTestAccounts1778690000000 } from './migrations/1778690000000-SpecialtyTestAccounts';
+import { RefreshSpecialtyTestAttachments1778700000000 } from './migrations/1778700000000-RefreshSpecialtyTestAttachments';
 import { SpecialtyTestAccount } from './entities/specialty-test-account.entity';
 import { UserNotification } from './entities/user-notification.entity';
 import { ContactSubmission } from './entities/contact-submission.entity';
@@ -329,6 +330,7 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
           EntSpeciality1778670000000,
           DoctorProductTour1778680000000,
           SpecialtyTestAccounts1778690000000,
+          RefreshSpecialtyTestAttachments1778700000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',

@@ -105,14 +105,29 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
 
   private async ensureRecordsForPatient(patientUserId: string, specialityName: string) {
     const seeds = SPECIALTY_TEST_RECORDS[specialityName] ?? SPECIALTY_TEST_RECORDS['General Medicine'];
-    const existing = await this.medicalDocRepo.count({ where: { patient_id: patientUserId } });
-    if (existing >= seeds.length) return;
 
     for (const seed of seeds) {
-      const dup = await this.medicalDocRepo.findOne({
+      const existing = await this.medicalDocRepo.findOne({
         where: { patient_id: patientUserId, title: seed.title },
       });
-      if (dup) continue;
+      if (existing) {
+        const staleAttachment =
+          existing.file_url !== seed.file_url ||
+          existing.file_name !== seed.file_name ||
+          existing.notes !== seed.notes ||
+          existing.type !== seed.type ||
+          existing.body_part !== seed.body_part;
+        if (staleAttachment) {
+          await this.medicalDocRepo.update(existing.id, {
+            type: seed.type,
+            notes: seed.notes,
+            body_part: seed.body_part,
+            file_url: seed.file_url,
+            file_name: seed.file_name,
+          });
+        }
+        continue;
+      }
       await this.medicalDocRepo.save(
         this.medicalDocRepo.create({
           patient_id: patientUserId,
