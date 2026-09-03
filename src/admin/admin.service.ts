@@ -37,6 +37,10 @@ import {
   buildDoctorWelcomeEmailHtml,
   getDoctorWelcomeTemplatePreview,
 } from '../mail/doctor-welcome-email.template';
+import {
+  buildInvitedDoctorEmailHtml,
+  getInvitedDoctorTemplatePreview,
+} from '../mail/invited-doctor-email.template';
 import { resolveMarketingEmailTheme } from '../mail/marketing-email-themes';
 import { DoctorOnboardingService } from '../doctor-onboarding/doctor-onboarding.service';
 import { AuthService } from '../auth/auth.service';
@@ -348,6 +352,76 @@ export class AdminService {
       dir: dto.language === 'ar' ? ('rtl' as const) : ('ltr' as const),
       themeColor,
     };
+  }
+
+  getInvitedDoctorTemplate(
+    language: SendMarketingEmailDto['language'],
+    theme?: SendMarketingEmailDto['themeColor'],
+  ) {
+    return getInvitedDoctorTemplatePreview(language, theme);
+  }
+
+  previewInvitedDoctorEmail(dto: {
+    language: SendMarketingEmailDto['language'];
+    themeColor?: SendMarketingEmailDto['themeColor'];
+    name?: string;
+    email?: string;
+    password?: string;
+    sections: MarketingEmailSection[];
+  }) {
+    const themeColor = resolveMarketingEmailTheme(dto.themeColor);
+    const { subject, html, text } = buildInvitedDoctorEmailHtml({
+      language: dto.language,
+      theme: themeColor,
+      sections: dto.sections,
+      placeholders: {
+        name: dto.name?.trim() || 'Doctor',
+        email: dto.email?.trim() || 'doctor@example.com',
+        password: dto.password?.trim() || 'YourPassword123',
+      },
+      forPreview: true,
+    });
+    return {
+      subject,
+      html,
+      text,
+      dir: dto.language === 'ar' ? ('rtl' as const) : ('ltr' as const),
+      themeColor,
+    };
+  }
+
+  async sendInvitedDoctorEmail(dto: {
+    name: string;
+    email: string;
+    password: string;
+    language: SendMarketingEmailDto['language'];
+    themeColor?: SendMarketingEmailDto['themeColor'];
+    sections: MarketingEmailSection[];
+  }) {
+    const name = dto.name.trim();
+    const email = dto.email.trim().toLowerCase();
+    if (!name || !email) {
+      throw new BadRequestException('Doctor name and email are required');
+    }
+    const { subject, html, text } = buildInvitedDoctorEmailHtml({
+      language: dto.language,
+      theme: dto.themeColor,
+      sections: dto.sections,
+      placeholders: {
+        name,
+        email,
+        password: dto.password,
+      },
+    });
+    await this.mailService.sendDoctorMarketingInvite({
+      to: email,
+      recipientName: name,
+      subject,
+      text,
+      html,
+      attachments: marketingEmailLogoAttachments(),
+    });
+    return { ok: true, email };
   }
 
   private async sendDoctorWelcomeEmail(input: {

@@ -33,6 +33,7 @@ import { SendMarketingEmailDto, MARKETING_EMAIL_LANGUAGES } from './dto/send-mar
 import { SendMarketingEmailBatchDto } from './dto/send-marketing-email-batch.dto';
 import { PreviewMarketingEmailDto } from './dto/preview-marketing-email.dto';
 import { PreviewDoctorWelcomeEmailDto } from './dto/preview-doctor-welcome-email.dto';
+import { SendInvitedDoctorEmailDto } from './dto/send-invited-doctor-email.dto';
 import { resolveMarketingEmailTheme } from '../mail/marketing-email-themes';
 import { IntakeQuestion } from '../entities/intake-test.entity';
 import type { ApprovalStatus } from '../entities/doctor.entity';
@@ -281,6 +282,35 @@ export class AdminController {
   @Post('doctor-welcome/preview')
   previewDoctorWelcomeEmail(@Body() body: PreviewDoctorWelcomeEmailDto) {
     return this.service.previewDoctorWelcomeEmail(body);
+  }
+
+  @Get('invited-doctors/template/:language')
+  getInvitedDoctorTemplate(
+    @Param('language') language: string,
+    @Query('theme') theme?: string,
+  ) {
+    const normalized = language.trim().toLowerCase();
+    if (
+      !MARKETING_EMAIL_LANGUAGES.includes(
+        normalized as (typeof MARKETING_EMAIL_LANGUAGES)[number],
+      )
+    ) {
+      throw new HttpException('Invalid language', HttpStatus.BAD_REQUEST);
+    }
+    return this.service.getInvitedDoctorTemplate(
+      normalized as (typeof MARKETING_EMAIL_LANGUAGES)[number],
+      resolveMarketingEmailTheme(theme),
+    );
+  }
+
+  @Post('invited-doctors/preview')
+  previewInvitedDoctorEmail(@Body() body: SendInvitedDoctorEmailDto) {
+    return this.service.previewInvitedDoctorEmail(body);
+  }
+
+  @Post('invited-doctors/send')
+  sendInvitedDoctorEmail(@Body() body: SendInvitedDoctorEmailDto) {
+    return this.service.sendInvitedDoctorEmail(body);
   }
 
   @Post('marketing/send')
