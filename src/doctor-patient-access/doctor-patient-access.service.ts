@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DoctorPatientAccess } from '../entities/doctor-patient-access.entity';
 import { Doctor } from '../entities/doctor.entity';
+import { PatientProfile } from '../entities/patient-profile.entity';
 import { User, UserRole } from '../entities/user.entity';
 
 export type AccessActionType =
@@ -36,7 +37,34 @@ export class DoctorPatientAccessService {
     private accessRepo: Repository<DoctorPatientAccess>,
     @InjectRepository(Doctor) private doctorRepo: Repository<Doctor>,
     @InjectRepository(User) private userRepo: Repository<User>,
+    @InjectRepository(PatientProfile)
+    private patientProfileRepo: Repository<PatientProfile>,
   ) {}
+
+  private async isSpecialtyTestPatient(patientUserId: string): Promise<boolean> {
+    const profile = await this.patientProfileRepo.findOne({
+      where: { user_id: patientUserId },
+      select: { is_specialty_test_account: true },
+    });
+    return profile?.is_specialty_test_account === true;
+  }
+
+  private grantedTestPatientStatus(
+    patientUserId: string,
+    doctor: Doctor,
+    recordsAllowedAt: Date | null = new Date(),
+  ): DoctorPatientAccessStatus {
+    return {
+      patient_user_id: patientUserId,
+      doctor_id: doctor.id,
+      doctor_user_id: doctor.user_id,
+      records_allowed: true,
+      blocked_by_patient: false,
+      blocked_by_doctor: false,
+      is_blocked: false,
+      records_allowed_at: recordsAllowedAt.toISOString(),
+    };
+  }
 
   private mapStatus(
     row: DoctorPatientAccess,
@@ -113,6 +141,17 @@ export class DoctorPatientAccessService {
     const doctorUserId = self.role === UserRole.DOCTOR ? self.id : peer.id;
     const doctor = await this.resolveDoctorFromUserId(doctorUserId);
 
+    if (await this.isSpecialtyTestPatient(patientUserId)) {
+      const row = await this.accessRepo.findOne({
+        where: { patient_user_id: patientUserId, doctor_id: doctor.id },
+      });
+      return this.grantedTestPatientStatus(
+        patientUserId,
+        doctor,
+        row?.records_allowed_at ?? new Date(),
+      );
+    }
+
     const row = await this.accessRepo.findOne({
       where: { patient_user_id: patientUserId, doctor_id: doctor.id },
     });
@@ -132,6 +171,9 @@ export class DoctorPatientAccessService {
     patientUserId: string,
   ): Promise<Doctor> {
     const doctor = await this.resolveDoctorFromUserId(doctorUserId);
+    if (await this.isSpecialtyTestPatient(patientUserId)) {
+      return doctor;
+    }
     const row = await this.findOrCreate(patientUserId, doctor.id);
 
     if (row.blocked_by_patient || row.blocked_by_doctor) {
@@ -152,6 +194,8 @@ export class DoctorPatientAccessService {
     doctorUserId: string,
     patientUserId: string,
   ): Promise<void> {
+    if (await this.isSpecialtyTestPatient(patientUserId)) return;
+
     const doctor = await this.resolveDoctorFromUserId(doctorUserId);
     const row = await this.findOrCreate(patientUserId, doctor.id);
 
@@ -187,6 +231,15 @@ export class DoctorPatientAccessService {
 
     const doctor = await this.resolveDoctorFromUserId(doctorUserId);
     const row = await this.findOrCreate(patientUserId, doctor.id);
+
+    if (await this.isSpecialtyTestPatient(patientUserId)) {
+      row.records_allowed = true;
+      row.records_allowed_at = row.records_allowed_at ?? new Date();
+      row.blocked_by_patient = false;
+      row.blocked_by_doctor = false;
+      const saved = await this.accessRepo.save(row);
+      return this.mapStatus(saved, doctor.user_id);
+    }
 
     if (action === 'grant_records') {
       if (actor.role !== UserRole.PATIENT) {

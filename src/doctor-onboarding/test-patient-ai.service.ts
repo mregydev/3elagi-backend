@@ -10,7 +10,6 @@ import { LLM_PROVIDER } from '../ai/llm/llm.tokens';
 import type { LlmProvider } from '../ai/llm/llm.types';
 import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
 import { Doctor } from '../entities/doctor.entity';
-import { DoctorPatientAccess } from '../entities/doctor-patient-access.entity';
 import { MedicalDocument } from '../entities/medical-document.entity';
 import { Message } from '../entities/message.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
@@ -25,6 +24,7 @@ import {
   seedsForSpeciality,
   TEST_PATIENT_WELCOME_MESSAGE,
 } from './specialty-test.constants';
+import { DoctorOnboardingService } from './doctor-onboarding.service';
 
 const CHAT_HISTORY_LIMIT = 24;
 
@@ -39,8 +39,6 @@ export class TestPatientAiService {
     @InjectRepository(SpecialtyTestAccount)
     private testAccountRepo: Repository<SpecialtyTestAccount>,
     @InjectRepository(Doctor) private doctorRepo: Repository<Doctor>,
-    @InjectRepository(DoctorPatientAccess)
-    private accessRepo: Repository<DoctorPatientAccess>,
     @InjectRepository(DoctorSpeciality)
     private specialityRepo: Repository<DoctorSpeciality>,
     @InjectRepository(MedicalDocument)
@@ -50,6 +48,7 @@ export class TestPatientAiService {
     private presence: PresenceGateway,
     private pushNotifications: PushNotificationsService,
     private users: UsersService,
+    private doctorOnboarding: DoctorOnboardingService,
   ) {}
 
   async isSpecialtyTestPatient(userId: string): Promise<boolean> {
@@ -119,28 +118,10 @@ export class TestPatientAiService {
   ): Promise<void> {
     if (!(await this.isSpecialtyTestPatient(patientUserId))) return;
 
-    const doctor = await this.doctorRepo.findOne({ where: { user_id: doctorUserId } });
-    if (!doctor) return;
-
-    let access = await this.accessRepo.findOne({
-      where: { patient_user_id: patientUserId, doctor_id: doctor.id },
-    });
-    if (!access) {
-      access = await this.accessRepo.save(
-        this.accessRepo.create({
-          patient_user_id: patientUserId,
-          doctor_id: doctor.id,
-          records_allowed: true,
-          records_allowed_at: new Date(),
-          blocked_by_patient: false,
-          blocked_by_doctor: false,
-        }),
-      );
-    } else if (!access.records_allowed) {
-      access.records_allowed = true;
-      access.records_allowed_at = new Date();
-      await this.accessRepo.save(access);
-    }
+    await this.doctorOnboarding.grantTestPatientAccessForDoctorUser(
+      doctorUserId,
+      patientUserId,
+    );
 
     const existingWelcome = await this.messageRepo.findOne({
       where: {

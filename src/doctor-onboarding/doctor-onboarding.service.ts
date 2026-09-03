@@ -42,6 +42,7 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
   async onApplicationBootstrap(): Promise<void> {
     try {
       await this.ensureSpecialtyTestAccounts();
+      await this.ensureAllTestPatientDoctorAccess();
     } catch (err) {
       this.logger.error('Failed to seed specialty test accounts', err);
     }
@@ -71,6 +72,7 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
         { name: DEFAULT_TEST_PATIENT_DISPLAY_NAME },
       );
       await this.ensureRecordsForPatient(existing.patient_user_id, spec.name_en);
+      await this.grantTestPatientAccessToAllDoctors(existing.patient_user_id);
       return;
     }
 
@@ -114,7 +116,80 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
     );
 
     await this.ensureRecordsForPatient(user.id, spec.name_en);
+    await this.grantTestPatientAccessToAllDoctors(user.id);
     this.logger.log(`Specialty test account ready: ${spec.name_en} → ${email}`);
+  }
+
+  /** Demo patients always grant record access to every approved doctor. */
+  async grantTestPatientAccess(
+    patientUserId: string,
+    doctorId: string,
+  ): Promise<void> {
+    let access = await this.accessRepo.findOne({
+      where: { patient_user_id: patientUserId, doctor_id: doctorId },
+    });
+    const now = new Date();
+    if (!access) {
+      await this.accessRepo.save(
+        this.accessRepo.create({
+          patient_user_id: patientUserId,
+          doctor_id: doctorId,
+          records_allowed: true,
+          records_allowed_at: now,
+          blocked_by_patient: false,
+          blocked_by_doctor: false,
+        }),
+      );
+      return;
+    }
+
+    if (
+      access.records_allowed &&
+      !access.blocked_by_patient &&
+      !access.blocked_by_doctor
+    ) {
+      return;
+    }
+
+    access.records_allowed = true;
+    access.records_allowed_at = access.records_allowed_at ?? now;
+    access.blocked_by_patient = false;
+    access.blocked_by_doctor = false;
+    await this.accessRepo.save(access);
+  }
+
+  async grantTestPatientAccessForDoctorUser(
+    doctorUserId: string,
+    patientUserId: string,
+  ): Promise<void> {
+    const doctor = await this.doctorRepo.findOne({ where: { user_id: doctorUserId } });
+    if (!doctor) return;
+    await this.grantTestPatientAccess(patientUserId, doctor.id);
+  }
+
+  async grantTestPatientAccessToAllDoctors(patientUserId: string): Promise<void> {
+    const doctors = await this.doctorRepo.find({
+      where: { approval_status: 'approved' },
+      select: ['id'],
+    });
+    for (const doctor of doctors) {
+      await this.grantTestPatientAccess(patientUserId, doctor.id);
+    }
+  }
+
+  async grantAllTestPatientsAccessToDoctor(doctorId: string): Promise<void> {
+    const testAccounts = await this.testAccountRepo.find({ select: ['patient_user_id'] });
+    for (const row of testAccounts) {
+      await this.grantTestPatientAccess(row.patient_user_id, doctorId);
+    }
+  }
+
+  /** Backfill access rows for every specialty demo patient × approved doctor. */
+  private async ensureAllTestPatientDoctorAccess(): Promise<void> {
+    const testAccounts = await this.testAccountRepo.find({ select: ['patient_user_id'] });
+    for (const row of testAccounts) {
+      await this.grantTestPatientAccessToAllDoctors(row.patient_user_id);
+    }
   }
 
   private async ensureRecordsForPatient(patientUserId: string, specialityName: string) {
@@ -224,25 +299,7 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
       });
     }
 
-    let access = await this.accessRepo.findOne({
-      where: { patient_user_id: testPatientUserId, doctor_id: doctor.id },
-    });
-    if (!access) {
-      access = await this.accessRepo.save(
-        this.accessRepo.create({
-          patient_user_id: testPatientUserId,
-          doctor_id: doctor.id,
-          records_allowed: true,
-          records_allowed_at: new Date(),
-          blocked_by_patient: false,
-          blocked_by_doctor: false,
-        }),
-      );
-    } else if (!access.records_allowed) {
-      access.records_allowed = true;
-      access.records_allowed_at = new Date();
-      await this.accessRepo.save(access);
-    }
+    await this.grantAllTestPatientsAccessToDoctor(doctor.id);
 
     const existingWelcome = await this.messageRepo.findOne({
       where: {
