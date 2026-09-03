@@ -172,13 +172,18 @@ import { EntSpeciality1778670000000 } from './migrations/1778670000000-EntSpecia
 import { DoctorProductTour1778680000000 } from './migrations/1778680000000-DoctorProductTour';
 import { SpecialtyTestAccounts1778690000000 } from './migrations/1778690000000-SpecialtyTestAccounts';
 import { RefreshSpecialtyTestAttachments1778700000000 } from './migrations/1778700000000-RefreshSpecialtyTestAttachments';
+import { DoctorRegistrationClinicLocation1778710000000 } from './migrations/1778710000000-DoctorRegistrationClinicLocation';
 import { SpecialtyTestAttachmentsRealistic1778720000000 } from './migrations/1778720000000-SpecialtyTestAttachmentsRealistic';
 import { DeletedAccounts1778730000000 } from './migrations/1778730000000-DeletedAccounts';
+import { UserLoginStats1778740000000 } from './migrations/1778740000000-UserLoginStats';
+import { DoctorSpecialityChangeRequests1778750000000 } from './migrations/1778750000000-DoctorSpecialityChangeRequests';
 import { SpecialtyTestAccount } from './entities/specialty-test-account.entity';
 import { DeletedAccount } from './entities/deleted-account.entity';
 import { UserNotification } from './entities/user-notification.entity';
 import { ContactSubmission } from './entities/contact-submission.entity';
 import { DoctorRegistrationRequest } from './entities/doctor-registration-request.entity';
+import { DoctorSpecialityChangeRequest } from './entities/doctor-speciality-change-request.entity';
+import { UserLoginStat } from './entities/user-login-stat.entity';
 import { AppReview } from './entities/app-review.entity';
 import { DoctorTagCatalog } from './entities/doctor-tag-catalog.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
@@ -233,6 +238,8 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
           UserNotification,
           ContactSubmission,
           DoctorRegistrationRequest,
+          DoctorSpecialityChangeRequest,
+          UserLoginStat,
           AppReview,
           DoctorTagCatalog,
           RefreshToken,
@@ -240,6 +247,7 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
           DeletedAccount,
         ],
         synchronize: false,
+        autoLoadEntities: true,
         migrations: [
           InitialSchema1777599963712,
           AddIsPersonalToClinic1777600000001,
@@ -335,8 +343,11 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
           DoctorProductTour1778680000000,
           SpecialtyTestAccounts1778690000000,
           RefreshSpecialtyTestAttachments1778700000000,
+          DoctorRegistrationClinicLocation1778710000000,
           SpecialtyTestAttachmentsRealistic1778720000000,
           DeletedAccounts1778730000000,
+          UserLoginStats1778740000000,
+          DoctorSpecialityChangeRequests1778750000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',

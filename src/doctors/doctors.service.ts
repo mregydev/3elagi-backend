@@ -18,6 +18,10 @@ import { PresenceGateway } from '../presence/presence.gateway';
 import { SpecialitiesService } from '../specialities/specialities.service';
 import { DoctorTagsService } from '../doctor-tags/doctor-tags.service';
 import { DoctorOnboardingService } from '../doctor-onboarding/doctor-onboarding.service';
+import { DoctorSpecialityChangeRequestsService } from '../doctor-speciality-change-requests/doctor-speciality-change-requests.service';
+import { sortPrimaryFirst } from './speciality-order';
+
+export { sortPrimaryFirst } from './speciality-order';
 
 /** Money columns arrive from the client as numbers; the entity stores strings. */
 type FeeColumn =
@@ -28,14 +32,6 @@ type FeeColumn =
 
 export type DoctorSelfUpdate = Partial<Omit<Doctor, FeeColumn>> &
   Partial<Record<FeeColumn, number | string | null>>;
-
-/** Speciality ids with the primary (`speciality_id`) first. */
-export function sortPrimaryFirst(doctor: Doctor): string[] {
-  const linked = (doctor.specialities ?? []).map((s) => s.id);
-  const primary = doctor.speciality_id;
-  const rest = linked.filter((id) => id !== primary);
-  return primary ? [primary, ...rest] : rest;
-}
 
 @Injectable()
 export class DoctorsService {
@@ -49,6 +45,7 @@ export class DoctorsService {
     private specialitiesService: SpecialitiesService,
     private doctorTagsService: DoctorTagsService,
     private doctorOnboarding: DoctorOnboardingService,
+    private specialityChangeRequests: DoctorSpecialityChangeRequestsService,
   ) {}
 
   private withoutBankDetails<T extends Partial<Doctor>>(doctor: T): Omit<
@@ -94,6 +91,8 @@ export class DoctorsService {
       relations: ['speciality', 'specialities'],
     });
     if (!doctor) return null;
+    const pendingSpecialityChange =
+      await this.specialityChangeRequests.pendingPublicForDoctor(doctor.id);
     return {
       ...doctor,
       speciality_name_en: doctor.speciality?.name_en ?? null,
@@ -103,6 +102,7 @@ export class DoctorsService {
       onboarding_test_patient_user_id: doctor.onboarding_test_patient_user_id ?? null,
       product_tour_completed_at: doctor.product_tour_completed_at ?? null,
       profile_tour_completed_at: doctor.profile_tour_completed_at ?? null,
+      pending_speciality_change: pendingSpecialityChange,
     };
   }
 
@@ -210,17 +210,11 @@ export class DoctorsService {
         })
         .slice(0, 20);
     }
-    if (speciality_id !== undefined) {
-      const spec = await this.specialityRepo.findOne({ where: { id: speciality_id } });
-      if (!spec) throw new BadRequestException('Invalid speciality');
-      safeUpdates.speciality_id = speciality_id;
-    }
+    let requestedSpecialityIds: string[] | null = null;
+    let nextSpecialities: DoctorSpeciality[] | null = null;
 
-    // A doctor may practise several specialities. The first is the primary one
-    // — browse, presence and the AI index still read the single column.
     const specialityIds = (updates as { speciality_ids?: unknown })
       .speciality_ids;
-    let nextSpecialities: DoctorSpeciality[] | null = null;
     if (specialityIds !== undefined) {
       const ids = Array.isArray(specialityIds)
         ? [...new Set(specialityIds.filter((id): id is string => !!id))].slice(0, 10)
@@ -231,10 +225,49 @@ export class DoctorsService {
       if (found.length !== ids.length) {
         throw new BadRequestException('Invalid speciality');
       }
-      // Keep the caller's order so the first stays primary.
+      requestedSpecialityIds = ids;
       nextSpecialities = ids.map((id) => found.find((s) => s.id === id)!);
-      if (safeUpdates.speciality_id === undefined) {
-        safeUpdates.speciality_id = ids[0] ?? null;
+    } else if (speciality_id !== undefined) {
+      const currentIds = sortPrimaryFirst(doctor);
+      requestedSpecialityIds = [
+        speciality_id,
+        ...currentIds.filter((id) => id !== speciality_id),
+      ];
+      const found = await this.specialityRepo.find({
+        where: { id: In(requestedSpecialityIds) },
+      });
+      if (found.length !== requestedSpecialityIds.length) {
+        throw new BadRequestException('Invalid speciality');
+      }
+      nextSpecialities = requestedSpecialityIds.map(
+        (id) => found.find((s) => s.id === id)!,
+      );
+    }
+
+    const requestedPrimaryId =
+      requestedSpecialityIds?.[0] ??
+      (speciality_id !== undefined ? speciality_id : null);
+    const primaryWouldChange =
+      !!requestedPrimaryId &&
+      requestedPrimaryId !== previousPrimarySpecialityId;
+
+    if (primaryWouldChange && requestedSpecialityIds) {
+      await this.specialityChangeRequests.submitPrimaryChangeRequest(
+        doctor,
+        requestedSpecialityIds,
+      );
+      delete safeUpdates.speciality_id;
+      nextSpecialities = null;
+    } else {
+      if (speciality_id !== undefined) {
+        const spec = await this.specialityRepo.findOne({
+          where: { id: speciality_id },
+        });
+        if (!spec) throw new BadRequestException('Invalid speciality');
+        safeUpdates.speciality_id = speciality_id;
+      }
+      if (nextSpecialities && safeUpdates.speciality_id === undefined) {
+        safeUpdates.speciality_id = nextSpecialities[0]?.id ?? null;
       }
     }
     if (consultation_price !== undefined) {
@@ -295,16 +328,6 @@ export class DoctorsService {
       }
     }
     void this.knowledgeIndexer.indexDoctor(doctor.id).catch(() => undefined);
-
-    const nextPrimarySpecialityId =
-      safeUpdates.speciality_id ??
-      (nextSpecialities?.[0]?.id ?? previousPrimarySpecialityId);
-    if (
-      nextPrimarySpecialityId &&
-      nextPrimarySpecialityId !== previousPrimarySpecialityId
-    ) {
-      await this.doctorOnboarding.setupDoctorOnboarding(doctor.id);
-    }
 
     return this.findByUserId(userId);
   }

@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, Repository, EntityMetadataNotFoundError } from 'typeorm';
 import { User, UserRole } from '../entities/user.entity';
 import { Doctor, ApprovalStatus } from '../entities/doctor.entity';
 import { Clinic } from '../entities/clinic.entity';
@@ -272,8 +272,15 @@ export class AdminService {
     return this.accountDeletion.listDeletedAccounts();
   }
 
-  listLoginAnalytics() {
-    return this.userAnalytics.listLoginStats();
+  async listLoginAnalytics() {
+    try {
+      return await this.userAnalytics.listLoginStats();
+    } catch (err) {
+      if (err instanceof EntityMetadataNotFoundError) {
+        return [];
+      }
+      throw err;
+    }
   }
 
   async getMarketingTemplate(

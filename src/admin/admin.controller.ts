@@ -25,6 +25,7 @@ import { CreateAdminDoctorDto } from './dto/create-admin-doctor.dto';
 import { PointPricingService } from '../points/point-pricing.service';
 import { ContactService } from '../contact/contact.service';
 import { DoctorRegistrationRequestsService } from '../doctor-registration-requests/doctor-registration-requests.service';
+import { DoctorSpecialityChangeRequestsService } from '../doctor-speciality-change-requests/doctor-speciality-change-requests.service';
 import { AppReviewsService } from '../app-reviews/app-reviews.service';
 import type { PointMarket } from '../entities/point-pricing.entity';
 import { TrainRagDocumentChunkDto } from './dto/train-rag-document-chunk.dto';
@@ -45,6 +46,7 @@ export class AdminController {
     private readonly pointPricing: PointPricingService,
     private readonly contactService: ContactService,
     private readonly doctorRegistrationRequests: DoctorRegistrationRequestsService,
+    private readonly doctorSpecialityChangeRequests: DoctorSpecialityChangeRequestsService,
     private readonly appReviews: AppReviewsService,
   ) {}
 
@@ -349,6 +351,26 @@ export class AdminController {
     @Body() body: { read?: boolean },
   ) {
     return this.doctorRegistrationRequests.markRead(id, body?.read !== false);
+  }
+
+  @Get('doctor-speciality-changes')
+  listDoctorSpecialityChanges(@Query('status') status?: 'pending' | 'all') {
+    return this.doctorSpecialityChangeRequests.listForAdmin(status ?? 'pending');
+  }
+
+  @Get('doctor-speciality-changes/:id')
+  getDoctorSpecialityChange(@Param('id') id: string) {
+    return this.doctorSpecialityChangeRequests.findOneForAdmin(id);
+  }
+
+  @Patch('doctor-speciality-changes/:id/approve')
+  approveDoctorSpecialityChange(@Param('id') id: string, @Request() req) {
+    return this.doctorSpecialityChangeRequests.approve(id, req.user.id);
+  }
+
+  @Patch('doctor-speciality-changes/:id/reject')
+  rejectDoctorSpecialityChange(@Param('id') id: string, @Request() req) {
+    return this.doctorSpecialityChangeRequests.reject(id, req.user.id);
   }
 
   @Get('app-reviews')

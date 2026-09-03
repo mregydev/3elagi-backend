@@ -19,12 +19,14 @@ import { SpecialitiesModule } from '../specialities/specialities.module';
 import { UploadsModule } from '../uploads/uploads.module';
 import { ContactModule } from '../contact/contact.module';
 import { DoctorRegistrationRequestsModule } from '../doctor-registration-requests/doctor-registration-requests.module';
+import { DoctorSpecialityChangeRequestsModule } from '../doctor-speciality-change-requests/doctor-speciality-change-requests.module';
 import { AppReviewsModule } from '../app-reviews/app-reviews.module';
 import { MailModule } from '../mail/mail.module';
 import { DoctorOnboardingModule } from '../doctor-onboarding/doctor-onboarding.module';
 import { AuthModule } from '../auth/auth.module';
 import { AccountDeletionModule } from '../account-deletion/account-deletion.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
+import { UserLoginStat } from '../entities/user-login-stat.entity';
 
 @Module({
   imports: [
@@ -39,6 +41,7 @@ import { AnalyticsModule } from '../analytics/analytics.module';
       PatientProfile,
       AdminRagSource,
       IntakeTest,
+      UserLoginStat,
     ]),
     IntakeTestsModule,
     AiModule,
@@ -49,6 +52,7 @@ import { AnalyticsModule } from '../analytics/analytics.module';
     UploadsModule,
     ContactModule,
     DoctorRegistrationRequestsModule,
+    DoctorSpecialityChangeRequestsModule,
     AppReviewsModule,
     MailModule,
     DoctorOnboardingModule,

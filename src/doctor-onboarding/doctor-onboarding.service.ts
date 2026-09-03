@@ -273,11 +273,16 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
   }
 
   /** Links the doctor to their specialty test patient: chat, access, welcome message. */
-  async setupDoctorOnboarding(doctorId: string): Promise<{ test_patient_user_id: string | null }> {
+  async setupDoctorOnboarding(
+    doctorId: string,
+    options?: { removeOtherTestPatientChats?: boolean },
+  ): Promise<{ test_patient_user_id: string | null }> {
     const doctor = await this.doctorRepo.findOne({ where: { id: doctorId } });
     if (!doctor || doctor.approval_status !== 'approved') {
       return { test_patient_user_id: null };
     }
+
+    const previousTestPatientUserId = doctor.onboarding_test_patient_user_id;
 
     if (doctor.speciality_id) {
       const spec = await this.specialityRepo.findOne({
@@ -299,7 +304,15 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
       });
     }
 
-    await this.grantAllTestPatientsAccessToDoctor(doctor.id);
+    await this.grantTestPatientAccess(testPatientUserId, doctor.id);
+
+    const shouldRemoveOtherChats =
+      options?.removeOtherTestPatientChats ||
+      (previousTestPatientUserId &&
+        previousTestPatientUserId !== testPatientUserId);
+    if (shouldRemoveOtherChats) {
+      await this.removeOtherTestPatientChats(doctor.user_id, testPatientUserId);
+    }
 
     const existingWelcome = await this.messageRepo.findOne({
       where: {
@@ -321,6 +334,29 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
     }
 
     return { test_patient_user_id: testPatientUserId };
+  }
+
+  /** Keep only the current specialty demo patient thread for this doctor. */
+  async removeOtherTestPatientChats(
+    doctorUserId: string,
+    keepPatientUserId: string,
+  ): Promise<void> {
+    const testAccounts = await this.testAccountRepo.find({
+      select: ['patient_user_id'],
+    });
+    const otherPatientIds = testAccounts
+      .map((row) => row.patient_user_id)
+      .filter((id) => id !== keepPatientUserId);
+    if (!otherPatientIds.length) return;
+
+    await this.messageRepo
+      .createQueryBuilder()
+      .delete()
+      .where(
+        '(creator = :doctorUserId AND recipient IN (:...otherPatientIds)) OR (creator IN (:...otherPatientIds) AND recipient = :doctorUserId)',
+        { doctorUserId, otherPatientIds },
+      )
+      .execute();
   }
 
   async markTourComplete(

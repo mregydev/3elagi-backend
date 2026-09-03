@@ -11,6 +11,7 @@ import { SpecialitiesModule } from '../specialities/specialities.module';
 import { ReviewsModule } from '../reviews/reviews.module';
 import { DoctorTagsModule } from '../doctor-tags/doctor-tags.module';
 import { DoctorOnboardingModule } from '../doctor-onboarding/doctor-onboarding.module';
+import { DoctorSpecialityChangeRequestsModule } from '../doctor-speciality-change-requests/doctor-speciality-change-requests.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { DoctorOnboardingModule } from '../doctor-onboarding/doctor-onboarding.m
     ReviewsModule,
     DoctorTagsModule,
     DoctorOnboardingModule,
+    DoctorSpecialityChangeRequestsModule,
   ],
   controllers: [DoctorsController],
   providers: [DoctorsService],
