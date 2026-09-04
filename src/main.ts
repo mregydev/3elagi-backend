@@ -6,7 +6,7 @@ import { json, urlencoded } from 'express';
 import * as cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { RedisIoAdapter } from './presence/redis-io.adapter';
-import { corsOrigins } from './auth/auth-cookies';
+import { corsOriginDelegate } from './auth/auth-cookies';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
@@ -31,7 +31,7 @@ async function bootstrap() {
 
   const config = app.get(ConfigService);
   app.enableCors({
-    origin: corsOrigins(config),
+    origin: corsOriginDelegate(config),
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Auth-Client'],
     exposedHeaders: ['Set-Cookie'],

@@ -55,22 +55,58 @@ export function clearAuthCookies(res: Response, config: ConfigService): void {
   });
 }
 
-const DEV_CORS_ORIGINS = [
-  'https://development.3elagi.net',
-  'http://development.3elagi.net',
+const LOCAL_CORS_ORIGINS = [
   'http://localhost:8081',
   'http://127.0.0.1:8081',
 ];
 
-export function corsOrigins(config: ConfigService): string[] {
-  const allowed = new Set(DEV_CORS_ORIGINS);
+/** https://3elagi.net, https://www.3elagi.net, https://development.3elagi.net, etc. */
+const ELAGI_NET_ORIGIN =
+  /^https?:\/\/([a-z0-9-]+\.)*3elagi\.net(?::\d+)?$/i;
 
+function extraCorsOrigins(config: ConfigService): string[] {
   const raw = config.get<string>('CORS_ORIGINS')?.trim();
-  if (raw) {
-    for (const origin of raw.split(',').map((o) => o.trim()).filter(Boolean)) {
-      allowed.add(origin.replace(/\/$/, ''));
-    }
-  }
+  if (!raw) return [];
+  return raw
+    .split(',')
+    .map((o) => o.trim().replace(/\/$/, ''))
+    .filter(Boolean);
+}
 
+export function isAllowedCorsOrigin(
+  origin: string | undefined,
+  config: ConfigService,
+): boolean {
+  // Same-origin / server-to-server / curl — no Origin header.
+  if (!origin) return true;
+
+  const normalized = origin.replace(/\/$/, '');
+  if (LOCAL_CORS_ORIGINS.includes(normalized)) return true;
+  if (ELAGI_NET_ORIGIN.test(normalized)) return true;
+  if (extraCorsOrigins(config).includes(normalized)) return true;
+
+  return false;
+}
+
+/** Express/Nest CORS origin callback — reflects allowed browser origins (credentials-safe). */
+export function corsOriginDelegate(config: ConfigService) {
+  return (
+    origin: string | undefined,
+    callback: (err: Error | null, allow?: boolean) => void,
+  ) => {
+    callback(null, isAllowedCorsOrigin(origin, config));
+  };
+}
+
+/** Static list for tooling/tests; production uses {@link corsOriginDelegate}. */
+export function corsOrigins(config: ConfigService): string[] {
+  const allowed = new Set<string>([
+    ...LOCAL_CORS_ORIGINS,
+    'https://www.3elagi.net',
+    'https://3elagi.net',
+    'https://development.3elagi.net',
+    'http://development.3elagi.net',
+    ...extraCorsOrigins(config),
+  ]);
   return [...allowed];
 }
