@@ -1,5 +1,9 @@
 import type { MarketingEmailLanguage } from '../admin/dto/send-marketing-email.dto';
-import { createMarketingSectionId, type MarketingEmailSection } from './marketing-email-sections';
+import {
+  ANDROID_APP_URL,
+  createMarketingSectionId,
+  type MarketingEmailSection,
+} from './marketing-email-sections';
 
 export {
   applyDoctorWelcomePlaceholders,
@@ -67,6 +71,13 @@ export function getDefaultInvitedDoctorSections(
         buttonLabel: 'تسجيل الدخول',
         buttonUrl: '{{login_url}}',
       },
+      {
+        id: createMarketingSectionId(),
+        type: 'cta',
+        html: 'حمّل <strong>تطبيق Android</strong> من Google Play (اختبار داخلي). تأكد أن بريدك مدعُو للوصول.',
+        buttonLabel: 'تحميل تطبيق Android',
+        buttonUrl: ANDROID_APP_URL,
+      },
     ];
   }
 
@@ -111,6 +122,13 @@ export function getDefaultInvitedDoctorSections(
         html: 'Inicie sesión y empiece a atender pacientes a distancia.',
         buttonLabel: 'Iniciar sesión',
         buttonUrl: '{{login_url}}',
+      },
+      {
+        id: createMarketingSectionId(),
+        type: 'cta',
+        html: 'Descargue la <strong>app de Android</strong> en Google Play (prueba interna). Asegúrese de que su correo esté invitado.',
+        buttonLabel: 'Descargar app de Android',
+        buttonUrl: ANDROID_APP_URL,
       },
     ];
   }
@@ -157,6 +175,13 @@ export function getDefaultInvitedDoctorSections(
         buttonLabel: 'Anmelden',
         buttonUrl: '{{login_url}}',
       },
+      {
+        id: createMarketingSectionId(),
+        type: 'cta',
+        html: 'Laden Sie die <strong>Android-App</strong> bei Google Play (interner Test) herunter. Stellen Sie sicher, dass Ihre E-Mail eingeladen ist.',
+        buttonLabel: 'Android-App herunterladen',
+        buttonUrl: ANDROID_APP_URL,
+      },
     ];
   }
 
@@ -200,6 +225,13 @@ export function getDefaultInvitedDoctorSections(
       html: 'Log in and start caring for patients remotely.',
       buttonLabel: 'Log in to 3elagi',
       buttonUrl: '{{login_url}}',
+    },
+    {
+      id: createMarketingSectionId(),
+      type: 'cta',
+      html: 'Download the <strong>Android app</strong> on Google Play (internal test). Make sure your email is invited to access the app.',
+      buttonLabel: 'Download Android app',
+      buttonUrl: ANDROID_APP_URL,
     },
   ];
 }

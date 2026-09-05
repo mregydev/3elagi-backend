@@ -2,6 +2,8 @@ import type { MarketingEmailLanguage } from '../admin/dto/send-marketing-email.d
 import {
   compileMarketingSections,
   getDefaultMarketingSections,
+  ANDROID_APP_URL,
+  REGISTER_URL,
   type MarketingEmailSection,
 } from './marketing-email-sections';
 import {
@@ -18,8 +20,6 @@ import {
   resolveMarketingImageUrls,
   type MarketingScreenshotKey,
 } from './marketing-screenshots.constants';
-
-const REGISTER_URL = 'https://www.3elagi.net/register-with-us';
 
 function themeColors(theme?: MarketingEmailTheme) {
   return MARKETING_THEME_COLORS[resolveMarketingEmailTheme(theme)];
@@ -172,6 +172,8 @@ const COPY: Record<MarketingEmailLanguage, MarketingCopy> = {
         '',
         `Register: ${REGISTER_URL}`,
         '',
+        `Android app: ${ANDROID_APP_URL}`,
+        '',
         'We will create a test account and send you web + mobile links.',
         '',
         '— 3elagi Marketing Team',
@@ -227,6 +229,8 @@ const COPY: Record<MarketingEmailLanguage, MarketingCopy> = {
         'نحن في مرحلة الاختبار. انضم مبكراً لمزايا بعد الإطلاق.',
         '',
         `التسجيل: ${REGISTER_URL}`,
+        '',
+        `تطبيق Android: ${ANDROID_APP_URL}`,
         '',
         'سننشئ حساباً تجريبياً ونرسل روابط الويب والجوال.',
         '',
@@ -284,6 +288,8 @@ const COPY: Record<MarketingEmailLanguage, MarketingCopy> = {
         '',
         `Registro: ${REGISTER_URL}`,
         '',
+        `App Android: ${ANDROID_APP_URL}`,
+        '',
         'Crearemos una cuenta de prueba y enviaremos enlaces web y móvil.',
         '',
         '— Equipo de Marketing 3elagi',
@@ -339,6 +345,8 @@ const COPY: Record<MarketingEmailLanguage, MarketingCopy> = {
         'Testphase — früh beitreten für Launch-Vorteile.',
         '',
         `Registrierung: ${REGISTER_URL}`,
+        '',
+        `Android-App: ${ANDROID_APP_URL}`,
         '',
         'Wir erstellen ein Testkonto und senden Web- + Mobile-Links.',
         '',

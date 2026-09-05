@@ -298,7 +298,7 @@ export function testPatientEmail(nameEn: string): string {
   return `test.${specialtyEmailSlug(nameEn)}@3elagi.patient`;
 }
 
-export const DEFAULT_TEST_PATIENT_DISPLAY_NAME = '3elagi patient -- default patient';
+export const DEFAULT_TEST_PATIENT_DISPLAY_NAME = 'Demo Patient';
 
 export const MAX_TEST_PATIENT_DOCTOR_QUESTIONS = 20;
 

@@ -11,6 +11,11 @@ import {
 } from './marketing-email-themes';
 
 const REGISTER_URL = 'https://www.3elagi.net/register-with-us';
+const ANDROID_APP_URL =
+  process.env.ANDROID_APP_URL?.trim() ||
+  'https://play.google.com/apps/internaltest/4700519020943782529';
+
+export { ANDROID_APP_URL, REGISTER_URL };
 
 const MARKETING_SCREENSHOT_KEYS: MarketingScreenshotKey[] = [
   'chat',
@@ -247,6 +252,13 @@ export function getDefaultMarketingSections(
         buttonLabel: 'انضم إلينا — سجّل اهتمامك',
         buttonUrl: REGISTER_URL,
       },
+      {
+        id: createMarketingSectionId(),
+        type: 'cta',
+        html: 'جرّب <strong>تطبيق Android</strong> على Google Play. تأكد أن بريدك مدعُو للوصول.',
+        buttonLabel: 'تحميل تطبيق Android',
+        buttonUrl: ANDROID_APP_URL,
+      },
     ];
   }
 
@@ -277,6 +289,13 @@ export function getDefaultMarketingSections(
         buttonLabel: 'Únase — registre su interés',
         buttonUrl: REGISTER_URL,
       },
+      {
+        id: createMarketingSectionId(),
+        type: 'cta',
+        html: 'Pruebe la <strong>app de Android</strong> en Google Play. Asegúrese de que su correo esté invitado.',
+        buttonLabel: 'Descargar app de Android',
+        buttonUrl: ANDROID_APP_URL,
+      },
     ];
   }
 
@@ -306,6 +325,13 @@ export function getDefaultMarketingSections(
         html: 'Registrieren Sie sich für ein Testkonto.',
         buttonLabel: 'Mitmachen — Interesse anmelden',
         buttonUrl: REGISTER_URL,
+      },
+      {
+        id: createMarketingSectionId(),
+        type: 'cta',
+        html: 'Testen Sie die <strong>Android-App</strong> bei Google Play. Stellen Sie sicher, dass Ihre E-Mail eingeladen ist.',
+        buttonLabel: 'Android-App herunterladen',
+        buttonUrl: ANDROID_APP_URL,
       },
     ];
   }
@@ -354,6 +380,13 @@ export function getDefaultMarketingSections(
       html: 'Register your interest — we will create a <strong>test account</strong> and send web + mobile links.',
       buttonLabel: 'Join us — register your interest',
       buttonUrl: REGISTER_URL,
+    },
+    {
+      id: createMarketingSectionId(),
+      type: 'cta',
+      html: 'Try the <strong>Android app</strong> on Google Play (internal test). Make sure your email is invited to access the app.',
+      buttonLabel: 'Download Android app',
+      buttonUrl: ANDROID_APP_URL,
     },
     {
       id: createMarketingSectionId(),
