@@ -2,7 +2,7 @@ import type { MarketingEmailLanguage } from '../admin/dto/send-marketing-email.d
 import { createMarketingSectionId, type MarketingEmailSection } from './marketing-email-sections';
 
 const DOCTOR_LOGIN_URL =
-  process.env.DOCTOR_LOGIN_URL?.trim() || 'https://development.3elagi.net';
+  process.env.DOCTOR_LOGIN_URL?.trim() || 'https://www.3elagi.net';
 
 export { DOCTOR_LOGIN_URL };
 

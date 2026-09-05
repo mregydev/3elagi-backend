@@ -19,7 +19,7 @@ import {
   type MarketingScreenshotKey,
 } from './marketing-screenshots.constants';
 
-const REGISTER_URL = 'https://development.3elagi.net/register-with-us';
+const REGISTER_URL = 'https://www.3elagi.net/register-with-us';
 
 function themeColors(theme?: MarketingEmailTheme) {
   return MARKETING_THEME_COLORS[resolveMarketingEmailTheme(theme)];
