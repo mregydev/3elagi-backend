@@ -49,12 +49,16 @@ if (!endpoint || !accessKeyId || !secretAccessKey) {
 
 const assetsDir = join(root, 'src/doctor-onboarding/assets/test-attachments');
 const files = [
-  'cardiology-chest-xray.png',
+  'cardiology-echocardiogram-panel.png',
   'dentistry-panoramic-xray.png',
-  'dermatology-molesafe-report.png',
-  'orthopedics-forearm-orif.png',
+  'dermatology-dermoscopy-panel.png',
+  'orthopedics-lower-leg-fracture.png',
+  'orthopedics-forearm-both-bone-fracture.png',
   'ent-sinus-waters-view.png',
   'ent-iac-mri.png',
+  'ophthalmology-oct-macula-series.png',
+  'ophthalmology-fundus-faf-bulls-eye.png',
+  'gynaecology-early-pregnancy-tvu.png',
 ];
 
 const s3 = new S3Client({

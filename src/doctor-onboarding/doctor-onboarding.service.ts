@@ -267,7 +267,7 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
     patientUserId: string,
     specialityName: string,
   ): Promise<void> {
-    if (specialityName === 'ENT') return;
+    if (specialityName === 'ENT' || specialityName === 'Ophthalmology' || specialityName === 'Orthopedics' || specialityName === 'Cardiology' || specialityName === 'Emergency' || specialityName === 'Gynaecology' || specialityName === 'Dermatology') return;
     const docs = await this.medicalDocRepo.find({ where: { patient_id: patientUserId } });
     const hasLab = docs.some((doc) => doc.type === 'lab');
     const hasXray = docs.some((doc) => doc.type === 'xray');
