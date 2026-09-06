@@ -1,5 +1,9 @@
 import type { MarketingEmailLanguage } from '../admin/dto/send-marketing-email.dto';
-import { createMarketingSectionId, type MarketingEmailSection } from './marketing-email-sections';
+import {
+  ANDROID_APP_URL,
+  createMarketingSectionId,
+  type MarketingEmailSection,
+} from './marketing-email-sections';
 
 const DOCTOR_LOGIN_URL =
   process.env.DOCTOR_LOGIN_URL?.trim() || 'https://www.3elagi.net';
@@ -46,6 +50,13 @@ export function getDefaultDoctorWelcomeSections(
         buttonLabel: 'تسجيل الدخول',
         buttonUrl: '{{login_url}}',
       },
+      {
+        id: createMarketingSectionId(),
+        type: 'cta',
+        html: 'حمّل <strong>تطبيق الجوال</strong> من Google Play. استخدم نفس بريد حسابك للدخول.',
+        buttonLabel: 'تحميل تطبيق الجوال',
+        buttonUrl: ANDROID_APP_URL,
+      },
     ];
   }
 
@@ -86,6 +97,13 @@ export function getDefaultDoctorWelcomeSections(
         buttonLabel: 'Iniciar sesión',
         buttonUrl: '{{login_url}}',
       },
+      {
+        id: createMarketingSectionId(),
+        type: 'cta',
+        html: 'Descargue la <strong>app móvil</strong> en Google Play. Use el mismo correo de su cuenta para iniciar sesión.',
+        buttonLabel: 'Descargar app móvil',
+        buttonUrl: ANDROID_APP_URL,
+      },
     ];
   }
 
@@ -125,6 +143,13 @@ export function getDefaultDoctorWelcomeSections(
         html: 'Melden Sie sich an und starten Sie auf der Plattform.',
         buttonLabel: 'Anmelden',
         buttonUrl: '{{login_url}}',
+      },
+      {
+        id: createMarketingSectionId(),
+        type: 'cta',
+        html: 'Laden Sie die <strong>Mobile-App</strong> bei Google Play herunter. Melden Sie sich mit derselben E-Mail an.',
+        buttonLabel: 'Mobile-App herunterladen',
+        buttonUrl: ANDROID_APP_URL,
       },
     ];
   }
@@ -169,6 +194,13 @@ export function getDefaultDoctorWelcomeSections(
       html: 'Log in and start using your account.',
       buttonLabel: 'Log in to 3elagi',
       buttonUrl: '{{login_url}}',
+    },
+    {
+      id: createMarketingSectionId(),
+      type: 'cta',
+      html: 'Download the <strong>mobile app</strong> on Google Play. Sign in with the same email as your account above.',
+      buttonLabel: 'Download mobile app',
+      buttonUrl: ANDROID_APP_URL,
     },
   ];
 }
