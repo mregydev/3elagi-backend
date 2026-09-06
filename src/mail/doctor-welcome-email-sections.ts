@@ -23,6 +23,13 @@ export function getDefaultDoctorWelcomeSections(
       },
       {
         id: createMarketingSectionId(),
+        type: 'callout',
+        variant: 'soft',
+        title: 'بيانات الدخول',
+        html: 'البريد: <strong>{{email}}</strong><br/>كلمة المرور: <strong>{{password}}</strong>',
+      },
+      {
+        id: createMarketingSectionId(),
         type: 'feature_box',
         title: 'لماذا 3elagi؟',
         items: [
@@ -31,13 +38,6 @@ export function getDefaultDoctorWelcomeSections(
           '<strong>متابعة المرضى الحاليين</strong> بعد الزيارة.',
           '<strong>طلبات تحاليل وأشعة</strong> داخل المحادثة.',
         ],
-      },
-      {
-        id: createMarketingSectionId(),
-        type: 'callout',
-        variant: 'soft',
-        title: 'بيانات الدخول',
-        html: 'البريد: <strong>{{email}}</strong><br/>كلمة المرور: <strong>{{password}}</strong>',
       },
       {
         id: createMarketingSectionId(),
@@ -63,6 +63,13 @@ export function getDefaultDoctorWelcomeSections(
       },
       {
         id: createMarketingSectionId(),
+        type: 'callout',
+        variant: 'soft',
+        title: 'Sus credenciales',
+        html: 'Correo: <strong>{{email}}</strong><br/>Contraseña: <strong>{{password}}</strong>',
+      },
+      {
+        id: createMarketingSectionId(),
         type: 'feature_box',
         title: 'Por qué 3elagi',
         items: [
@@ -71,13 +78,6 @@ export function getDefaultDoctorWelcomeSections(
           '<strong>Seguimiento</strong> con pacientes actuales.',
           '<strong>Solicitudes de laboratorio y radiografía</strong> en el chat.',
         ],
-      },
-      {
-        id: createMarketingSectionId(),
-        type: 'callout',
-        variant: 'soft',
-        title: 'Sus credenciales',
-        html: 'Correo: <strong>{{email}}</strong><br/>Contraseña: <strong>{{password}}</strong>',
       },
       {
         id: createMarketingSectionId(),
@@ -103,6 +103,13 @@ export function getDefaultDoctorWelcomeSections(
       },
       {
         id: createMarketingSectionId(),
+        type: 'callout',
+        variant: 'soft',
+        title: 'Ihre Zugangsdaten',
+        html: 'E-Mail: <strong>{{email}}</strong><br/>Passwort: <strong>{{password}}</strong>',
+      },
+      {
+        id: createMarketingSectionId(),
         type: 'feature_box',
         title: 'Warum 3elagi',
         items: [
@@ -111,13 +118,6 @@ export function getDefaultDoctorWelcomeSections(
           '<strong>Nachsorge</strong> für bestehende Patienten.',
           '<strong>Labor- und Röntgenanforderungen</strong> im Chat.',
         ],
-      },
-      {
-        id: createMarketingSectionId(),
-        type: 'callout',
-        variant: 'soft',
-        title: 'Ihre Zugangsdaten',
-        html: 'E-Mail: <strong>{{email}}</strong><br/>Passwort: <strong>{{password}}</strong>',
       },
       {
         id: createMarketingSectionId(),
@@ -142,6 +142,13 @@ export function getDefaultDoctorWelcomeSections(
     },
     {
       id: createMarketingSectionId(),
+      type: 'callout',
+      variant: 'soft',
+      title: 'Your login credentials',
+      html: 'Email: <strong>{{email}}</strong><br/>Password: <strong>{{password}}</strong>',
+    },
+    {
+      id: createMarketingSectionId(),
       type: 'feature_box',
       title: 'Why doctors choose 3elagi',
       items: [
@@ -150,13 +157,6 @@ export function getDefaultDoctorWelcomeSections(
         '<strong>Follow-ups</strong> with your existing patients after visits.',
         '<strong>Lab and X-ray requests</strong> inside the consultation chat.',
       ],
-    },
-    {
-      id: createMarketingSectionId(),
-      type: 'callout',
-      variant: 'soft',
-      title: 'Your login credentials',
-      html: 'Email: <strong>{{email}}</strong><br/>Password: <strong>{{password}}</strong>',
     },
     {
       id: createMarketingSectionId(),
