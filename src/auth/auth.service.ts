@@ -394,11 +394,15 @@ export class AuthService {
       message_points: DEFAULT_MESSAGE_POINTS,
       points_spent_total: 0,
       points_purchased_total: 0,
-      email_verified_at: new Date(),
+      email_verified_at: autoApprove ? new Date() : null,
       email_verification_code_hash: null,
       email_verification_expires_at: null,
     });
     await this.userRepo.save(user);
+
+    if (!autoApprove) {
+      await this.issueVerificationCode(user);
+    }
 
     const personalClinic = this.clinicRepo.create({
       name: dto.name,
@@ -449,6 +453,9 @@ export class AuthService {
       payment_link: dto.payment_link?.trim() || null,
       approval_status: autoApprove ? 'approved' : 'pending',
     });
+    await this.doctorRepo.save(doctor);
+
+    doctor.specialities = [speciality];
     await this.doctorRepo.save(doctor);
 
     user.doctor_info_id = doctor.id;

@@ -131,17 +131,25 @@ export class AdminService {
     const result = await this.authService.registerDoctor(dto, 'web', {
       autoApprove: true,
     });
+    const userId = result.body.user_id as string;
     const profile = result.body.profile as Doctor | undefined;
     const doctorId =
       profile?.id ??
       (
         await this.doctorRepo.findOne({
-          where: { user_id: result.body.user_id as string },
+          where: { user_id: userId },
         })
       )?.id;
     if (!doctorId) {
       throw new BadRequestException('Doctor account was created but could not be loaded');
     }
+
+    // Belt-and-suspenders: admin-created accounts are approved + email-verified.
+    await this.userRepo.update(userId, {
+      email_verified_at: new Date(),
+      email_verification_code_hash: null,
+      email_verification_expires_at: null,
+    });
     await this.setDoctorApproval(doctorId, 'approved');
     const approved = await this.doctorRepo.findOne({
       where: { id: doctorId },
