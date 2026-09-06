@@ -75,6 +75,7 @@ export interface IntakeExamInstanceView {
   recurrence_type: IntakeExamRecurrence;
   recurrence_interval: number;
   created_at: string;
+  diagnosis_id: string | null;
 }
 
 // TODO: Add a new field to the intake exam instance to store the payment status
@@ -156,6 +157,7 @@ export class IntakeExamsService {
       recurrence_type: assignment.recurrence_type,
       recurrence_interval: assignment.recurrence_interval,
       created_at: instance.created_at.toISOString(),
+      diagnosis_id: assignment.diagnosis_id ?? null,
     };
   }
 
