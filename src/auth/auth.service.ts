@@ -385,7 +385,7 @@ export class AuthService {
       password_hash: hash,
       role: UserRole.DOCTOR,
       photo_url: dto.photo_url ?? null,
-      preferred_locale: 'ar',
+      preferred_locale: 'en',
       message_points: DEFAULT_MESSAGE_POINTS,
       points_spent_total: 0,
       points_purchased_total: 0,
