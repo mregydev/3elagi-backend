@@ -1,4 +1,5 @@
 import type { MedicalBodyPart } from '../common/medical-body-part';
+import type { MedicalAiInsight } from '../common/medical-ai-insight.types';
 import type { DocumentType } from '../entities/medical-document.entity';
 
 export type SpecialtyRecordSeed = {
@@ -8,6 +9,7 @@ export type SpecialtyRecordSeed = {
   body_part: MedicalBodyPart;
   file_url: string;
   file_name: string;
+  ai_insight?: MedicalAiInsight;
 };
 
 const DEMO_MARKETING_BASE =
@@ -21,6 +23,8 @@ const TEST_CARDIOLOGY_CHEST_XRAY = `${DEMO_TEST_ATTACHMENTS_BASE}/cardiology-che
 const TEST_DENTISTRY_PANORAMIC = `${DEMO_TEST_ATTACHMENTS_BASE}/dentistry-panoramic-xray.png`;
 const TEST_DERMATOLOGY_MOLE_REPORT = `${DEMO_TEST_ATTACHMENTS_BASE}/dermatology-molesafe-report.png`;
 const TEST_ORTHOPEDICS_FOREARM_ORIF = `${DEMO_TEST_ATTACHMENTS_BASE}/orthopedics-forearm-orif.png`;
+const TEST_ENT_SINUS_WATERS_VIEW = `${DEMO_TEST_ATTACHMENTS_BASE}/ent-sinus-waters-view.png`;
+const TEST_ENT_IAC_MRI = `${DEMO_TEST_ATTACHMENTS_BASE}/ent-iac-mri.png`;
 
 /** Comprehensive metabolic panel on-screen lab report (Wikimedia, CC BY-SA). */
 const DEMO_LAB_CMP =
@@ -261,27 +265,33 @@ export const SPECIALTY_TEST_RECORDS: Record<string, SpecialtyRecordSeed[]> = {
   ENT: [
     {
       type: 'xray' as DocumentType,
-      title: 'Ear examination photo',
-      notes: 'Mild otitis externa — topical treatment started.',
-      body_part: 'ears',
-      file_url: DEMO_XRAY_CHEST_ALT,
-      file_name: 'ear-xray.jpg',
-    },
-    {
-      type: 'lab' as DocumentType,
-      title: 'Audiometry results',
-      notes: 'Bilateral mild high-frequency hearing loss.',
-      body_part: 'ears',
-      file_url: DEMO_LAB_REPORT,
-      file_name: 'audiometry-report.png',
+      title: 'Paranasal sinuses — Water\'s view',
+      notes:
+        'Right maxillary sinus opacification with mild frontal and ethmoid involvement; septum relatively midline.',
+      body_part: 'throat',
+      file_url: TEST_ENT_SINUS_WATERS_VIEW,
+      file_name: 'ent-sinus-waters-view.png',
+      ai_insight: {
+        description:
+          'Occipitomental (Water\'s) radiograph shows prominent opacification of the right maxillary sinus with mild clouding of the frontal and ethmoid sinuses. The nasal septum is relatively midline.',
+        possible_diseases:
+          'Acute or chronic maxillary sinusitis; possible pansinusitis. Correlate with unilateral facial pressure, congestion, or purulent discharge. Consider CT sinuses if symptoms are chronic.',
+      },
     },
     {
       type: 'xray' as DocumentType,
-      title: 'Sinus CT summary',
-      notes: 'Chronic sinusitis — follow-up in 4 weeks.',
-      body_part: 'throat',
-      file_url: DEMO_XRAY_REVIEW,
-      file_name: 'sinus-imaging.png',
+      title: 'Internal auditory canal MRI',
+      notes:
+        'Axial T2 MRI — symmetrical IACs, no CPA mass; incidental mild maxillary mucosal thickening.',
+      body_part: 'ears',
+      file_url: TEST_ENT_IAC_MRI,
+      file_name: 'ent-iac-mri.png',
+      ai_insight: {
+        description:
+          'Axial T2-weighted MRI at the internal auditory canals. Bilateral canals appear symmetrical without nerve thickening or mass. Cochlear and vestibular structures look morphologically normal. Mild mucosal thickening is noted in the visible posterior maxillary sinuses.',
+        possible_diseases:
+          'No vestibular schwannoma or cerebellopontine angle mass identified. Incidental maxillary mucosal thickening may reflect chronic rhinosinusitis.',
+      },
     },
   ],
 };
@@ -312,6 +322,8 @@ const GENERAL_MEDICINE_SEEDS = SPECIALTY_TEST_RECORDS['General Medicine'];
 /** Ensures every speciality seed list includes at least one lab and one x-ray. */
 export function seedsForSpeciality(nameEn: string): SpecialtyRecordSeed[] {
   const base = SPECIALTY_TEST_RECORDS[nameEn] ?? GENERAL_MEDICINE_SEEDS;
+  if (nameEn === 'ENT') return base;
+
   const hasLab = base.some((seed) => seed.type === 'lab');
   const hasXray = base.some((seed) => seed.type === 'xray');
   const extras: SpecialtyRecordSeed[] = [];

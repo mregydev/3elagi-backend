@@ -203,6 +203,22 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
 
   private async ensureRecordsForPatient(patientUserId: string, specialityName: string) {
     const seeds = seedsForSpeciality(specialityName);
+    const seedTitles = new Set(seeds.map((seed) => seed.title));
+
+    const profile = await this.patientProfileRepo.findOne({
+      where: { user_id: patientUserId },
+      select: { is_specialty_test_account: true },
+    });
+    if (profile?.is_specialty_test_account) {
+      const existingDocs = await this.medicalDocRepo.find({
+        where: { patient_id: patientUserId },
+      });
+      for (const doc of existingDocs) {
+        if (!seedTitles.has(doc.title)) {
+          await this.medicalDocRepo.delete(doc.id);
+        }
+      }
+    }
 
     for (const seed of seeds) {
       const existing = await this.medicalDocRepo.findOne({
@@ -214,7 +230,9 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
           existing.file_name !== seed.file_name ||
           existing.notes !== seed.notes ||
           existing.type !== seed.type ||
-          existing.body_part !== seed.body_part;
+          existing.body_part !== seed.body_part ||
+          JSON.stringify(existing.ai_insight ?? null) !==
+            JSON.stringify(seed.ai_insight ?? null);
         if (staleAttachment) {
           await this.medicalDocRepo.update(existing.id, {
             type: seed.type,
@@ -222,6 +240,7 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
             body_part: seed.body_part,
             file_url: seed.file_url,
             file_name: seed.file_name,
+            ai_insight: seed.ai_insight ?? null,
           });
         }
         continue;
@@ -235,6 +254,7 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
           body_part: seed.body_part,
           file_url: seed.file_url,
           file_name: seed.file_name,
+          ai_insight: seed.ai_insight ?? null,
         }),
       );
     }
@@ -247,6 +267,7 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
     patientUserId: string,
     specialityName: string,
   ): Promise<void> {
+    if (specialityName === 'ENT') return;
     const docs = await this.medicalDocRepo.find({ where: { patient_id: patientUserId } });
     const hasLab = docs.some((doc) => doc.type === 'lab');
     const hasXray = docs.some((doc) => doc.type === 'xray');
@@ -269,6 +290,7 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
           body_part: seed.body_part,
           file_url: seed.file_url,
           file_name: seed.file_name,
+          ai_insight: seed.ai_insight ?? null,
         }),
       );
     }

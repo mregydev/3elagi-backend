@@ -53,6 +53,8 @@ const files = [
   'dentistry-panoramic-xray.png',
   'dermatology-molesafe-report.png',
   'orthopedics-forearm-orif.png',
+  'ent-sinus-waters-view.png',
+  'ent-iac-mri.png',
 ];
 
 const s3 = new S3Client({
