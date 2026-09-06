@@ -96,11 +96,11 @@ const SCREENSHOT_CAPTIONS: Record<
   Record<MarketingScreenshotKey, string>
 > = {
   en: {
-    chat: 'Chat consultations with shared records',
-    xrayRecord: 'Medical records with AI insight',
-    xrayDetail: 'X-ray review with clinical highlights',
-    skeleton: 'Interactive skeleton view of patient records',
-    ai: 'AI assistant for records & prescriptions',
+    chat: 'Cross-border video & chat consultations',
+    xrayRecord: 'EMR tracking & structured clinical history',
+    xrayDetail: 'Clinical imaging with structured review',
+    skeleton: 'Interactive visual record navigation',
+    ai: 'Ask 3elagi AI — clinical decision support',
   },
   ar: {
     chat: 'استشارات مع مشاركة السجلات',
@@ -162,7 +162,7 @@ export function compileMarketingSections(
         const items = (section.items ?? []).filter(Boolean);
         if (!section.title?.trim() && !items.length) break;
         chunks.push(`
-              <div style="background:${BRAND_TINT};border-${dir === 'rtl' ? 'right' : 'left'}:4px solid ${BRAND};border-radius:12px;padding:18px 20px;margin-bottom:22px;">
+              <div style="background:${BRAND_TINT};border-${dir === 'rtl' ? 'right' : 'left'}:4px solid ${BRAND};border-radius:12px;padding:18px 20px;margin-bottom:22px;box-shadow:0 1px 3px rgba(15,23,42,0.06);">
                 ${section.title?.trim() ? `<h2 style="margin:0 0 12px;font-size:17px;color:${BRAND_DARK};text-align:${align};">${section.title}</h2>` : ''}
                 ${items.length ? featureList(items, dir) : ''}
               </div>`);
@@ -220,178 +220,211 @@ export function getDefaultMarketingSections(
 ): MarketingEmailSection[] {
   if (language === 'ar') {
     return [
-      { id: createMarketingSectionId(), type: 'heading', html: 'الدكتور/ة {{name}}، تحية طيبة،' },
+      {
+        id: createMarketingSectionId(),
+        type: 'heading',
+        html: 'هل أنت طبيب/ة ممارس/ة وتسعى لتوسيع قاعدة مرضاك؟',
+      },
       {
         id: createMarketingSectionId(),
         type: 'paragraph',
-        html: 'نبني <strong>3elagi</strong> — منصة استشارات طبية حديثة للأطباء في <strong>الخليج والشرق الأوسط</strong>.',
+        html: 'الدكتور/ة {{name}}، تحية طيبة،',
+      },
+      {
+        id: createMarketingSectionId(),
+        type: 'paragraph',
+        html: 'بالتسجيل في <strong>3elagi</strong>، تنضم إلى منصة استشارات عن بُعد متخصصة تربط الأطباء الممارسين بمرضى في <strong>الخليج والشرق الأوسط</strong> — لتوسيع نطاق ممارستك خارج جدران العيادة.',
       },
       {
         id: createMarketingSectionId(),
         type: 'feature_box',
-        title: 'ماذا يمكنك أن تفعل على 3elagi؟',
+        title: 'ما الذي تقدمه 3elagi لعيادتك',
         items: [
-          '<strong>استشارات آمنة عبر المحادثة</strong> مع مشاركة السجلات الطبية.',
-          '<strong>عرض السجلات كقائمة أو على هيكل جسم تفاعلي</strong>.',
-          '<strong>مساعد ذكي للسجلات والوصفات</strong>.',
-          '<strong>استشارات فيديو</strong> مع مشاركة السجلات مباشرة.',
+          '<strong>استشارات عن بُعد عابرة للحدود</strong> (فيديو ومحادثة) مع مرضى في الخليج والشرق الأوسط.',
+          '<strong>تتبع السجل الطبي الإلكتروني (EMR)</strong> وتاريخ سريري منظم.',
+          '<strong>دعم قرار سريري بالذكاء الاصطناعي</strong> — <strong>Ask 3elagi AI</strong>.',
+          '<strong>أدوات استشارة بديهية</strong> وتصفح تفاعلي للسجل الطبي.',
         ],
       },
       {
         id: createMarketingSectionId(),
         type: 'callout',
         variant: 'soft',
-        title: 'نحن في مرحلة الاختبار',
-        html: 'ندعو مجموعة مختارة من الأطباء <strong>للاختبار وإبداء الرأي</strong> قبل الإطلاق.',
+        title: 'دعوة الأطباء المؤسسين',
+        html: 'نبني شبكتنا الأولى من الأطباء قبل الإطلاق العام. انضم إلى مجموعة مختارة <strong>للاختبار وإبداء الرأي وصناعة المنصة</strong> معنا.',
+      },
+      {
+        id: createMarketingSectionId(),
+        type: 'callout',
+        variant: 'highlight',
+        title: 'لماذا التسجيل الآن؟',
+        html: 'الأطباء المؤسسون الأوائل يحصلون على <strong>أولوية في الظهور ومزايا بعد الإطلاق</strong> — تعرض أكبر للمرضى في المنطقة.',
       },
       { id: createMarketingSectionId(), type: 'screenshots', title: 'لمحة عن المنصة' },
       {
         id: createMarketingSectionId(),
         type: 'cta',
-        html: 'سجّل اهتمامك وسننشئ لك <strong>حساباً تجريبياً</strong>.',
+        html: 'سجّل اهتمامك — سنتواصل معك لإعداد ملفك والترحيب بك في مجتمع الأطباء المؤسسين.',
         buttonLabel: 'انضم إلينا — سجّل اهتمامك',
         buttonUrl: REGISTER_URL,
-      },
-      {
-        id: createMarketingSectionId(),
-        type: 'cta',
-        html: 'جرّب <strong>تطبيق Android</strong> على Google Play. تأكد أن بريدك مدعُو للوصول.',
-        buttonLabel: 'تحميل تطبيق Android',
-        buttonUrl: ANDROID_APP_URL,
       },
     ];
   }
 
   if (language === 'es') {
     return [
-      { id: createMarketingSectionId(), type: 'heading', html: 'Estimado/a Dr. {{name}},' },
+      {
+        id: createMarketingSectionId(),
+        type: 'heading',
+        html: '¿Es usted un médico en ejercicio que busca ampliar su base de pacientes?',
+      },
       {
         id: createMarketingSectionId(),
         type: 'paragraph',
-        html: 'Desarrollamos <strong>3elagi</strong> — consultas en línea para el <strong>Golfo y Oriente Medio</strong>.',
+        html: 'Estimado/a Dr. {{name}},',
+      },
+      {
+        id: createMarketingSectionId(),
+        type: 'paragraph',
+        html: 'Al registrarse en <strong>3elagi</strong>, se une a una plataforma especializada de consultas remotas que conecta a médicos en ejercicio con pacientes en el <strong>Golfo y Oriente Medio</strong>.',
       },
       {
         id: createMarketingSectionId(),
         type: 'feature_box',
-        title: 'Qué puede hacer en 3elagi',
+        title: 'Lo que 3elagi ofrece a su consulta',
         items: [
-          '<strong>Consultas seguras por chat</strong>.',
-          '<strong>Historiales en lista o esqueleto corporal</strong>.',
-          '<strong>IA para registros y recetas</strong>.',
-          '<strong>Videoconsultas</strong>.',
+          '<strong>Consultas remotas transfronterizas</strong> (video y chat) con pacientes en el Golfo y Oriente Medio.',
+          '<strong>Seguimiento de historial clínico electrónico (EMR)</strong> e historial clínico estructurado.',
+          '<strong>Soporte clínico con IA integrada</strong> — <strong>Ask 3elagi AI</strong>.',
+          '<strong>Herramientas de consulta intuitivas</strong> y navegación visual interactiva del historial.',
         ],
+      },
+      {
+        id: createMarketingSectionId(),
+        type: 'callout',
+        variant: 'soft',
+        title: 'Invitación a médicos fundadores',
+        html: 'Estamos formando nuestra red inicial de médicos antes del lanzamiento público. Únase a un grupo selecto para <strong>probar, opinar y dar forma a la plataforma</strong>.',
+      },
+      {
+        id: createMarketingSectionId(),
+        type: 'callout',
+        variant: 'highlight',
+        title: '¿Por qué registrarse ahora?',
+        html: 'Los médicos fundadores reciben <strong>mayor visibilidad y privilegios tras el lanzamiento</strong> en toda la región.',
       },
       { id: createMarketingSectionId(), type: 'screenshots', title: 'Un vistazo a la plataforma' },
       {
         id: createMarketingSectionId(),
         type: 'cta',
-        html: '¿Le interesa? Registre su interés.',
+        html: 'Registre su interés — le contactaremos para configurar su perfil y darle la bienvenida a la comunidad fundadora.',
         buttonLabel: 'Únase — registre su interés',
         buttonUrl: REGISTER_URL,
-      },
-      {
-        id: createMarketingSectionId(),
-        type: 'cta',
-        html: 'Pruebe la <strong>app de Android</strong> en Google Play. Asegúrese de que su correo esté invitado.',
-        buttonLabel: 'Descargar app de Android',
-        buttonUrl: ANDROID_APP_URL,
       },
     ];
   }
 
   if (language === 'de') {
     return [
-      { id: createMarketingSectionId(), type: 'heading', html: 'Sehr geehrte/r Dr. {{name}},' },
+      {
+        id: createMarketingSectionId(),
+        type: 'heading',
+        html: 'Sind Sie praktizierender Arzt und möchten Ihre Patientenbasis vergrößern?',
+      },
       {
         id: createMarketingSectionId(),
         type: 'paragraph',
-        html: 'Wir entwickeln <strong>3elagi</strong> — Telemedizin für den <strong>Golfraum & Nahen Osten</strong>.',
+        html: 'Sehr geehrte/r Dr. {{name}},',
+      },
+      {
+        id: createMarketingSectionId(),
+        type: 'paragraph',
+        html: 'Mit der Registrierung bei <strong>3elagi</strong> treten Sie einer spezialisierten Remote-Konsultationsplattform bei, die praktizierende Ärzte mit Patienten im <strong>Golfraum und Nahen Osten</strong> verbindet.',
       },
       {
         id: createMarketingSectionId(),
         type: 'feature_box',
-        title: 'Das bietet 3elagi',
+        title: 'Was 3elagi Ihrer Praxis bietet',
         items: [
-          '<strong>Sichere Chat-Konsultationen</strong>.',
-          '<strong>Interaktives Körperskelett</strong>.',
-          '<strong>KI-Assistent</strong>.',
-          '<strong>Videosprechstunden</strong>.',
+          '<strong>Grenzüberschreitende Remote-Konsultationen</strong> (Video &amp; Chat) mit Patienten im Golfraum &amp; Nahen Osten.',
+          '<strong>Elektronische Patientenakte (EMR)</strong> &amp; strukturierte klinische Historie.',
+          '<strong>Integrierte KI-Klinikunterstützung</strong> — <strong>Ask 3elagi AI</strong>.',
+          '<strong>Intuitive Konsultationstools</strong> &amp; interaktive visuelle Aktennavigation.',
         ],
+      },
+      {
+        id: createMarketingSectionId(),
+        type: 'callout',
+        variant: 'soft',
+        title: 'Einladung für Gründungsärzte',
+        html: 'Wir bauen unser erstes Ärztenetzwerk vor dem öffentlichen Start auf. Werden Sie Teil einer ausgewählten Gruppe zum <strong>Testen, Feedbackgeben und Mitgestalten</strong>.',
+      },
+      {
+        id: createMarketingSectionId(),
+        type: 'callout',
+        variant: 'highlight',
+        title: 'Warum jetzt registrieren?',
+        html: 'Frühe Gründungsärzte erhalten <strong>Priorität und Vorteile nach dem Launch</strong> — mehr Sichtbarkeit in der Region.',
       },
       { id: createMarketingSectionId(), type: 'screenshots', title: 'Ein Blick auf die Plattform' },
       {
         id: createMarketingSectionId(),
         type: 'cta',
-        html: 'Registrieren Sie sich für ein Testkonto.',
+        html: 'Melden Sie Ihr Interesse an — wir kontaktieren Sie zur Profileinrichtung und begrüßen Sie in der Gründungsgemeinschaft.',
         buttonLabel: 'Mitmachen — Interesse anmelden',
         buttonUrl: REGISTER_URL,
-      },
-      {
-        id: createMarketingSectionId(),
-        type: 'cta',
-        html: 'Testen Sie die <strong>Android-App</strong> bei Google Play. Stellen Sie sicher, dass Ihre E-Mail eingeladen ist.',
-        buttonLabel: 'Android-App herunterladen',
-        buttonUrl: ANDROID_APP_URL,
       },
     ];
   }
 
   return [
-    { id: createMarketingSectionId(), type: 'heading', html: 'Dear Dr. {{name}},' },
     {
       id: createMarketingSectionId(),
-      type: 'paragraph',
-      html: 'We are building <strong>3elagi</strong> — a modern online consultation platform for the <strong>Gulf and Middle East</strong>.',
+      type: 'heading',
+      html: 'Are you a practicing doctor looking to grow your patient base?',
     },
     {
       id: createMarketingSectionId(),
       type: 'paragraph',
-      html: 'Whether you want <strong>more patients</strong>, smoother follow-ups, or a professional digital clinic, 3elagi grows with you before our public launch.',
+      html: 'Dear Dr. {{name}},',
+    },
+    {
+      id: createMarketingSectionId(),
+      type: 'paragraph',
+      html: 'By registering with <strong>3elagi</strong>, you join a specialized remote consultation platform that connects practicing physicians with patients across the <strong>Gulf and Middle East</strong> — expanding your reach beyond the walls of your clinic.',
     },
     {
       id: createMarketingSectionId(),
       type: 'feature_box',
-      title: 'What you can do on 3elagi',
+      title: 'What 3elagi offers your practice',
       items: [
-        '<strong>Secure chat consultations</strong> with medical record sharing.',
-        '<strong>View records as a list or interactive body skeleton</strong>.',
-        '<strong>Ask 3elagi AI about patient status</strong> and prescription help.',
-        '<strong>Video consultations</strong> with live record sharing.',
+        '<strong>Cross-border remote consultations</strong> (video &amp; chat) with patients in the Gulf &amp; Middle East.',
+        '<strong>Electronic Medical Record (EMR) tracking</strong> &amp; structured clinical history.',
+        '<strong>Integrated AI clinical decision support</strong> — <strong>Ask 3elagi AI</strong>.',
+        '<strong>Intuitive consultation tools</strong> &amp; interactive visual record navigation.',
       ],
     },
     {
       id: createMarketingSectionId(),
       type: 'callout',
       variant: 'soft',
-      title: 'We are in testing phase',
-      html: 'Join a select group of clinicians to <strong>test, give feedback, and shape the product</strong>.',
+      title: 'Founding doctor invitation',
+      html: 'We are building our initial physician network before public launch. Join a select group of clinicians to <strong>test, give feedback, and shape the platform</strong> with us.',
     },
     {
       id: createMarketingSectionId(),
       type: 'callout',
       variant: 'highlight',
-      title: 'Why join from the start?',
-      html: 'Early doctors receive <strong>prioritised visibility and privileges after launch</strong>.',
+      title: 'Why register now?',
+      html: 'Early founding doctors receive <strong>prioritised visibility and privileges after launch</strong> — more exposure to patients across the region and a stronger position in our network.',
     },
     { id: createMarketingSectionId(), type: 'screenshots', title: 'A glimpse of the platform' },
     {
       id: createMarketingSectionId(),
       type: 'cta',
-      html: 'Register your interest — we will create a <strong>test account</strong> and send web + mobile links.',
+      html: 'Register your interest — we will follow up to set up your profile and welcome you to the founding doctor community.',
       buttonLabel: 'Join us — register your interest',
       buttonUrl: REGISTER_URL,
-    },
-    {
-      id: createMarketingSectionId(),
-      type: 'cta',
-      html: 'Try the <strong>Android app</strong> on Google Play (internal test). Make sure your email is invited to access the app.',
-      buttonLabel: 'Download Android app',
-      buttonUrl: ANDROID_APP_URL,
-    },
-    {
-      id: createMarketingSectionId(),
-      type: 'paragraph',
-      html: 'We would be honoured to have you in our founding doctor community.',
     },
   ];
 }
