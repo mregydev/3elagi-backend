@@ -637,6 +637,12 @@ export class MessagesService {
   }
 
   async listConversations(userId: string) {
+    const self = await this.userRepo.findOne({
+      where: { id: userId },
+      select: { id: true, role: true },
+    });
+    if (!self) return [];
+
     const rows = await this.messageRepo
       .createQueryBuilder('m')
       .select(
@@ -655,7 +661,15 @@ export class MessagesService {
 
     if (rows.length === 0) return [];
 
-    const peerIds = rows.map((row) => row.peer_id);
+    let peerIds = rows.map((row) => row.peer_id);
+    if (self.role === UserRole.DOCTOR) {
+      peerIds = await this.testPatientAi.filterConversationPeersForDoctor(
+        userId,
+        peerIds,
+      );
+    }
+    if (peerIds.length === 0) return [];
+
     const contacts = await this.usersService.listContacts(userId);
     const contactById = new Map(contacts.map((c) => [c.id, c]));
 

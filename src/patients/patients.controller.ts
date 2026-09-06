@@ -17,6 +17,7 @@ import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
+import { UpdatePatientVitalsDto } from './dto/update-patient-vitals.dto';
 
 @Controller('patients')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -61,6 +62,11 @@ export class PatientsController {
     return this.patientsService.getIntakeHistory(id, req.user.id, req.user.role);
   }
 
+  @Get(':id/vitals')
+  getPatientVitals(@Param('id') id: string) {
+    return this.patientsService.getVitals(id);
+  }
+
   @Get(':id')
   findById(@Param('id') id: string, @Request() req) {
     return this.patientsService.findByIdWithDocuments(id, req.user.id, req.user.role);
@@ -99,5 +105,15 @@ export class PatientSelfController {
   @Get()
   getMe(@Request() req) {
     return this.patientsService.findById(req.user.id);
+  }
+
+  @Get('vitals')
+  getMyVitals(@Request() req) {
+    return this.patientsService.getVitals(req.user.id);
+  }
+
+  @Patch('vitals')
+  updateMyVitals(@Body() dto: UpdatePatientVitalsDto, @Request() req) {
+    return this.patientsService.updateSelfVitals(req.user.id, dto);
   }
 }

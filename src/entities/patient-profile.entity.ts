@@ -66,6 +66,10 @@ export class PatientProfile {
   @Column({ type: 'boolean', default: false })
   is_specialty_test_account: boolean;
 
+  /** Latest self-reported vitals (patient-editable). */
+  @Column({ type: 'jsonb', default: () => "'{}'::jsonb" })
+  recent_vitals: Record<string, unknown>;
+
   @CreateDateColumn()
   created_at: Date;
 

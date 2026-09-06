@@ -19,6 +19,7 @@ import { PatientProfile } from '../entities/patient-profile.entity';
 import { User, UserRole } from '../entities/user.entity';
 import { MedicalDocument } from '../entities/medical-document.entity';
 import { Consultation } from '../entities/consultation.entity';
+import { Diagnosis } from '../entities/diagnosis.entity';
 import { UploadsService } from '../uploads/uploads.service';
 import { KnowledgeIndexerService } from '../ai/knowledge-indexer.service';
 import { DoctorPatientAccessService } from '../doctor-patient-access/doctor-patient-access.service';
@@ -42,6 +43,11 @@ export type LinkedConsultationSummary = {
   diagnosis_id: string | null;
   doctor_name: string;
   patient_name: string;
+};
+
+export type LinkedDiagnosisSummary = {
+  id: string;
+  desc: string;
 };
 
 interface CreatePrescriptionDto {
@@ -160,6 +166,8 @@ export class PrescriptionsService {
     private medicalDocumentRepo: Repository<MedicalDocument>,
     @InjectRepository(Consultation)
     private consultationRepo: Repository<Consultation>,
+    @InjectRepository(Diagnosis)
+    private diagnosisRepo: Repository<Diagnosis>,
     private uploads: UploadsService,
     private knowledgeIndexer: KnowledgeIndexerService,
     private doctorPatientAccessService: DoctorPatientAccessService,
@@ -402,9 +410,40 @@ export class PrescriptionsService {
     }));
   }
 
+  private async attachLinkedDiagnoses<
+    T extends { diagnosis_id: string | null },
+  >(
+    rows: T[],
+  ): Promise<Array<T & { linked_diagnoses: LinkedDiagnosisSummary[] }>> {
+    const diagnosisIds = [
+      ...new Set(
+        rows.map((row) => row.diagnosis_id).filter((id): id is string => !!id),
+      ),
+    ];
+    if (!diagnosisIds.length) {
+      return rows.map((row) => ({ ...row, linked_diagnoses: [] }));
+    }
+
+    const diagnoses = await this.diagnosisRepo.find({
+      where: { id: In(diagnosisIds) },
+    });
+    const byId = new Map(
+      diagnoses.map((row) => [row.id, { id: row.id, desc: row.desc }]),
+    );
+
+    return rows.map((row) => ({
+      ...row,
+      linked_diagnoses:
+        row.diagnosis_id && byId.has(row.diagnosis_id)
+          ? [byId.get(row.diagnosis_id)!]
+          : [],
+    }));
+  }
+
   private async enrichForPatientUser(rows: Prescription[]) {
     const withNames = await this.attachDoctorNames(rows);
-    return this.attachLinkedConsultations(withNames);
+    const withConsultations = await this.attachLinkedConsultations(withNames);
+    return this.attachLinkedDiagnoses(withConsultations);
   }
 
   private async getDoctor(userId: string): Promise<Doctor> {

@@ -69,7 +69,11 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
     if (existing) {
       await this.patientProfileRepo.update(
         { user_id: existing.patient_user_id },
-        { name: DEFAULT_TEST_PATIENT_DISPLAY_NAME },
+        {
+          name: DEFAULT_TEST_PATIENT_DISPLAY_NAME,
+          medical_records_storage_consent: true,
+          medical_records_storage_consent_at: new Date(),
+        },
       );
       await this.ensureRecordsForPatient(existing.patient_user_id, spec.name_en);
       await this.grantTestPatientAccessToAllDoctors(existing.patient_user_id);
@@ -104,7 +108,12 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
     } else {
       await this.patientProfileRepo.update(
         { user_id: user.id },
-        { name: DEFAULT_TEST_PATIENT_DISPLAY_NAME, is_specialty_test_account: true },
+        {
+          name: DEFAULT_TEST_PATIENT_DISPLAY_NAME,
+          is_specialty_test_account: true,
+          medical_records_storage_consent: true,
+          medical_records_storage_consent_at: new Date(),
+        },
       );
     }
 
@@ -282,8 +291,6 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
       return { test_patient_user_id: null };
     }
 
-    const previousTestPatientUserId = doctor.onboarding_test_patient_user_id;
-
     if (doctor.speciality_id) {
       const spec = await this.specialityRepo.findOne({
         where: { id: doctor.speciality_id },
@@ -306,13 +313,8 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
 
     await this.grantTestPatientAccess(testPatientUserId, doctor.id);
 
-    const shouldRemoveOtherChats =
-      options?.removeOtherTestPatientChats ||
-      (previousTestPatientUserId &&
-        previousTestPatientUserId !== testPatientUserId);
-    if (shouldRemoveOtherChats) {
-      await this.removeOtherTestPatientChats(doctor.user_id, testPatientUserId);
-    }
+    // One demo patient thread per doctor — drop chats with other specialty demos.
+    await this.removeOtherTestPatientChats(doctor.user_id, testPatientUserId);
 
     const existingWelcome = await this.messageRepo.findOne({
       where: {

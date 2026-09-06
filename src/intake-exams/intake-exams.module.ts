@@ -4,6 +4,7 @@ import { IntakeExamAssignment } from '../entities/intake-exam-assignment.entity'
 import { IntakeExamInstance } from '../entities/intake-exam-instance.entity';
 import { IntakeTest } from '../entities/intake-test.entity';
 import { Doctor } from '../entities/doctor.entity';
+import { Diagnosis } from '../entities/diagnosis.entity';
 import { DoctorPatientAccessModule } from '../doctor-patient-access/doctor-patient-access.module';
 import { PresenceModule } from '../presence/presence.module';
 import { PushNotificationsModule } from '../push-notifications/push-notifications.module';
@@ -17,6 +18,7 @@ import { IntakeExamsController } from './intake-exams.controller';
       IntakeExamInstance,
       IntakeTest,
       Doctor,
+      Diagnosis,
     ]),
     DoctorPatientAccessModule,
     PresenceModule,

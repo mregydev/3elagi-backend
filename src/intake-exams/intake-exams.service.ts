@@ -17,6 +17,7 @@ import {
 } from '../entities/intake-exam-instance.entity';
 import { IntakeTest, IntakeQuestion } from '../entities/intake-test.entity';
 import { Doctor } from '../entities/doctor.entity';
+import { Diagnosis } from '../entities/diagnosis.entity';
 import { DoctorPatientAccessService } from '../doctor-patient-access/doctor-patient-access.service';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
@@ -58,6 +59,8 @@ function addRecurrence(
   return next;
 }
 
+export type LinkedDiagnosisSummary = { id: string; desc: string };
+
 export interface IntakeExamInstanceView {
   id: string;
   assignment_id: string;
@@ -76,6 +79,7 @@ export interface IntakeExamInstanceView {
   recurrence_interval: number;
   created_at: string;
   diagnosis_id: string | null;
+  linked_diagnoses: LinkedDiagnosisSummary[];
 }
 
 // TODO: Add a new field to the intake exam instance to store the payment status
@@ -92,6 +96,8 @@ export class IntakeExamsService {
     private testRepo: Repository<IntakeTest>,
     @InjectRepository(Doctor)
     private doctorRepo: Repository<Doctor>,
+    @InjectRepository(Diagnosis)
+    private diagnosisRepo: Repository<Diagnosis>,
     private accessService: DoctorPatientAccessService,
     private presenceGateway: PresenceGateway,
     private pushNotifications: PushNotificationsService,
@@ -158,7 +164,45 @@ export class IntakeExamsService {
       recurrence_interval: assignment.recurrence_interval,
       created_at: instance.created_at.toISOString(),
       diagnosis_id: assignment.diagnosis_id ?? null,
+      linked_diagnoses: [],
     };
+  }
+
+  private async enrichViewsWithLinkedDiagnoses(
+    views: IntakeExamInstanceView[],
+  ): Promise<IntakeExamInstanceView[]> {
+    const diagnosisIds = [
+      ...new Set(
+        views.map((view) => view.diagnosis_id).filter((id): id is string => !!id),
+      ),
+    ];
+    if (!diagnosisIds.length) return views;
+
+    const diagnoses = await this.diagnosisRepo.find({
+      where: { id: In(diagnosisIds) },
+    });
+    const byId = new Map(
+      diagnoses.map((row) => [row.id, { id: row.id, desc: row.desc }]),
+    );
+
+    return views.map((view) => ({
+      ...view,
+      linked_diagnoses:
+        view.diagnosis_id && byId.has(view.diagnosis_id)
+          ? [byId.get(view.diagnosis_id)!]
+          : [],
+    }));
+  }
+
+  private async toViewEnriched(
+    instance: IntakeExamInstance,
+    assignment: IntakeExamAssignment,
+    doctorName: string | null,
+  ): Promise<IntakeExamInstanceView> {
+    const [view] = await this.enrichViewsWithLinkedDiagnoses([
+      this.toView(instance, assignment, doctorName),
+    ]);
+    return view;
   }
 
   private async doctorNameFor(doctorId: string): Promise<string | null> {
@@ -253,7 +297,7 @@ export class IntakeExamsService {
     );
 
     const doctorName = doctor.name ?? null;
-    return this.toView(instance, assignment, doctorName);
+    return this.toViewEnriched(instance, assignment, doctorName);
   }
 
   async listForPatientUser(
@@ -307,17 +351,19 @@ export class IntakeExamsService {
     });
     const doctorMap = new Map(doctors.map((d) => [d.id, d.name ?? null]));
 
-    return instances.map((instance) => {
-      const assignment = assignmentMap.get(instance.assignment_id);
-      if (!assignment) {
-        throw new NotFoundException('Assignment not found for instance');
-      }
-      return this.toView(
-        instance,
-        assignment,
-        doctorMap.get(instance.doctor_id) ?? null,
-      );
-    });
+    return this.enrichViewsWithLinkedDiagnoses(
+      instances.map((instance) => {
+        const assignment = assignmentMap.get(instance.assignment_id);
+        if (!assignment) {
+          throw new NotFoundException('Assignment not found for instance');
+        }
+        return this.toView(
+          instance,
+          assignment,
+          doctorMap.get(instance.doctor_id) ?? null,
+        );
+      }),
+    );
   }
 
   async getInstance(
@@ -347,7 +393,7 @@ export class IntakeExamsService {
     }
 
     const doctorName = await this.doctorNameFor(instance.doctor_id);
-    return this.toView(instance, assignment, doctorName);
+    return this.toViewEnriched(instance, assignment, doctorName);
   }
 
   async saveAnswers(
@@ -398,7 +444,7 @@ export class IntakeExamsService {
     }
 
     const doctorName = await this.doctorNameFor(saved.doctor_id);
-    return this.toView(saved, assignment, doctorName);
+    return this.toViewEnriched(saved, assignment, doctorName);
   }
 
   async resetAnswers(
@@ -421,7 +467,7 @@ export class IntakeExamsService {
     instance.completed_at = null;
     const saved = await this.instanceRepo.save(instance);
     const doctorName = await this.doctorNameFor(saved.doctor_id);
-    return this.toView(saved, assignment, doctorName);
+    return this.toViewEnriched(saved, assignment, doctorName);
   }
 
   async deleteInstance(

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Inject,
   Injectable,
   Logger,
@@ -10,7 +11,7 @@ import { LLM_PROVIDER } from '../ai/llm/llm.tokens';
 import type { LlmProvider } from '../ai/llm/llm.types';
 import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
 import { Doctor } from '../entities/doctor.entity';
-import { MedicalDocument } from '../entities/medical-document.entity';
+import { MedicalDocument, DocumentType } from '../entities/medical-document.entity';
 import { Message } from '../entities/message.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
 import { SpecialtyTestAccount } from '../entities/specialty-test-account.entity';
@@ -27,6 +28,9 @@ import {
 import { DoctorOnboardingService } from './doctor-onboarding.service';
 
 const CHAT_HISTORY_LIMIT = 24;
+const SHARE_RECORDS_DELAY_MS = 900;
+
+type ShareRecordsIntent = 'lab' | 'xray' | 'all';
 
 @Injectable()
 export class TestPatientAiService {
@@ -96,6 +100,16 @@ export class TestPatientAiService {
       };
     }
 
+    const allowedDemoId = await this.resolveDemoPatientUserIdForDoctor(doctorUserId);
+    if (!allowedDemoId || allowedDemoId !== patientUserId) {
+      return {
+        is_test_patient: false,
+        questions_asked: 0,
+        max_questions: MAX_TEST_PATIENT_DOCTOR_QUESTIONS,
+        chat_open: false,
+      };
+    }
+
     await this.ensureDoctorCanChatWithTestPatient(doctorUserId, patientUserId);
 
     const questionsAsked = await this.countDoctorTextQuestions(
@@ -117,6 +131,8 @@ export class TestPatientAiService {
     patientUserId: string,
   ): Promise<void> {
     if (!(await this.isSpecialtyTestPatient(patientUserId))) return;
+
+    await this.assertDoctorOwnsDemoPatient(doctorUserId, patientUserId);
 
     await this.doctorOnboarding.grantTestPatientAccessForDoctorUser(
       doctorUserId,
@@ -159,6 +175,36 @@ export class TestPatientAiService {
     return row?.patient_user_id ?? null;
   }
 
+  /** Hide demo patients from other specialities in a doctor's inbox. */
+  async filterConversationPeersForDoctor(
+    doctorUserId: string,
+    peerIds: string[],
+  ): Promise<string[]> {
+    if (!peerIds.length) return peerIds;
+
+    const allowedDemoId = await this.resolveDemoPatientUserIdForDoctor(doctorUserId);
+    const testRows = await this.testAccountRepo.find({ select: ['patient_user_id'] });
+    const allDemoIds = new Set(testRows.map((row) => row.patient_user_id));
+
+    return peerIds.filter((peerId) => {
+      if (!allDemoIds.has(peerId)) return true;
+      return peerId === allowedDemoId;
+    });
+  }
+
+  private async assertDoctorOwnsDemoPatient(
+    doctorUserId: string,
+    patientUserId: string,
+  ): Promise<void> {
+    if (!(await this.isSpecialtyTestPatient(patientUserId))) return;
+    const allowed = await this.resolveDemoPatientUserIdForDoctor(doctorUserId);
+    if (!allowed || allowed !== patientUserId) {
+      throw new ForbiddenException(
+        'This demo patient is not available for your specialty.',
+      );
+    }
+  }
+
   /** Fire-and-forget Gemini reply after a doctor text message to the demo patient. */
   voidReplyToDoctor(
     doctorUserId: string,
@@ -188,7 +234,7 @@ export class TestPatientAiService {
       'Answer as a realistic patient in first person. Be concise (usually under 120 words).',
       'Base answers on the medical history below. Invent plausible symptom details that fit the records if needed.',
       'Never say you are an AI, a bot, or a test account.',
-      'If the doctor asks for labs or imaging, say you will share what you have on file.',
+      'If the doctor asks for labs, imaging, or medical records, reply briefly — matching files are shared automatically in the chat as record cards right after your message.',
       '',
       'Medical history on file:',
       context.historySummary,
@@ -257,6 +303,192 @@ export class TestPatientAiService {
     } catch (err) {
       this.logger.error('Failed to push test patient reply', err);
     }
+
+    const shareIntent = this.detectShareRecordsIntent(doctorMessage);
+    if (shareIntent) {
+      await this.delay(SHARE_RECORDS_DELAY_MS);
+      await this.shareMedicalRecords(
+        doctorUserId,
+        patientUserId,
+        shareIntent,
+        doctorMessage,
+      );
+    }
+  }
+
+  /** Detect when the doctor is asking the patient to share lab/imaging/records. */
+  private detectShareRecordsIntent(message: string): ShareRecordsIntent | null {
+    const lower = message.trim().toLowerCase();
+    if (!lower) return null;
+
+    const labHint =
+      /\b(lab|labs|blood|cbc|metabolic|pathology|urine|biopsy|culture|panel|تحليل|تحاليل|مختبر|دم)\b/.test(
+        lower,
+      );
+    const xrayHint =
+      /\b(x-?ray|xray|scan|scans|imaging|mri|ct\b|ultrasound|echo|radiograph|أشعة|مسح|تصوير)\b/.test(
+        lower,
+      );
+    const shareHint =
+      /\b(share|send|upload|attach|provide|show me|can i see|could you|please send|give me|open your|see your|look at your|مشاركة|ارسل|أرسل|ارفع|أرفع|اعرض|أعرض)\b/.test(
+        lower,
+      );
+    const recordHint =
+      /\b(record|records|result|results|report|reports|document|documents|file|files|medical|سجل|سجلات|نتيجة|نتائج|تقرير|تقارير|ملف)\b/.test(
+        lower,
+      );
+    const requestHint =
+      /\b(request|need|want|order|get|fetch|pull up|اطلب|أحتاج|محتاج)\b/.test(lower);
+
+    if (!(shareHint || recordHint || requestHint || labHint || xrayHint)) {
+      return null;
+    }
+
+    if (labHint && xrayHint) return 'all';
+    if (labHint) return 'lab';
+    if (xrayHint) return 'xray';
+    if (shareHint || recordHint || requestHint) return 'all';
+    return null;
+  }
+
+  private async shareMedicalRecords(
+    doctorUserId: string,
+    patientUserId: string,
+    intent: ShareRecordsIntent,
+    doctorMessage: string,
+  ): Promise<void> {
+    const docs = await this.medicalDocRepo.find({
+      where: { patient_id: patientUserId },
+      order: { created_at: 'ASC' },
+    });
+    if (!docs.length) return;
+
+    const needle = doctorMessage.trim().toLowerCase();
+    const toShare: MedicalDocument[] = [];
+
+    if (intent === 'lab' || intent === 'all') {
+      const lab = this.pickDocumentForShare(docs, DocumentType.LAB, needle);
+      if (lab) toShare.push(lab);
+    }
+    if (intent === 'xray' || intent === 'all') {
+      const xray = this.pickDocumentForShare(docs, DocumentType.XRAY, needle);
+      if (xray && !toShare.some((d) => d.id === xray.id)) toShare.push(xray);
+    }
+
+    for (const doc of toShare) {
+      const alreadyShared = await this.recentlySharedRecord(
+        patientUserId,
+        doctorUserId,
+        doc.id,
+      );
+      if (alreadyShared) continue;
+
+      await this.postMedicalLinkMessage(doctorUserId, patientUserId, doc);
+      await this.delay(350);
+    }
+  }
+
+  private pickDocumentForShare(
+    docs: MedicalDocument[],
+    type: DocumentType,
+    needle: string,
+  ): MedicalDocument | null {
+    const matches = docs.filter((d) => d.type === type);
+    if (!matches.length) return null;
+
+    const titleHit = matches.find(
+      (d) =>
+        needle.includes(d.title.toLowerCase()) ||
+        d.title.toLowerCase().split(/\s+/).some((word) => word.length > 3 && needle.includes(word)),
+    );
+    return titleHit ?? matches[0];
+  }
+
+  private async recentlySharedRecord(
+    patientUserId: string,
+    doctorUserId: string,
+    recordId: string,
+  ): Promise<boolean> {
+    const recent = await this.messageRepo
+      .createQueryBuilder('m')
+      .where('m.type = :type', { type: 'medical_link' })
+      .andWhere('m.creator = :patient', { patient: patientUserId })
+      .andWhere('m.recipient = :doctor', { doctor: doctorUserId })
+      .orderBy('m.datetime', 'DESC')
+      .take(12)
+      .getMany();
+
+    return recent.some(
+      (row) =>
+        (row.attachment_meta as { record_id?: string } | null)?.record_id === recordId,
+    );
+  }
+
+  private async postMedicalLinkMessage(
+    doctorUserId: string,
+    patientUserId: string,
+    doc: MedicalDocument,
+  ): Promise<void> {
+    const recordType = doc.type === DocumentType.XRAY ? 'xray' : 'lab';
+    const title = doc.title?.trim() || (recordType === 'xray' ? 'Imaging result' : 'Lab result');
+    const patientName = DEFAULT_TEST_PATIENT_DISPLAY_NAME;
+    const summary =
+      recordType === 'xray'
+        ? `${patientName} shared an X-ray / scan`
+        : `${patientName} shared a lab result`;
+
+    const created = this.messageRepo.create({
+      type: 'medical_link',
+      content: summary,
+      creator: patientUserId,
+      recipient: doctorUserId,
+      attachment_url: null,
+      attachment_meta: {
+        record_type: recordType,
+        record_id: doc.id,
+        title,
+      },
+    });
+    const saved = await this.messageRepo.save(created);
+    const mapped = {
+      id: saved.id,
+      type: saved.type,
+      content: saved.content,
+      creator: saved.creator,
+      recipient: saved.recipient,
+      datetime: saved.datetime,
+      attachment_url: saved.attachment_url,
+      attachment_meta: saved.attachment_meta,
+      read_at: saved.read_at,
+      edited_at: saved.edited_at,
+    };
+
+    this.presence.emitToUser(doctorUserId, 'message:new', {
+      message: mapped,
+      peer_id: patientUserId,
+      peer_name: patientName,
+    });
+    this.presence.emitToUser(patientUserId, 'message:new', {
+      message: mapped,
+      peer_id: doctorUserId,
+    });
+
+    try {
+      await this.pushNotifications.sendChatMessage({
+        recipientId: doctorUserId,
+        chatId: patientUserId,
+        messageId: saved.id,
+        senderId: patientUserId,
+        senderName: patientName,
+        body: summary,
+      });
+    } catch (err) {
+      this.logger.error('Failed to push demo patient medical link', err);
+    }
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   private async buildPatientContext(patientUserId: string): Promise<{

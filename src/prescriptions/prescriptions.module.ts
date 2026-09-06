@@ -9,6 +9,7 @@ import { PatientProfile } from '../entities/patient-profile.entity';
 import { User } from '../entities/user.entity';
 import { MedicalDocument } from '../entities/medical-document.entity';
 import { Consultation } from '../entities/consultation.entity';
+import { Diagnosis } from '../entities/diagnosis.entity';
 import { PrescriptionsService } from './prescriptions.service';
 import { PrescriptionsController } from './prescriptions.controller';
 import { PrescriptionImageAnalyzerService } from './prescription-image-analyzer.service';
@@ -32,6 +33,7 @@ import { UsersModule } from '../users/users.module';
       User,
       MedicalDocument,
       Consultation,
+      Diagnosis,
     ]),
     UploadsModule,
     AiModule,

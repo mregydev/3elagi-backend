@@ -13,6 +13,11 @@ import { Appointment } from '../entities/appointment.entity';
 import { IntakeTest } from '../entities/intake-test.entity';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
+import { UpdatePatientVitalsDto } from './dto/update-patient-vitals.dto';
+import {
+  normalizePatientRecentVitals,
+  type PatientRecentVitals,
+} from './patient-vitals.types';
 import { PatientProfile } from '../entities/patient-profile.entity';
 import { User, UserRole } from '../entities/user.entity';
 import { In } from 'typeorm';
@@ -77,6 +82,7 @@ export class PatientsService {
       onboarded_at: profile.onboarded_at,
       intake_test_id: profile.intake_test_id,
       intake_answers: profile.intake_answers,
+      recent_vitals: normalizePatientRecentVitals(profile.recent_vitals),
       created_at: profile.created_at,
       updated_at: profile.updated_at,
       user: safeUser,
@@ -129,6 +135,43 @@ export class PatientsService {
     }
 
     return profile;
+  }
+
+  async getVitals(userId: string): Promise<PatientRecentVitals> {
+    const profile = await this.patientProfileRepo.findOne({ where: { user_id: userId } });
+    if (!profile) throw new NotFoundException('Patient profile not found');
+    return normalizePatientRecentVitals(profile.recent_vitals);
+  }
+
+  async updateSelfVitals(
+    userId: string,
+    dto: UpdatePatientVitalsDto,
+  ): Promise<PatientRecentVitals> {
+    const profile = await this.patientProfileRepo.findOne({ where: { user_id: userId } });
+    if (!profile) throw new NotFoundException('Patient profile not found');
+
+    const current = normalizePatientRecentVitals(profile.recent_vitals);
+    const next: PatientRecentVitals = {
+      ...current,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (dto.blood_pressure_systolic !== undefined) {
+      next.blood_pressure_systolic = dto.blood_pressure_systolic;
+    }
+    if (dto.blood_pressure_diastolic !== undefined) {
+      next.blood_pressure_diastolic = dto.blood_pressure_diastolic;
+    }
+    if (dto.heart_rate_bpm !== undefined) {
+      next.heart_rate_bpm = dto.heart_rate_bpm;
+    }
+    if (dto.weight_kg !== undefined) {
+      next.weight_kg = dto.weight_kg;
+    }
+
+    profile.recent_vitals = next as Record<string, unknown>;
+    await this.patientProfileRepo.save(profile);
+    return normalizePatientRecentVitals(profile.recent_vitals);
   }
 
   async findByClinic(clinicId: string) {

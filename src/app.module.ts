@@ -177,6 +177,7 @@ import { SpecialtyTestAttachmentsRealistic1778720000000 } from './migrations/177
 import { DeletedAccounts1778730000000 } from './migrations/1778730000000-DeletedAccounts';
 import { UserLoginStats1778740000000 } from './migrations/1778740000000-UserLoginStats';
 import { DoctorSpecialityChangeRequests1778750000000 } from './migrations/1778750000000-DoctorSpecialityChangeRequests';
+import { PatientRecentVitals1778760000000 } from './migrations/1778760000000-PatientRecentVitals';
 import { SpecialtyTestAccount } from './entities/specialty-test-account.entity';
 import { DeletedAccount } from './entities/deleted-account.entity';
 import { UserNotification } from './entities/user-notification.entity';
@@ -348,6 +349,7 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
           DeletedAccounts1778730000000,
           UserLoginStats1778740000000,
           DoctorSpecialityChangeRequests1778750000000,
+          PatientRecentVitals1778760000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
