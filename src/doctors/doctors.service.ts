@@ -329,6 +329,15 @@ export class DoctorsService {
     }
     void this.knowledgeIndexer.indexDoctor(doctor.id).catch(() => undefined);
 
+    const updatedDoctor = await this.doctorRepo.findOne({ where: { id: doctor.id } });
+    if (
+      updatedDoctor?.speciality_id &&
+      updatedDoctor.speciality_id !== previousPrimarySpecialityId &&
+      !primaryWouldChange
+    ) {
+      await this.doctorOnboarding.syncDemoPatientForDoctor(updatedDoctor.id);
+    }
+
     return this.findByUserId(userId);
   }
 

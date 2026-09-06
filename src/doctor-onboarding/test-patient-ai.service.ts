@@ -169,6 +169,11 @@ export class TestPatientAiService {
   async resolveDemoPatientUserIdForDoctor(doctorUserId: string): Promise<string | null> {
     const doctor = await this.doctorRepo.findOne({ where: { user_id: doctorUserId } });
     if (!doctor?.speciality_id) return null;
+    if (doctor.onboarding_test_patient_user_id) {
+      if (await this.isSpecialtyTestPatient(doctor.onboarding_test_patient_user_id)) {
+        return doctor.onboarding_test_patient_user_id;
+      }
+    }
     const row = await this.testAccountRepo.findOne({
       where: { speciality_id: doctor.speciality_id },
     });
@@ -225,7 +230,7 @@ export class TestPatientAiService {
   ): Promise<void> {
     if (!(await this.isSpecialtyTestPatient(patientUserId))) return;
 
-    const context = await this.buildPatientContext(patientUserId);
+    const context = await this.buildPatientContext(patientUserId, doctorUserId);
     const history = await this.loadChatHistory(doctorUserId, patientUserId);
 
     const systemPrompt = [
@@ -491,7 +496,10 @@ export class TestPatientAiService {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  private async buildPatientContext(patientUserId: string): Promise<{
+  private async buildPatientContext(
+    patientUserId: string,
+    doctorUserId?: string,
+  ): Promise<{
     specialityName: string;
     historySummary: string;
   }> {
@@ -504,6 +512,14 @@ export class TestPatientAiService {
         where: { id: testRow.speciality_id },
       });
       if (spec?.name_en) specialityName = spec.name_en;
+    } else if (doctorUserId) {
+      const doctor = await this.doctorRepo.findOne({ where: { user_id: doctorUserId } });
+      if (doctor?.speciality_id) {
+        const spec = await this.specialityRepo.findOne({
+          where: { id: doctor.speciality_id },
+        });
+        if (spec?.name_en) specialityName = spec.name_en;
+      }
     }
 
     const seeds = seedsForSpeciality(specialityName);

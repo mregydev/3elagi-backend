@@ -296,46 +296,89 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
     }
   }
 
-  async resolveTestPatientForDoctor(doctor: Doctor): Promise<string | null> {
-    const specialityId = doctor.speciality_id;
-    if (!specialityId) return null;
-    const row = await this.testAccountRepo.findOne({ where: { speciality_id: specialityId } });
-    return row?.patient_user_id ?? null;
+  private async isSharedSpecialtyDemoPatient(patientUserId: string): Promise<boolean> {
+    const row = await this.testAccountRepo.findOne({
+      where: { patient_user_id: patientUserId },
+    });
+    return !!row;
   }
 
-  /** Links the doctor to their specialty test patient: chat, access, welcome message. */
-  async setupDoctorOnboarding(
+  /** One demo patient per doctor — records follow the doctor's current primary speciality. */
+  private async ensureDoctorOwnedDemoPatient(doctor: Doctor): Promise<string> {
+    const linkedId = doctor.onboarding_test_patient_user_id;
+    if (linkedId && !(await this.isSharedSpecialtyDemoPatient(linkedId))) {
+      const profile = await this.patientProfileRepo.findOne({
+        where: { user_id: linkedId },
+        select: { is_specialty_test_account: true },
+      });
+      if (profile?.is_specialty_test_account) return linkedId;
+    }
+
+    const hash = await bcrypt.hash(this.testPassword(), 10);
+    const email = `test.doctor.${doctor.id.replace(/-/g, '').slice(0, 12)}@3elagi.patient`;
+    let user = await this.userRepo.findOne({ where: { email } });
+    if (!user) {
+      user = await this.userRepo.save(
+        this.userRepo.create({
+          email,
+          password_hash: hash,
+          role: UserRole.PATIENT,
+          preferred_locale: 'en',
+          message_points: DEFAULT_MESSAGE_POINTS,
+          email_verified_at: new Date(),
+        }),
+      );
+      await this.patientProfileRepo.save(
+        this.patientProfileRepo.create({
+          user_id: user.id,
+          name: DEFAULT_TEST_PATIENT_DISPLAY_NAME,
+          phone: '+20000000000',
+          country: 'EG',
+          medical_records_storage_consent: true,
+          medical_records_storage_consent_at: new Date(),
+          is_specialty_test_account: true,
+        }),
+      );
+    } else {
+      await this.patientProfileRepo.update(
+        { user_id: user.id },
+        {
+          name: DEFAULT_TEST_PATIENT_DISPLAY_NAME,
+          is_specialty_test_account: true,
+          medical_records_storage_consent: true,
+          medical_records_storage_consent_at: new Date(),
+        },
+      );
+    }
+
+    await this.doctorRepo.update(doctor.id, {
+      onboarding_test_patient_user_id: user.id,
+    });
+
+    return user.id;
+  }
+
+  /**
+   * Point the doctor at their demo patient and replace records with the current speciality seeds.
+   */
+  async syncDemoPatientForDoctor(
     doctorId: string,
-    options?: { removeOtherTestPatientChats?: boolean },
   ): Promise<{ test_patient_user_id: string | null }> {
     const doctor = await this.doctorRepo.findOne({ where: { id: doctorId } });
-    if (!doctor || doctor.approval_status !== 'approved') {
+    if (!doctor || doctor.approval_status !== 'approved' || !doctor.speciality_id) {
       return { test_patient_user_id: null };
     }
 
-    if (doctor.speciality_id) {
-      const spec = await this.specialityRepo.findOne({
-        where: { id: doctor.speciality_id },
-      });
-      if (spec) {
-        await this.ensureTestAccountForSpeciality(spec);
-      }
-    }
+    const spec = await this.specialityRepo.findOne({
+      where: { id: doctor.speciality_id },
+    });
+    if (!spec) return { test_patient_user_id: null };
 
-    const testPatientUserId = await this.resolveTestPatientForDoctor(doctor);
-    if (!testPatientUserId) {
-      return { test_patient_user_id: null };
-    }
+    await this.ensureTestAccountForSpeciality(spec);
 
-    if (doctor.onboarding_test_patient_user_id !== testPatientUserId) {
-      await this.doctorRepo.update(doctor.id, {
-        onboarding_test_patient_user_id: testPatientUserId,
-      });
-    }
-
+    const testPatientUserId = await this.ensureDoctorOwnedDemoPatient(doctor);
+    await this.ensureRecordsForPatient(testPatientUserId, spec.name_en);
     await this.grantTestPatientAccess(testPatientUserId, doctor.id);
-
-    // One demo patient thread per doctor — drop chats with other specialty demos.
     await this.removeOtherTestPatientChats(doctor.user_id, testPatientUserId);
 
     const existingWelcome = await this.messageRepo.findOne({
@@ -358,6 +401,31 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
     }
 
     return { test_patient_user_id: testPatientUserId };
+  }
+
+  async resolveTestPatientForDoctor(doctor: Doctor): Promise<string | null> {
+    if (!doctor.speciality_id) return null;
+    if (doctor.onboarding_test_patient_user_id) {
+      const profile = await this.patientProfileRepo.findOne({
+        where: { user_id: doctor.onboarding_test_patient_user_id },
+        select: { is_specialty_test_account: true },
+      });
+      if (profile?.is_specialty_test_account) {
+        return doctor.onboarding_test_patient_user_id;
+      }
+    }
+    const row = await this.testAccountRepo.findOne({
+      where: { speciality_id: doctor.speciality_id },
+    });
+    return row?.patient_user_id ?? null;
+  }
+
+  /** Links the doctor to their demo patient: chat, access, welcome message, speciality records. */
+  async setupDoctorOnboarding(
+    doctorId: string,
+    _options?: { removeOtherTestPatientChats?: boolean },
+  ): Promise<{ test_patient_user_id: string | null }> {
+    return this.syncDemoPatientForDoctor(doctorId);
   }
 
   /** Keep only the current specialty demo patient thread for this doctor. */

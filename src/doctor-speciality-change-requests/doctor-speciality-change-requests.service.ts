@@ -129,9 +129,7 @@ export class DoctorSpecialityChangeRequestsService {
       );
     }
 
-    await this.doctorOnboarding.setupDoctorOnboarding(doctor.id, {
-      removeOtherTestPatientChats: true,
-    });
+    await this.doctorOnboarding.syncDemoPatientForDoctor(doctor.id);
 
     void this.knowledgeIndexer.indexDoctor(doctor.id).catch(() => undefined);
 
