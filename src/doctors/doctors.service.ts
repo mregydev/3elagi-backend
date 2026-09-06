@@ -335,7 +335,9 @@ export class DoctorsService {
       updatedDoctor.speciality_id !== previousPrimarySpecialityId &&
       !primaryWouldChange
     ) {
-      await this.doctorOnboarding.syncDemoPatientForDoctor(updatedDoctor.id);
+      await this.doctorOnboarding.syncDemoPatientForDoctor(updatedDoctor.id, {
+        resetChat: true,
+      });
     }
 
     return this.findByUserId(userId);

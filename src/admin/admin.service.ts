@@ -128,7 +128,9 @@ export class AdminService {
 
   /** Admin-created doctors skip the pending queue and go live immediately. */
   async createDoctor(dto: CreateAdminDoctorDto) {
-    const result = await this.authService.registerDoctor(dto, 'web');
+    const result = await this.authService.registerDoctor(dto, 'web', {
+      autoApprove: true,
+    });
     const profile = result.body.profile as Doctor | undefined;
     const doctorId =
       profile?.id ??

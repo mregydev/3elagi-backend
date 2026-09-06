@@ -374,7 +374,12 @@ export class AuthService {
     return this.authenticateUser(user, client);
   }
 
-  async registerDoctor(dto: RegisterDoctorDto, client: AuthClientKind = 'web') {
+  async registerDoctor(
+    dto: RegisterDoctorDto,
+    client: AuthClientKind = 'web',
+    options?: { autoApprove?: boolean },
+  ) {
+    const autoApprove = options?.autoApprove === true;
     const email = this.normalizeEmail(dto.email);
     const existing = await this.userRepo.findOne({ where: { email } });
     if (existing) throw new ConflictException('Email already in use');
@@ -390,6 +395,8 @@ export class AuthService {
       points_spent_total: 0,
       points_purchased_total: 0,
       email_verified_at: new Date(),
+      email_verification_code_hash: null,
+      email_verification_expires_at: null,
     });
     await this.userRepo.save(user);
 
@@ -399,8 +406,7 @@ export class AuthService {
       location: dto.clinic_location?.trim() || '',
       owner_id: user.id,
       is_personal: true,
-      // Mirrors the doctor: an admin approving the doctor approves this too.
-      approval_status: 'pending',
+      approval_status: autoApprove ? 'approved' : 'pending',
     });
     await this.clinicRepo.save(personalClinic);
 
@@ -441,16 +447,16 @@ export class AuthService {
       video_price_local: normalizeFee(dto.video_price_local, feeDefaults.video_price_local),
       video_price_usd: normalizeFee(dto.video_price_usd, feeDefaults.video_price_usd),
       payment_link: dto.payment_link?.trim() || null,
-      // New doctors wait for an admin: PATCH /admin/doctors/:id/approval is
-      // what lists them, opens booking, and broadcasts them to the rosters.
-      approval_status: 'pending',
+      approval_status: autoApprove ? 'approved' : 'pending',
     });
     await this.doctorRepo.save(doctor);
 
     user.doctor_info_id = doctor.id;
     await this.userRepo.save(user);
 
-    void this.broadcastDoctorListed(doctor.id);
+    if (autoApprove) {
+      void this.broadcastDoctorListed(doctor.id);
+    }
 
     return this.authenticateUser(user, client);
   }

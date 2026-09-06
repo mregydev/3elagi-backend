@@ -129,7 +129,9 @@ export class DoctorSpecialityChangeRequestsService {
       );
     }
 
-    await this.doctorOnboarding.syncDemoPatientForDoctor(doctor.id);
+    await this.doctorOnboarding.syncDemoPatientForDoctor(doctor.id, {
+      resetChat: true,
+    });
 
     void this.knowledgeIndexer.indexDoctor(doctor.id).catch(() => undefined);
 

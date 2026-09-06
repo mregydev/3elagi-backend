@@ -363,6 +363,7 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
    */
   async syncDemoPatientForDoctor(
     doctorId: string,
+    options?: { resetChat?: boolean },
   ): Promise<{ test_patient_user_id: string | null }> {
     const doctor = await this.doctorRepo.findOne({ where: { id: doctorId } });
     if (!doctor || doctor.approval_status !== 'approved' || !doctor.speciality_id) {
@@ -381,14 +382,8 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
     await this.grantTestPatientAccess(testPatientUserId, doctor.id);
     await this.removeOtherTestPatientChats(doctor.user_id, testPatientUserId);
 
-    const existingWelcome = await this.messageRepo.findOne({
-      where: {
-        creator: testPatientUserId,
-        recipient: doctor.user_id,
-        content: TEST_PATIENT_WELCOME_MESSAGE,
-      },
-    });
-    if (!existingWelcome) {
+    if (options?.resetChat) {
+      await this.resetDemoPatientChat(doctor.user_id, testPatientUserId);
       await this.messageRepo.save(
         this.messageRepo.create({
           type: 'text',
@@ -398,6 +393,25 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
           datetime: new Date(),
         }),
       );
+    } else {
+      const existingWelcome = await this.messageRepo.findOne({
+        where: {
+          creator: testPatientUserId,
+          recipient: doctor.user_id,
+          content: TEST_PATIENT_WELCOME_MESSAGE,
+        },
+      });
+      if (!existingWelcome) {
+        await this.messageRepo.save(
+          this.messageRepo.create({
+            type: 'text',
+            content: TEST_PATIENT_WELCOME_MESSAGE,
+            creator: testPatientUserId,
+            recipient: doctor.user_id,
+            datetime: new Date(),
+          }),
+        );
+      }
     }
 
     return { test_patient_user_id: testPatientUserId };
@@ -423,9 +437,26 @@ export class DoctorOnboardingService implements OnApplicationBootstrap {
   /** Links the doctor to their demo patient: chat, access, welcome message, speciality records. */
   async setupDoctorOnboarding(
     doctorId: string,
-    _options?: { removeOtherTestPatientChats?: boolean },
+    options?: { removeOtherTestPatientChats?: boolean; resetChat?: boolean },
   ): Promise<{ test_patient_user_id: string | null }> {
-    return this.syncDemoPatientForDoctor(doctorId);
+    return this.syncDemoPatientForDoctor(doctorId, {
+      resetChat: options?.resetChat,
+    });
+  }
+
+  /** Wipe the doctor ↔ demo patient thread (used when the primary speciality changes). */
+  async resetDemoPatientChat(
+    doctorUserId: string,
+    patientUserId: string,
+  ): Promise<void> {
+    await this.messageRepo
+      .createQueryBuilder()
+      .delete()
+      .where(
+        '(creator = :doctorUserId AND recipient = :patientUserId) OR (creator = :patientUserId AND recipient = :doctorUserId)',
+        { doctorUserId, patientUserId },
+      )
+      .execute();
   }
 
   /** Keep only the current specialty demo patient thread for this doctor. */

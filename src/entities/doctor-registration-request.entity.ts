@@ -27,6 +27,9 @@ export class DoctorRegistrationRequest {
   @Column({ type: 'varchar', length: 512, nullable: true })
   clinic_location: string | null;
 
+  @Column({ type: 'varchar', length: 1024, nullable: true })
+  photo_url: string | null;
+
   @Column({ type: 'uuid' })
   speciality_id: string;
 

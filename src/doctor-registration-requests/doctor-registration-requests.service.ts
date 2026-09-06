@@ -8,6 +8,7 @@ import { Repository } from 'typeorm';
 import { DoctorRegistrationRequest } from '../entities/doctor-registration-request.entity';
 import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
 import { DOCTOR_SIGNUP_COUNTRY_CODES } from '../common/patient-countries';
+import { UploadsService } from '../uploads/uploads.service';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ALLOWED_COUNTRIES = new Set<string>(DOCTOR_SIGNUP_COUNTRY_CODES);
@@ -19,6 +20,7 @@ export class DoctorRegistrationRequestsService {
     private readonly requestRepo: Repository<DoctorRegistrationRequest>,
     @InjectRepository(DoctorSpeciality)
     private readonly specialityRepo: Repository<DoctorSpeciality>,
+    private readonly uploads: UploadsService,
   ) {}
 
   async submit(input: {
@@ -28,6 +30,7 @@ export class DoctorRegistrationRequestsService {
     country: string;
     specialityId: string;
     clinicLocation?: string;
+    photo: Express.Multer.File;
   }) {
     const doctorName = (input.doctorName || '').trim();
     const email = (input.email || '').trim().toLowerCase();
@@ -63,6 +66,22 @@ export class DoctorRegistrationRequestsService {
       throw new BadRequestException('Speciality not found');
     }
 
+    if (!input.photo?.buffer?.length) {
+      throw new BadRequestException('Profile photo is required');
+    }
+
+    let photoUrl: string | null = null;
+    try {
+      const uploaded = await this.uploads.uploadFile({
+        ...input.photo,
+        originalname: input.photo.originalname || 'doctor-photo.jpg',
+        mimetype: input.photo.mimetype || 'image/jpeg',
+      });
+      photoUrl = uploaded.url;
+    } catch {
+      throw new BadRequestException('Could not upload profile photo');
+    }
+
     const clinicLocation = (input.clinicLocation || '').trim() || null;
 
     const saved = await this.requestRepo.save(
@@ -72,6 +91,7 @@ export class DoctorRegistrationRequestsService {
         phone,
         country,
         clinic_location: clinicLocation,
+        photo_url: photoUrl,
         speciality_id: speciality.id,
         speciality_name_en: speciality.name_en,
         speciality_name_ar: speciality.name_ar,
@@ -115,6 +135,7 @@ export class DoctorRegistrationRequestsService {
       phone: row.phone,
       country: row.country,
       clinic_location: row.clinic_location,
+      photo_url: row.photo_url,
       speciality_id: row.speciality_id,
       speciality_name_en: row.speciality_name_en,
       speciality_name_ar: row.speciality_name_ar,
