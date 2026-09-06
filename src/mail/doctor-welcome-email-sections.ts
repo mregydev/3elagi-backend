@@ -8,7 +8,11 @@ import {
 const DOCTOR_LOGIN_URL =
   process.env.DOCTOR_LOGIN_URL?.trim() || 'https://www.3elagi.net';
 
-export { DOCTOR_LOGIN_URL };
+const DEMO_SESSION_URL =
+  process.env.DOCTOR_DEMO_SESSION_URL?.trim() ||
+  'https://calendly.com/3elagi-marketing/30min';
+
+export { DOCTOR_LOGIN_URL, DEMO_SESSION_URL };
 
 export function getDefaultDoctorWelcomeSections(
   language: MarketingEmailLanguage,
@@ -57,6 +61,13 @@ export function getDefaultDoctorWelcomeSections(
         buttonLabel: 'تحميل تطبيق الجوال',
         buttonUrl: ANDROID_APP_URL,
       },
+      {
+        id: createMarketingSectionId(),
+        type: 'cta',
+        html: 'إذا رغبت في <strong>جلسة عرض توضيحي</strong> مع فريقنا، احجز موعداً يناسبك.',
+        buttonLabel: 'احجز جلسة عرض',
+        buttonUrl: DEMO_SESSION_URL,
+      },
     ];
   }
 
@@ -104,6 +115,13 @@ export function getDefaultDoctorWelcomeSections(
         buttonLabel: 'Descargar app móvil',
         buttonUrl: ANDROID_APP_URL,
       },
+      {
+        id: createMarketingSectionId(),
+        type: 'cta',
+        html: 'Si desea una <strong>sesión de demostración</strong> con nuestro equipo, reserve un horario que le convenga.',
+        buttonLabel: 'Reservar demo',
+        buttonUrl: DEMO_SESSION_URL,
+      },
     ];
   }
 
@@ -150,6 +168,13 @@ export function getDefaultDoctorWelcomeSections(
         html: 'Laden Sie die <strong>Mobile-App</strong> bei Google Play herunter. Melden Sie sich mit derselben E-Mail an.',
         buttonLabel: 'Mobile-App herunterladen',
         buttonUrl: ANDROID_APP_URL,
+      },
+      {
+        id: createMarketingSectionId(),
+        type: 'cta',
+        html: 'Wenn Sie eine <strong>Demo-Sitzung</strong> mit uns wünschen, buchen Sie einen passenden Termin.',
+        buttonLabel: 'Demo buchen',
+        buttonUrl: DEMO_SESSION_URL,
       },
     ];
   }
@@ -201,6 +226,13 @@ export function getDefaultDoctorWelcomeSections(
       html: 'Download the <strong>mobile app</strong> on Google Play. Sign in with the same email as your account above.',
       buttonLabel: 'Download mobile app',
       buttonUrl: ANDROID_APP_URL,
+    },
+    {
+      id: createMarketingSectionId(),
+      type: 'cta',
+      html: 'If you would like a <strong>demo session</strong> with us, please use the link below to book a time that works for you.',
+      buttonLabel: 'Book a demo session',
+      buttonUrl: DEMO_SESSION_URL,
     },
   ];
 }
