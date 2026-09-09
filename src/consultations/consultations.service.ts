@@ -32,6 +32,10 @@ import {
   clampConsultationPrice,
   CONSULTATION_POINT_COST,
 } from '../points/message-price.constants';
+import {
+  type RequestLike,
+  resolvePatientRequestCountry,
+} from '../common/request-country';
 import { DocumentType } from '../entities/medical-document.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
 import {
@@ -423,6 +427,17 @@ export class ConsultationsService {
       throw new ForbiddenException('Not allowed');
     }
     return user;
+  }
+
+  /** Profile residence → client geo header → server IP / edge headers. */
+  async resolvePatientCountry(
+    patientUserId: string,
+    req: RequestLike,
+  ): Promise<string | null> {
+    const profile = await this.patientProfileRepo.findOne({
+      where: { user_id: patientUserId },
+    });
+    return resolvePatientRequestCountry(req, profile?.country);
   }
 
   async start(

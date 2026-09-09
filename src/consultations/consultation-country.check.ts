@@ -4,8 +4,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 /**
- * The consultation request the doctor sees must name the patient's country.
- * For now every start is billed as KSA (SA) — not from the client payload.
+ * The consultation request the doctor sees must name the patient's country from
+ * profile / client geo / server geo — never from the request body.
  */
 const controller = fs.readFileSync(
   path.join(__dirname, 'consultations.controller.ts'),
@@ -15,8 +15,8 @@ const start = controller.slice(controller.indexOf("@Post('start')"));
 const startHandler = start.slice(0, start.indexOf('@Post(', 1));
 
 assert.ok(
-  startHandler.includes("'SA'"),
-  'start must pin patient country to KSA for now',
+  startHandler.includes('resolvePatientCountry'),
+  'start must resolve the patient country from profile / geo',
 );
 assert.ok(
   !/dto\.\w*country/i.test(startHandler),
@@ -26,6 +26,10 @@ assert.ok(
 const service = fs.readFileSync(
   path.join(__dirname, 'consultations.service.ts'),
   'utf8',
+);
+assert.ok(
+  service.includes('resolvePatientRequestCountry'),
+  'service must use the shared patient geo resolver',
 );
 const startMethod = service.indexOf('async start(');
 assert.ok(startMethod > -1, 'start( missing');

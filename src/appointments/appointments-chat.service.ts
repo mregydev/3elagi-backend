@@ -29,6 +29,7 @@ import { VideoCallSession } from '../entities/video-call-session.entity';
 import { PointsService } from '../points/points.service';
 import { ConsultationsService } from '../consultations/consultations.service';
 import { clampConsultationPrice } from '../points/message-price.constants';
+import { VIDEO_CONSULTATION_PATIENT_COUNTRY } from '../common/patient-countries';
 import { resolveDoctorFee } from '../doctors/doctor-fees';
 import { deleteAppointmentActionMessages } from './appointment-chat-messages';
 
@@ -315,8 +316,9 @@ export class AppointmentsChatService {
     time: string,
     reason?: string,
     patientInsight?: string,
-    patientCountry?: string | null,
+    _patientCountry?: string | null,
   ): Promise<{ appointment: Appointment; message: ReturnType<typeof this.mapMessage> }> {
+    void _patientCountry;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       throw new BadRequestException('date must be YYYY-MM-DD');
     }
@@ -398,7 +400,7 @@ export class AppointmentsChatService {
           queue_position: count + 1,
           booked_via_app: true,
           patient_user_id: patientUserId,
-          patient_country: patientCountry?.trim().toUpperCase() || null,
+          patient_country: VIDEO_CONSULTATION_PATIENT_COUNTRY,
           reserved_points: price,
           points_settled: false,
           ai_patient_insight: insightForDoctor || null,
@@ -516,17 +518,13 @@ export class AppointmentsChatService {
   }
 
   /** Cash the doctor charges this patient for a video visit, if any. */
-  private resolveVisitFee(
-    doctor: Doctor | null,
-    appointment: Appointment,
-    requestCountry?: string | null,
-  ) {
+  private resolveVisitFee(doctor: Doctor | null) {
     if (!doctor) return { amount: 0, currency: 'USD' as const, payment_link: null };
-    const country =
-      appointment.patient_country?.trim().toUpperCase() ||
-      requestCountry?.trim().toUpperCase() ||
-      null;
-    return resolveDoctorFee(doctor, country, 'video');
+    return resolveDoctorFee(
+      doctor,
+      VIDEO_CONSULTATION_PATIENT_COUNTRY,
+      'video',
+    );
   }
 
   /**
@@ -623,7 +621,8 @@ export class AppointmentsChatService {
         );
         await this.appointmentRepo.save(appointment);
       } else {
-        const fee = this.resolveVisitFee(doctor, appointment, requestCountry);
+        void requestCountry;
+        const fee = this.resolveVisitFee(doctor);
         if (fee.amount > 0 && appointment.payment_status !== 'paid') {
           // Stays pending, and stays without a meeting link, until the patient
           // pays and the doctor approves the receipt.

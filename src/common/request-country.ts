@@ -164,3 +164,20 @@ export async function resolveRequestCountry(
 ): Promise<string | null> {
   return resolvePricingCountry(req);
 }
+
+/**
+ * Where the patient is for consultations: profile residence first, then the
+ * browser geo header (client-side IP), then edge/server IP as a last resort.
+ */
+export async function resolvePatientRequestCountry(
+  req: RequestLike,
+  profileCountry?: string | null,
+): Promise<string | null> {
+  const fromProfile = profileCountry?.trim().toUpperCase();
+  if (isUsableCode(fromProfile)) return fromProfile;
+
+  const fromClient = clientGeoFromRequest(req.headers);
+  if (fromClient) return fromClient;
+
+  return resolvePricingCountry(req);
+}

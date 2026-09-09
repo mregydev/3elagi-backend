@@ -4,6 +4,7 @@ import {
   clientGeoFromRequest,
   clientIpFromRequest,
   countryFromRequest,
+  resolvePatientRequestCountry,
   resolvePricingCountry,
   resolveRequestCountry,
 } from './request-country';
@@ -55,6 +56,28 @@ void (async () => {
   assert.equal(
     await resolveRequestCountry({ headers: {}, socket: { remoteAddress: '::1' } }),
     null,
+  );
+  // Consultation patient country: profile beats client header beats server geo.
+  assert.equal(
+    await resolvePatientRequestCountry(
+      { headers: { 'x-client-geo-country': 'DE' }, socket: { remoteAddress: '::1' } },
+      'SA',
+    ),
+    'SA',
+  );
+  assert.equal(
+    await resolvePatientRequestCountry(
+      { headers: { 'x-client-geo-country': 'DE' }, socket: { remoteAddress: '::1' } },
+      null,
+    ),
+    'DE',
+  );
+  assert.equal(
+    await resolvePatientRequestCountry(
+      { headers: { 'cf-ipcountry': 'EG' }, socket: { remoteAddress: '::1' } },
+      null,
+    ),
+    'EG',
   );
   console.log('request-country checks passed');
 })();

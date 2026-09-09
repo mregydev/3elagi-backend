@@ -45,9 +45,8 @@ export class ConsultationsController {
   @Post('start')
   @Roles('patient')
   async start(@Body() dto: StartConsultationDto, @Request() req) {
-    // Temporary: always KSA — edge/IP geo (e.g. Egypt on demo hosts) must not
-    // override the international market we bill consultations from for now.
-    return this.service.start(req.user.id, dto, 'SA');
+    const country = await this.service.resolvePatientCountry(req.user.id, req);
+    return this.service.start(req.user.id, dto, country);
   }
 
   /** Doctor answers a pending request, optionally asking for payment first. */
