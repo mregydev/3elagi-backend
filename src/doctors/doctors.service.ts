@@ -142,6 +142,7 @@ export class DoctorsService {
       immediate_call_enabled,
       text_price_local, text_price_usd, video_price_local, video_price_usd,
       payment_link,
+      patient_payment_method,
       iban, account_holder_full_name, national_id,
     } = updates as DoctorSelfUpdate;
     const safeUpdates: Partial<Doctor> = {};
@@ -166,6 +167,13 @@ export class DoctorsService {
     }
     if (payment_link !== undefined) {
       safeUpdates.payment_link = String(payment_link ?? '').trim() || null;
+    }
+    if (patient_payment_method !== undefined) {
+      const method = String(patient_payment_method ?? '')
+        .trim()
+        .toLowerCase();
+      safeUpdates.patient_payment_method =
+        method === 'wallet' ? 'wallet' : 'bank';
     }
     if (age !== undefined) safeUpdates.age = age;
     if (email !== undefined) safeUpdates.email = email;

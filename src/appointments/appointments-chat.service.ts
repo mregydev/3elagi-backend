@@ -34,7 +34,7 @@ import {
   type RequestLike,
   resolvePatientRequestCountry,
 } from '../common/request-country';
-import { doctorBankDetailsForPatient } from '../doctors/doctor-bank-details';
+import { doctorPaymentDetailsForPatient } from '../doctors/doctor-payment-details';
 import { resolveDoctorFee } from '../doctors/doctor-fees';
 import { deleteAppointmentActionMessages } from './appointment-chat-messages';
 
@@ -812,13 +812,9 @@ export class AppointmentsChatService {
           : Number(appointment.payment_amount),
       payment_currency: appointment.payment_currency,
       // Sent whenever money is still owed — including after a rejected receipt.
-      payment_link:
-        appointment.payment_status === 'awaiting_payment'
-          ? (doctor?.payment_link?.trim() ?? null) || null
-          : null,
       payment_proof_url: appointment.payment_proof_url,
       ...(appointment.payment_status === 'awaiting_payment'
-        ? doctorBankDetailsForPatient(doctor)
+        ? doctorPaymentDetailsForPatient(doctor)
         : {}),
       pending_by: appointment.pending_change?.by ?? null,
       proposed_date: appointment.pending_change?.date ?? null,

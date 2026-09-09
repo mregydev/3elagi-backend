@@ -138,6 +138,7 @@ export class DoctorsController {
       video_price_local: number | null;
       video_price_usd: number | null;
       payment_link: string | null;
+      patient_payment_method: 'bank' | 'wallet';
       iban: string | null;
       account_holder_full_name: string | null;
       national_id: string | null;

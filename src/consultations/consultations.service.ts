@@ -25,7 +25,7 @@ import { PushNotificationsService } from '../push-notifications/push-notificatio
 import { PointsService } from '../points/points.service';
 import { PointPricingService } from '../points/point-pricing.service';
 import { CONSULTATION_PATIENT_COUNTRY } from '../common/patient-countries';
-import { doctorBankDetailsForPatient } from '../doctors/doctor-bank-details';
+import { doctorPaymentDetailsForPatient } from '../doctors/doctor-payment-details';
 import { resolveDoctorFee } from '../doctors/doctor-fees';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { DiagnosisService } from '../diagnosis/diagnosis.service';
@@ -415,8 +415,10 @@ export class ConsultationsService {
           c.payment_status === 'awaiting_payment' ||
           c.payment_status === 'proof_submitted'
         ) {
-          const fee = await this.resolveConsultationFee(c, 'text');
-          return { ...mapped, payment_link: fee.payment_link };
+          const doctor = await this.doctorRepo.findOne({
+            where: { user_id: c.doctor_id },
+          });
+          return { ...mapped, ...doctorPaymentDetailsForPatient(doctor) };
         }
         return mapped;
       }),
@@ -608,8 +610,7 @@ export class ConsultationsService {
           payment_status: held.payment_status,
           payment_amount: fee.amount,
           payment_currency: fee.currency,
-          payment_link: fee.payment_link,
-          ...doctorBankDetailsForPatient(doctor),
+          ...doctorPaymentDetailsForPatient(doctor),
         },
         { alwaysPush: true },
       );
@@ -733,7 +734,6 @@ export class ConsultationsService {
       c.payment_status = 'awaiting_payment';
       c.payment_proof_url = null;
       const saved = await this.consultationRepo.save(c);
-      const fee = await this.resolveConsultationFee(saved, 'text', null);
       await this.postActionMessage(
         doctorUserId,
         c.patient_id,
@@ -746,8 +746,11 @@ export class ConsultationsService {
           payment_amount:
             saved.payment_amount === null ? null : Number(saved.payment_amount),
           payment_currency: saved.payment_currency,
-          // Still owed — carry the link so they can pay again from this card.
-          payment_link: fee.payment_link,
+          ...doctorPaymentDetailsForPatient(
+            await this.doctorRepo.findOne({
+              where: { user_id: doctorUserId },
+            }),
+          ),
         },
         { alwaysPush: true },
       );

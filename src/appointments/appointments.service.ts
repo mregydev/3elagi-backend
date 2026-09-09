@@ -10,6 +10,7 @@ import {
   AppointmentStatus,
 } from '../entities/appointment.entity';
 import { Doctor } from '../entities/doctor.entity';
+import { doctorPaymentDetailsForPatient } from '../doctors/doctor-payment-details';
 import { Patient } from '../entities/patient.entity';
 import { Clinic } from '../entities/clinic.entity';
 import { IntakeTest } from '../entities/intake-test.entity';
@@ -313,10 +314,10 @@ export class AppointmentsService {
         a.payment_amount === null ? null : Number(a.payment_amount),
       payment_currency: a.payment_currency,
       payment_proof_url: a.payment_proof_url,
-      payment_link:
-        paymentStatus === 'awaiting_payment'
-          ? a.doctor?.payment_link?.trim() || null
-          : null,
+      ...(paymentStatus === 'awaiting_payment' ||
+      paymentStatus === 'proof_submitted'
+        ? doctorPaymentDetailsForPatient(a.doctor)
+        : {}),
     };
   }
 

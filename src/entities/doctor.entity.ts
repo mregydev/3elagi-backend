@@ -110,9 +110,13 @@ export class Doctor {
   @Column({ type: 'numeric', precision: 12, scale: 2, nullable: true })
   video_price_usd: string | null;
 
-  /** Where the patient pays (bank/wallet/Stripe link the doctor owns). */
+  /** Where the patient pays (wallet URL the doctor owns). */
   @Column({ type: 'text', nullable: true })
   payment_link: string | null;
+
+  /** How patients pay this doctor when a consultation fee is due. */
+  @Column({ type: 'varchar', length: 16, default: 'bank' })
+  patient_payment_method: 'bank' | 'wallet';
 
   /** Doctor accepts immediate (unscheduled) calls straight from the chat. */
   @Column({ type: 'boolean', default: false })
