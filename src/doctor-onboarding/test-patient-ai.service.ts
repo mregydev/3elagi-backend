@@ -239,7 +239,7 @@ export class TestPatientAiService {
       'Answer as a realistic patient in first person. Be concise (usually under 120 words).',
       'Base answers on the medical history below. Invent plausible symptom details that fit the records if needed.',
       'Never say you are an AI, a bot, or a test account.',
-      'If the doctor asks for labs, imaging, or medical records, reply briefly — matching files are shared automatically in the chat as record cards right after your message.',
+      'If the doctor asks for labs, imaging, or medical records, agree briefly and say you are sharing them now — the platform attaches the matching record cards automatically right after your message.',
       '',
       'Medical history on file:',
       context.historySummary,
@@ -327,32 +327,47 @@ export class TestPatientAiService {
     if (!lower) return null;
 
     const labHint =
-      /\b(lab|labs|blood|cbc|metabolic|pathology|urine|biopsy|culture|panel|تحليل|تحاليل|مختبر|دم)\b/.test(
+      /\b(lab|labs|blood|cbc|cmp|metabolic|pathology|urine|biopsy|culture|panel|electrolyte|glucose|b12|vitamin|pre-?op|preoperative|growth chart|تحليل|تحاليل|مختبر|دم)\b/.test(
         lower,
       );
-    const xrayHint =
-      /\b(x-?ray|xray|scan|scans|imaging|mri|ct\b|ultrasound|echo|radiograph|أشعة|مسح|تصوير)\b/.test(
+    const imagingHint =
+      /\b(x-?ray|xray|scan|scans|imaging|mri|ct\b|ultrasound|echo|echocardiogram|ecg|ekg|oct|fundus|dermoscopy|panoramic|sinus|radiograph|fracture|dexa|tvu|أشعة|مسح|تصوير|إيكو|تخطيط)\b/.test(
         lower,
       );
     const shareHint =
-      /\b(share|send|upload|attach|provide|show me|can i see|could you|please send|give me|open your|see your|look at your|مشاركة|ارسل|أرسل|ارفع|أرفع|اعرض|أعرض)\b/.test(
+      /\b(share|send|upload|attach|provide|show me|show|can i see|could you|please send|give me|open your|see your|look at your|view your|bring|pull up|مشاركة|ارسل|أرسل|ارفع|أرفع|اعرض|أعرض|ورّ?ي|وريني)\b/.test(
         lower,
       );
     const recordHint =
-      /\b(record|records|result|results|report|reports|document|documents|file|files|medical|سجل|سجلات|نتيجة|نتائج|تقرير|تقارير|ملف)\b/.test(
+      /\b(record|records|result|results|report|reports|document|documents|file|files|medical|history|investigation|investigations|test results|سجل|سجلات|نتيجة|نتائج|تقرير|تقارير|ملف|ملفات)\b/.test(
         lower,
       );
     const requestHint =
-      /\b(request|need|want|order|get|fetch|pull up|اطلب|أحتاج|محتاج)\b/.test(lower);
+      /\b(request|need|want|order|get|fetch|any|recent|latest|previous|اطلب|أحتاج|محتاج|عايز|عاوز)\b/.test(
+        lower,
+      );
 
-    if (!(shareHint || recordHint || requestHint || labHint || xrayHint)) {
-      return null;
+    const asksToShareRecords =
+      (shareHint || requestHint) &&
+      (recordHint || labHint || imagingHint || /\bmedical\b/.test(lower));
+
+    if (asksToShareRecords || (shareHint && (labHint || imagingHint))) {
+      if (labHint && imagingHint) return 'all';
+      if (labHint) return 'lab';
+      if (imagingHint) return 'xray';
+      return 'all';
     }
 
-    if (labHint && xrayHint) return 'all';
-    if (labHint) return 'lab';
-    if (xrayHint) return 'xray';
-    if (shareHint || recordHint || requestHint) return 'all';
+    if ((labHint || imagingHint) && /\b(your|my|the|have you|do you have|got any)\b/.test(lower)) {
+      if (labHint && imagingHint) return 'all';
+      if (labHint) return 'lab';
+      return 'xray';
+    }
+
+    if (recordHint && /\b(medical|health|patient|share|send|show|see)\b/.test(lower)) {
+      return 'all';
+    }
+
     return null;
   }
 
@@ -368,65 +383,105 @@ export class TestPatientAiService {
     });
     if (!docs.length) return;
 
-    const needle = doctorMessage.trim().toLowerCase();
-    const toShare: MedicalDocument[] = [];
-
-    if (intent === 'lab' || intent === 'all') {
-      const lab = this.pickDocumentForShare(docs, DocumentType.LAB, needle);
-      if (lab) toShare.push(lab);
-    }
-    if (intent === 'xray' || intent === 'all') {
-      const xray = this.pickDocumentForShare(docs, DocumentType.XRAY, needle);
-      if (xray && !toShare.some((d) => d.id === xray.id)) toShare.push(xray);
-    }
+    const toShare = this.pickDocumentsForQuestion(docs, doctorMessage, intent);
+    if (!toShare.length) return;
 
     for (const doc of toShare) {
-      const alreadyShared = await this.recentlySharedRecord(
-        patientUserId,
-        doctorUserId,
-        doc.id,
-      );
-      if (alreadyShared) continue;
-
       await this.postMedicalLinkMessage(doctorUserId, patientUserId, doc);
       await this.delay(350);
     }
   }
 
-  private pickDocumentForShare(
+  /** Pick the best demo record(s) for a doctor question or structured document request. */
+  pickDocumentsForQuestion(
     docs: MedicalDocument[],
-    type: DocumentType,
-    needle: string,
-  ): MedicalDocument | null {
-    const matches = docs.filter((d) => d.type === type);
-    if (!matches.length) return null;
+    doctorMessage: string,
+    intent: ShareRecordsIntent,
+  ): MedicalDocument[] {
+    const needle = doctorMessage.trim().toLowerCase();
+    const pool =
+      intent === 'lab'
+        ? docs.filter((d) => d.type === DocumentType.LAB)
+        : intent === 'xray'
+          ? docs.filter((d) => d.type === DocumentType.XRAY)
+          : docs;
 
-    const titleHit = matches.find(
-      (d) =>
-        needle.includes(d.title.toLowerCase()) ||
-        d.title.toLowerCase().split(/\s+/).some((word) => word.length > 3 && needle.includes(word)),
-    );
-    return titleHit ?? matches[0];
+    if (!pool.length) return [];
+
+    const ranked = pool
+      .map((doc) => ({ doc, score: this.scoreDocumentRelevance(doc, needle) }))
+      .sort((a, b) => b.score - a.score);
+
+    const topScore = ranked[0]?.score ?? 0;
+    const minScore = topScore > 0 ? Math.max(8, topScore * 0.45) : 0;
+
+    let selected = ranked.filter((row) => row.score >= minScore).map((row) => row.doc);
+
+    if (!selected.length) {
+      selected =
+        intent === 'all'
+          ? ranked.slice(0, Math.min(3, ranked.length)).map((row) => row.doc)
+          : [ranked[0].doc];
+    } else if (intent === 'all') {
+      selected = selected.slice(0, 3);
+    } else {
+      selected = selected.slice(0, 2);
+    }
+
+    return selected;
   }
 
-  private async recentlySharedRecord(
-    patientUserId: string,
-    doctorUserId: string,
-    recordId: string,
-  ): Promise<boolean> {
-    const recent = await this.messageRepo
-      .createQueryBuilder('m')
-      .where('m.type = :type', { type: 'medical_link' })
-      .andWhere('m.creator = :patient', { patient: patientUserId })
-      .andWhere('m.recipient = :doctor', { doctor: doctorUserId })
-      .orderBy('m.datetime', 'DESC')
-      .take(12)
-      .getMany();
+  private scoreDocumentRelevance(doc: MedicalDocument, needle: string): number {
+    let score = 0;
+    const title = doc.title.toLowerCase();
+    const notes = (doc.notes ?? '').toLowerCase();
+    const bodyPart = (doc.body_part ?? '').toLowerCase().replace(/_/g, ' ');
+    const haystack = `${title} ${notes} ${bodyPart}`;
 
-    return recent.some(
-      (row) =>
-        (row.attachment_meta as { record_id?: string } | null)?.record_id === recordId,
-    );
+    const tokens = needle
+      .split(/[^a-z0-9\u0600-\u06ff]+/i)
+      .map((t) => t.trim())
+      .filter((t) => t.length > 2);
+
+    for (const token of tokens) {
+      if (haystack.includes(token)) score += 12;
+      if (title.includes(token)) score += 8;
+    }
+
+    if (needle.includes(title) || title.split(/\s+/).some((w) => w.length > 4 && needle.includes(w))) {
+      score += 40;
+    }
+
+    const imagingTerms =
+      /\b(x-?ray|xray|scan|scans|imaging|mri|ct\b|ultrasound|echo|echocardiogram|ecg|ekg|oct|fundus|dermoscopy|panoramic|sinus|radiograph|fracture|dexa|tvu)\b/;
+    const labTerms =
+      /\b(lab|labs|blood|cbc|cmp|metabolic|pathology|urine|biopsy|culture|panel|electrolyte|glucose|b12|vitamin|pre-?op)\b/;
+
+    if (doc.type === DocumentType.XRAY && imagingTerms.test(needle)) score += 18;
+    if (doc.type === DocumentType.LAB && labTerms.test(needle)) score += 18;
+
+    const synonymGroups: Array<{ pattern: RegExp; docPattern: RegExp }> = [
+      { pattern: /\b(echo|echocardiogram|cardiac ultrasound)\b/, docPattern: /echo|echocardiogram|doppler|cardiac/ },
+      { pattern: /\b(ecg|ekg|electrocardiogram)\b/, docPattern: /ecg|electrocardiogram|heart/ },
+      { pattern: /\b(fracture|broken|tibia|fibula|radius|ulna|forearm|leg)\b/, docPattern: /fracture|tibia|fibula|radius|ulna|forearm|leg/ },
+      { pattern: /\b(sinus|sinusitis|paranasal)\b/, docPattern: /sinus|paranasal/ },
+      { pattern: /\b(oct|macula|macular|retina|fundus|ophthalm)\b/, docPattern: /oct|macula|fundus|retina|ophthalm/ },
+      { pattern: /\b(dermoscop|melanoma|skin lesion|pigmented)\b/, docPattern: /dermoscop|lesion|pigmented|skin/ },
+      { pattern: /\b(panoramic|dental|tooth|teeth)\b/, docPattern: /panoramic|dental|dentition/ },
+      { pattern: /\b(pregnan|gestational|ultrasound|tvu)\b/, docPattern: /pregnan|gestational|transvaginal|tvu/ },
+      { pattern: /\b(chest|lung|pneumonia)\b/, docPattern: /chest|lung/ },
+      { pattern: /\b(metabolic|cbc|blood work|blood test|panel)\b/, docPattern: /metabolic|cbc|blood|panel|lab/ },
+      { pattern: /\b(mri|brain|neurolog)\b/, docPattern: /mri|brain|neurolog/ },
+      { pattern: /\b(ear|hearing|vestibular|iac)\b/, docPattern: /auditory|iac|vestibular|cochlear|ear/ },
+    ];
+
+    for (const group of synonymGroups) {
+      if (group.pattern.test(needle) && group.docPattern.test(haystack)) {
+        score += 28;
+      }
+    }
+
+    return score;
   }
 
   private async postMedicalLinkMessage(

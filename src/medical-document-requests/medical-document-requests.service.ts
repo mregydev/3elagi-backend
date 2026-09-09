@@ -312,11 +312,11 @@ export class MedicalDocumentRequestsService {
     });
     if (!docs.length) return;
 
-    const titleNeedle = row.title.trim().toLowerCase();
-    const doc =
-      docs.find((d) => d.title.toLowerCase().includes(titleNeedle)) ??
-      docs.find((d) => titleNeedle.includes(d.title.toLowerCase())) ??
-      docs[0];
+    const requestText = [row.title, row.description].filter(Boolean).join(' ').trim();
+    const intent = docType === DocumentType.LAB ? 'lab' : 'xray';
+    const picked = this.testPatientAi.pickDocumentsForQuestion(docs, requestText, intent);
+    const doc = picked[0];
+    if (!doc) return;
 
     const stillPending = await this.repo.findOne({ where: { id: row.id } });
     if (!stillPending || stillPending.status !== MedicalDocumentRequestStatus.PENDING) {
