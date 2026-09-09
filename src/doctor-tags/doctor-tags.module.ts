@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DoctorTagCatalog } from '../entities/doctor-tag-catalog.entity';
+import { Subspecialty } from '../entities/subspecialty.entity';
 import { DoctorTagsController } from './doctor-tags.controller';
 import { DoctorTagsService } from './doctor-tags.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([DoctorTagCatalog])],
+  imports: [TypeOrmModule.forFeature([DoctorTagCatalog, Subspecialty])],
   controllers: [DoctorTagsController],
   providers: [DoctorTagsService],
   exports: [DoctorTagsService],

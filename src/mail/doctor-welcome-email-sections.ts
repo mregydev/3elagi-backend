@@ -230,7 +230,7 @@ export function getDefaultDoctorWelcomeSections(
     {
       id: createMarketingSectionId(),
       type: 'cta',
-      html: 'If you would like a <strong>demo session</strong> with us, please use the link below to book a time that works for you.',
+      html: 'If you want to have a demo session with us, please use this link:',
       buttonLabel: 'Book a demo session',
       buttonUrl: DEMO_SESSION_URL,
     },

@@ -16,7 +16,6 @@ export const DOCTOR_TAG_I18N: Record<string, DoctorTagI18nRow> = {
   german: { ar: 'الألمانية', de: 'Deutsch', es: 'Alemán' },
   spanish: { ar: 'الإسبانية', de: 'Spanisch', es: 'Español' },
   telemedicine: { ar: 'طب عن بُعد', de: 'Telemedizin', es: 'Telemedicina' },
-  'home visits': { ar: 'زيارات منزلية', de: 'Hausbesuche', es: 'Visitas a domicilio' },
   'evening appointments': {
     ar: 'مواعيد مسائية',
     de: 'Abendtermine',
