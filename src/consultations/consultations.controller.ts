@@ -9,6 +9,7 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
+import { CONSULTATION_PATIENT_COUNTRY } from '../common/patient-countries';
 import { resolvePricingCountry } from '../common/request-country';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -45,8 +46,11 @@ export class ConsultationsController {
   @Post('start')
   @Roles('patient')
   async start(@Body() dto: StartConsultationDto, @Request() req) {
-    const country = await this.service.resolvePatientCountry(req.user.id, req);
-    return this.service.start(req.user.id, dto, country);
+    return this.service.start(
+      req.user.id,
+      dto,
+      CONSULTATION_PATIENT_COUNTRY,
+    );
   }
 
   /** Doctor answers a pending request, optionally asking for payment first. */

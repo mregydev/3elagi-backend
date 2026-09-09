@@ -4,8 +4,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 /**
- * The consultation request the doctor sees must name the patient's country from
- * profile / client geo / server geo — never from the request body.
+ * Consultation requests must pin patient country to KSA — not from the body.
  */
 const controller = fs.readFileSync(
   path.join(__dirname, 'consultations.controller.ts'),
@@ -15,8 +14,8 @@ const start = controller.slice(controller.indexOf("@Post('start')"));
 const startHandler = start.slice(0, start.indexOf('@Post(', 1));
 
 assert.ok(
-  startHandler.includes('resolvePatientCountry'),
-  'start must resolve the patient country from profile / geo',
+  startHandler.includes('CONSULTATION_PATIENT_COUNTRY'),
+  'start must pin patient country to KSA',
 );
 assert.ok(
   !/dto\.\w*country/i.test(startHandler),
@@ -28,8 +27,8 @@ const service = fs.readFileSync(
   'utf8',
 );
 assert.ok(
-  service.includes('resolvePatientRequestCountry'),
-  'service must use the shared patient geo resolver',
+  service.includes('CONSULTATION_PATIENT_COUNTRY'),
+  'service must bill consultations as KSA',
 );
 const startMethod = service.indexOf('async start(');
 assert.ok(startMethod > -1, 'start( missing');
@@ -45,8 +44,6 @@ assert.ok(
   startBody.includes('patient_country: country'),
   'the consultation row must store the country it was requested from',
 );
-// Rates are admin-editable in point_pricing; the constants are only a fallback
-// inside PointPricingService, so the value must come through that service.
 assert.ok(
   startBody.includes('this.pointPricing.resolve('),
   'the point value must come from the admin-set pricing table',
@@ -56,7 +53,6 @@ assert.ok(
   'the consultation must keep the rate it was priced at',
 );
 
-// A migration that is not listed in app.module.ts never runs.
 const appModule = fs.readFileSync(
   path.join(__dirname, '..', 'app.module.ts'),
   'utf8',

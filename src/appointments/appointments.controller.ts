@@ -20,6 +20,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
+import { CONSULTATION_PATIENT_COUNTRY } from '../common/patient-countries';
 import { resolvePricingCountry, type RequestLike } from '../common/request-country';
 
 @Controller('appointments')
@@ -84,10 +85,6 @@ export class AppointmentsController {
     @Request() req: { user: { id: string } } & RequestLike,
     @Body() dto: ChatBookAppointmentDto,
   ) {
-    const country = await this.chatService.resolvePatientCountry(
-      req.user.id,
-      req,
-    );
     return this.chatService.bookFromChat(
       req.user.id,
       dto.doctor_user_id,
@@ -95,7 +92,7 @@ export class AppointmentsController {
       dto.time,
       dto.reason,
       dto.patient_insight,
-      country,
+      CONSULTATION_PATIENT_COUNTRY,
     );
   }
 

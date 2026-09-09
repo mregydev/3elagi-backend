@@ -24,6 +24,7 @@ import { DoctorPatientAccessService } from '../doctor-patient-access/doctor-pati
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 import { PointsService } from '../points/points.service';
 import { PointPricingService } from '../points/point-pricing.service';
+import { CONSULTATION_PATIENT_COUNTRY } from '../common/patient-countries';
 import { doctorBankDetailsForPatient } from '../doctors/doctor-bank-details';
 import { resolveDoctorFee } from '../doctors/doctor-fees';
 import { PresenceGateway } from '../presence/presence.gateway';
@@ -619,21 +620,18 @@ export class ConsultationsService {
     return { consultation: this.mapConsultation(saved) };
   }
 
-  /** The doctor's price for this patient, from where they consulted (IP). */
+  /** The doctor's price for this patient (always KSA for consultations). */
   private async resolveConsultationFee(
     c: Consultation,
     kind: 'text' | 'video',
-    requestCountry?: string | null,
+    _requestCountry?: string | null,
   ) {
+    void _requestCountry;
     const doctor = await this.doctorRepo.findOne({
       where: { user_id: c.doctor_id },
     });
     if (!doctor) return { amount: 0, currency: 'USD' as const, payment_link: null };
-    const country =
-      c.patient_country?.trim().toUpperCase() ||
-      requestCountry?.trim().toUpperCase() ||
-      null;
-    return resolveDoctorFee(doctor, country, kind);
+    return resolveDoctorFee(doctor, CONSULTATION_PATIENT_COUNTRY, kind);
   }
 
   /** Opens an accepted consultation and tells the patient. */
