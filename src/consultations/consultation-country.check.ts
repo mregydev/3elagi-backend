@@ -4,9 +4,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 /**
- * The consultation request the doctor sees must name the patient's country, and
- * that country must come from the caller's IP — not from the request body,
- * which a client could set to anything.
+ * The consultation request the doctor sees must name the patient's country.
+ * For now every start is billed as KSA (SA) — not from the client payload.
  */
 const controller = fs.readFileSync(
   path.join(__dirname, 'consultations.controller.ts'),
@@ -16,8 +15,8 @@ const start = controller.slice(controller.indexOf("@Post('start')"));
 const startHandler = start.slice(0, start.indexOf('@Post(', 1));
 
 assert.ok(
-  startHandler.includes('resolvePricingCountry(req)'),
-  'start must resolve the country from the request (IP / edge headers)',
+  startHandler.includes("'SA'"),
+  'start must pin patient country to KSA for now',
 );
 assert.ok(
   !/dto\.\w*country/i.test(startHandler),
