@@ -66,9 +66,12 @@ function toAmount(value: string | null | undefined): number {
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
+/** Live markets where patients can be billed in local currency. */
+const MARKET_COUNTRIES = new Set(['EG', 'JO']);
+
 /**
- * Fee for this patient. Same country as the doctor → local price and currency;
- * anywhere else (or unknown country) → the USD price.
+ * Fee for this patient. In Egypt or Jordan and matching the doctor's home market
+ * → local price; outside those markets (or unknown country) → USD.
  */
 export function resolveDoctorFee(
   doctor: Pick<
@@ -85,8 +88,9 @@ export function resolveDoctorFee(
 ): DoctorFee {
   const home = doctor.country?.trim().toUpperCase() || '';
   const patient = patientCountry?.trim().toUpperCase() || '';
-  // Unknown patient country is treated as abroad — never undercharge on a guess.
-  const isHome = !!home && patient === home;
+  // Unknown or non-market country is treated as abroad — never undercharge on a guess.
+  const isHome =
+    MARKET_COUNTRIES.has(patient) && !!home && patient === home;
 
   const amount = isHome
     ? toAmount(kind === 'video' ? doctor.video_price_local : doctor.text_price_local)
