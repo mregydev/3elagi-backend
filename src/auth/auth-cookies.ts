@@ -88,12 +88,21 @@ export function isAllowedCorsOrigin(
   return false;
 }
 
-/** Express/Nest CORS origin callback — reflects allowed browser origins (credentials-safe). */
+/**
+ * Express/Nest CORS origin callback.
+ * When CORS_ALLOW_ALL is not "false", reflects any browser origin (works with credentials).
+ * Set CORS_ALLOW_ALL=false to restore the 3elagi.net / localhost allowlist.
+ */
 export function corsOriginDelegate(config: ConfigService) {
   return (
     origin: string | undefined,
-    callback: (err: Error | null, allow?: boolean) => void,
+    callback: (err: Error | null, allow?: boolean | string) => void,
   ) => {
+    const allowAll = config.get<string>('CORS_ALLOW_ALL') !== 'false';
+    if (allowAll) {
+      callback(null, origin ?? true);
+      return;
+    }
     callback(null, isAllowedCorsOrigin(origin, config));
   };
 }

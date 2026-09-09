@@ -33,7 +33,13 @@ async function bootstrap() {
   app.enableCors({
     origin: corsOriginDelegate(config),
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Auth-Client'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Auth-Client',
+      'X-Client-Geo-Country',
+      'x-client-geo-country',
+    ],
     exposedHeaders: ['Set-Cookie'],
     credentials: true,
   });
