@@ -16,6 +16,10 @@ import {
   Appointment,
   AppointmentStatus,
 } from '../entities/appointment.entity';
+import {
+  MAX_SLOT_MINUTES,
+  MIN_SLOT_MINUTES,
+} from './schedule.constants';
 
 interface ScheduleInput {
   day_of_week: number;
@@ -122,8 +126,14 @@ export class SchedulesService {
       if (e <= s) {
         throw new BadRequestException(`row ${idx}: end_time must be after start_time`);
       }
-      if (!Number.isInteger(slot) || slot < 5 || slot > 240) {
-        throw new BadRequestException(`row ${idx}: slot_minutes must be 5–240`);
+      if (
+        !Number.isInteger(slot) ||
+        slot < MIN_SLOT_MINUTES ||
+        slot > MAX_SLOT_MINUTES
+      ) {
+        throw new BadRequestException(
+          `row ${idx}: slot_minutes must be ${MIN_SLOT_MINUTES}–${MAX_SLOT_MINUTES}`,
+        );
       }
       return {
         doctor_id: doctor.id,
@@ -192,9 +202,13 @@ export class SchedulesService {
           );
         }
         slot = Number(i.slot_minutes);
-        if (!Number.isInteger(slot) || slot < 5 || slot > 240) {
+        if (
+          !Number.isInteger(slot) ||
+          slot < MIN_SLOT_MINUTES ||
+          slot > MAX_SLOT_MINUTES
+        ) {
           throw new BadRequestException(
-            `row ${idx}: slot_minutes must be 5–240`,
+            `row ${idx}: slot_minutes must be ${MIN_SLOT_MINUTES}–${MAX_SLOT_MINUTES}`,
           );
         }
         startTime = normalizeTime(i.start_time);
