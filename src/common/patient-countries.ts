@@ -29,9 +29,6 @@ export type DoctorSignupCountryCode =
 
 export const DEFAULT_PATIENT_COUNTRY: MarketCountryCode = 'EG';
 
-/** Video visits are billed as KSA (international) for now. */
-export const VIDEO_CONSULTATION_PATIENT_COUNTRY = 'SA' as const;
-
 const COUNTRY_SET = new Set<string>(PATIENT_COUNTRY_CODES);
 const MARKET_SET = new Set<string>(MARKET_COUNTRY_CODES);
 const DOCTOR_SIGNUP_SET = new Set<string>(DOCTOR_SIGNUP_COUNTRY_CODES);

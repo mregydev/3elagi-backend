@@ -11,11 +11,12 @@ import {
 } from './marketing-email-themes';
 
 const REGISTER_URL = 'https://www.3elagi.net/register-with-us';
+const DOCUMENTATION_URL = 'https://www.3elagi.net/documentation';
 const ANDROID_APP_URL =
   process.env.ANDROID_APP_URL?.trim() ||
   'https://play.google.com/apps/internaltest/4700519020943782529';
 
-export { ANDROID_APP_URL, REGISTER_URL };
+export { ANDROID_APP_URL, DOCUMENTATION_URL, REGISTER_URL };
 
 const MARKETING_SCREENSHOT_KEYS: MarketingScreenshotKey[] = [
   'chat',
@@ -264,6 +265,13 @@ export function getDefaultMarketingSections(
       {
         id: createMarketingSectionId(),
         type: 'cta',
+        html: 'شاهد <strong>أدلة الاستخدام</strong> — استشارات نصية، دفع على حساب الطبيب، ومكالمات فيديو.',
+        buttonLabel: 'فتح التوثيق',
+        buttonUrl: DOCUMENTATION_URL,
+      },
+      {
+        id: createMarketingSectionId(),
+        type: 'cta',
         html: 'سجّل اهتمامك — سنتواصل معك لإعداد ملفك والترحيب بك في مجتمع الأطباء المؤسسين.',
         buttonLabel: 'انضم إلينا — سجّل اهتمامك',
         buttonUrl: REGISTER_URL,
@@ -314,6 +322,13 @@ export function getDefaultMarketingSections(
         html: 'Los médicos fundadores reciben <strong>mayor visibilidad y privilegios tras el lanzamiento</strong> en toda la región.',
       },
       { id: createMarketingSectionId(), type: 'screenshots', title: 'Un vistazo a la plataforma' },
+      {
+        id: createMarketingSectionId(),
+        type: 'cta',
+        html: 'Vea las <strong>guías de uso</strong> — consultas por chat, pago a la cuenta del médico y videollamadas.',
+        buttonLabel: 'Abrir documentación',
+        buttonUrl: DOCUMENTATION_URL,
+      },
       {
         id: createMarketingSectionId(),
         type: 'cta',
@@ -370,6 +385,13 @@ export function getDefaultMarketingSections(
       {
         id: createMarketingSectionId(),
         type: 'cta',
+        html: 'Lesen Sie unsere <strong>Dokumentation</strong> — Textberatung, Zahlung auf das Arztkonto und Video.',
+        buttonLabel: 'Dokumentation öffnen',
+        buttonUrl: DOCUMENTATION_URL,
+      },
+      {
+        id: createMarketingSectionId(),
+        type: 'cta',
         html: 'Melden Sie Ihr Interesse an — wir kontaktieren Sie zur Profileinrichtung und begrüßen Sie in der Gründungsgemeinschaft.',
         buttonLabel: 'Mitmachen — Interesse anmelden',
         buttonUrl: REGISTER_URL,
@@ -419,6 +441,13 @@ export function getDefaultMarketingSections(
       html: 'Early founding doctors receive <strong>prioritised visibility and privileges after launch</strong> — more exposure to patients across the region and a stronger position in our network.',
     },
     { id: createMarketingSectionId(), type: 'screenshots', title: 'A glimpse of the platform' },
+    {
+      id: createMarketingSectionId(),
+      type: 'cta',
+      html: 'Browse our <strong>documentation</strong> — text consultations, paying to the doctor\'s bank account, and video visits.',
+      buttonLabel: 'Open documentation',
+      buttonUrl: DOCUMENTATION_URL,
+    },
     {
       id: createMarketingSectionId(),
       type: 'cta',

@@ -2,6 +2,7 @@ import type { MarketingEmailLanguage } from '../admin/dto/send-marketing-email.d
 import {
   ANDROID_APP_URL,
   createMarketingSectionId,
+  DOCUMENTATION_URL,
   type MarketingEmailSection,
 } from './marketing-email-sections';
 
@@ -46,6 +47,13 @@ export function getDefaultDoctorWelcomeSections(
           '<strong>متابعة المرضى الحاليين</strong> بعد الزيارة.',
           '<strong>طلبات تحاليل وأشعة</strong> داخل المحادثة.',
         ],
+      },
+      {
+        id: createMarketingSectionId(),
+        type: 'cta',
+        html: 'اطّلع على <strong>أدلة الاستخدام</strong> — الاستشارات، الدفع على حساب الطبيب، ومكالمات الفيديو.',
+        buttonLabel: 'فتح التوثيق',
+        buttonUrl: DOCUMENTATION_URL,
       },
       {
         id: createMarketingSectionId(),
@@ -104,6 +112,13 @@ export function getDefaultDoctorWelcomeSections(
       {
         id: createMarketingSectionId(),
         type: 'cta',
+        html: 'Consulte la <strong>documentación</strong> — consultas por chat, pago a la cuenta del médico y video.',
+        buttonLabel: 'Abrir documentación',
+        buttonUrl: DOCUMENTATION_URL,
+      },
+      {
+        id: createMarketingSectionId(),
+        type: 'cta',
         html: 'Inicie sesión y empiece a usar la plataforma.',
         buttonLabel: 'Iniciar sesión',
         buttonUrl: '{{login_url}}',
@@ -154,6 +169,13 @@ export function getDefaultDoctorWelcomeSections(
           '<strong>Nachsorge</strong> für bestehende Patienten.',
           '<strong>Labor- und Röntgenanforderungen</strong> im Chat.',
         ],
+      },
+      {
+        id: createMarketingSectionId(),
+        type: 'cta',
+        html: 'Lesen Sie unsere <strong>Dokumentation</strong> — Textberatung, Zahlung auf das Arztkonto und Video.',
+        buttonLabel: 'Dokumentation öffnen',
+        buttonUrl: DOCUMENTATION_URL,
       },
       {
         id: createMarketingSectionId(),
@@ -212,6 +234,13 @@ export function getDefaultDoctorWelcomeSections(
       id: createMarketingSectionId(),
       type: 'screenshots',
       title: 'A glimpse of the platform',
+    },
+    {
+      id: createMarketingSectionId(),
+      type: 'cta',
+      html: 'Browse our <strong>documentation</strong> — text consultations, paying to the doctor\'s bank account, and video visits.',
+      buttonLabel: 'Open documentation',
+      buttonUrl: DOCUMENTATION_URL,
     },
     {
       id: createMarketingSectionId(),

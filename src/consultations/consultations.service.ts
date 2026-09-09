@@ -24,6 +24,7 @@ import { DoctorPatientAccessService } from '../doctor-patient-access/doctor-pati
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 import { PointsService } from '../points/points.service';
 import { PointPricingService } from '../points/point-pricing.service';
+import { doctorBankDetailsForPatient } from '../doctors/doctor-bank-details';
 import { resolveDoctorFee } from '../doctors/doctor-fees';
 import { PresenceGateway } from '../presence/presence.gateway';
 import { DiagnosisService } from '../diagnosis/diagnosis.service';
@@ -585,6 +586,9 @@ export class ConsultationsService {
           'Set your consultation price before asking for payment',
         );
       }
+      const doctor = await this.doctorRepo.findOne({
+        where: { user_id: doctorUserId },
+      });
       c.payment_status = 'awaiting_payment';
       c.payment_amount = fee.amount.toFixed(2);
       c.payment_currency = fee.currency;
@@ -604,6 +608,7 @@ export class ConsultationsService {
           payment_amount: fee.amount,
           payment_currency: fee.currency,
           payment_link: fee.payment_link,
+          ...doctorBankDetailsForPatient(doctor),
         },
         { alwaysPush: true },
       );
