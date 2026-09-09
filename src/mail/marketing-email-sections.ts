@@ -265,8 +265,8 @@ export function getDefaultMarketingSections(
       {
         id: createMarketingSectionId(),
         type: 'cta',
-        html: 'شاهد <strong>أدلة الاستخدام</strong> — استشارات نصية، دفع على حساب الطبيب، ومكالمات فيديو.',
-        buttonLabel: 'فتح التوثيق',
+        html: 'تعرّف على النظام وكيفية إجراء <strong>استشارات نصية ومكالمات فيديو</strong> — زُر التوثيق.',
+        buttonLabel: 'زيارة التوثيق',
         buttonUrl: DOCUMENTATION_URL,
       },
       {
@@ -325,8 +325,8 @@ export function getDefaultMarketingSections(
       {
         id: createMarketingSectionId(),
         type: 'cta',
-        html: 'Vea las <strong>guías de uso</strong> — consultas por chat, pago a la cuenta del médico y videollamadas.',
-        buttonLabel: 'Abrir documentación',
+        html: 'Conozca el sistema y cómo realizar <strong>consultas por chat y videollamadas</strong> — visite la documentación.',
+        buttonLabel: 'Visitar documentación',
         buttonUrl: DOCUMENTATION_URL,
       },
       {
@@ -385,8 +385,8 @@ export function getDefaultMarketingSections(
       {
         id: createMarketingSectionId(),
         type: 'cta',
-        html: 'Lesen Sie unsere <strong>Dokumentation</strong> — Textberatung, Zahlung auf das Arztkonto und Video.',
-        buttonLabel: 'Dokumentation öffnen',
+        html: 'Erfahren Sie mehr über das System und wie Sie <strong>Text- und Video-Konsultationen</strong> starten — besuchen Sie die Dokumentation.',
+        buttonLabel: 'Dokumentation besuchen',
         buttonUrl: DOCUMENTATION_URL,
       },
       {
@@ -444,8 +444,8 @@ export function getDefaultMarketingSections(
     {
       id: createMarketingSectionId(),
       type: 'cta',
-      html: 'Browse our <strong>documentation</strong> — text consultations, paying to the doctor\'s bank account, and video visits.',
-      buttonLabel: 'Open documentation',
+      html: 'Learn more about the system and how to start <strong>text and video consultations</strong> — visit our documentation.',
+      buttonLabel: 'Visit documentation',
       buttonUrl: DOCUMENTATION_URL,
     },
     {
