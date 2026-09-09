@@ -4,7 +4,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 /**
- * Consultation requests must pin patient country to KSA — not from the body.
+ * Consultation requests must resolve patient country from location, not the body.
  */
 const controller = fs.readFileSync(
   path.join(__dirname, 'consultations.controller.ts'),
@@ -14,8 +14,8 @@ const start = controller.slice(controller.indexOf("@Post('start')"));
 const startHandler = start.slice(0, start.indexOf('@Post(', 1));
 
 assert.ok(
-  startHandler.includes('CONSULTATION_PATIENT_COUNTRY'),
-  'start must pin patient country to KSA',
+  startHandler.includes('resolveConsultationCountry'),
+  'start must resolve consultation country from the request',
 );
 assert.ok(
   !/dto\.\w*country/i.test(startHandler),
@@ -27,8 +27,8 @@ const service = fs.readFileSync(
   'utf8',
 );
 assert.ok(
-  service.includes('CONSULTATION_PATIENT_COUNTRY'),
-  'service must bill consultations as KSA',
+  service.includes('resolveConsultationCountry'),
+  'service must expose consultation country resolution',
 );
 const startMethod = service.indexOf('async start(');
 assert.ok(startMethod > -1, 'start( missing');

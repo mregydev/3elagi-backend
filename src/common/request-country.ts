@@ -166,8 +166,8 @@ export async function resolveRequestCountry(
 }
 
 /**
- * Where the patient is for consultations: profile residence first, then the
- * browser geo header (client-side IP), then edge/server IP as a last resort.
+ * Patient signup residence — used for profile display (flags, labels).
+ * Profile first, then client geo / server IP when unset.
  */
 export async function resolvePatientRequestCountry(
   req: RequestLike,
@@ -180,4 +180,24 @@ export async function resolvePatientRequestCountry(
   if (fromClient) return fromClient;
 
   return resolvePricingCountry(req);
+}
+
+/**
+ * Where the patient is consulting from: client geo → edge/server IP → profile
+ * residence as a last resort.
+ */
+export async function resolveConsultationCountry(
+  req: RequestLike,
+  profileCountry?: string | null,
+): Promise<string | null> {
+  const fromClient = clientGeoFromRequest(req.headers);
+  if (fromClient) return fromClient;
+
+  const fromPricing = await resolvePricingCountry(req);
+  if (fromPricing) return fromPricing;
+
+  const fromProfile = profileCountry?.trim().toUpperCase();
+  if (isUsableCode(fromProfile)) return fromProfile;
+
+  return null;
 }

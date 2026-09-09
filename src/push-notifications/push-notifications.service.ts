@@ -108,9 +108,12 @@ export class PushNotificationsService {
     await this.factory.getActive().sendVideoCallCancelled(input);
   }
 
-  async sendAppointmentRequest(input: AppointmentRequestPushInput): Promise<void> {
+  async sendAppointmentRequest(
+    input: AppointmentRequestPushInput,
+    opts?: { alwaysPush?: boolean },
+  ): Promise<void> {
     await this.safePersist(draftFromAppointmentRequest(input));
-    if (this.presence.isUserOnline(input.recipientId)) return;
+    if (!opts?.alwaysPush && this.presence.isUserOnline(input.recipientId)) return;
     await this.factory.getActive().sendAppointmentRequest(input);
   }
 

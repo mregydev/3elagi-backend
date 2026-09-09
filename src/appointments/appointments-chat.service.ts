@@ -29,10 +29,9 @@ import { VideoCallSession } from '../entities/video-call-session.entity';
 import { PointsService } from '../points/points.service';
 import { ConsultationsService } from '../consultations/consultations.service';
 import { clampConsultationPrice } from '../points/message-price.constants';
-import { CONSULTATION_PATIENT_COUNTRY } from '../common/patient-countries';
 import {
   type RequestLike,
-  resolvePatientRequestCountry,
+  resolveConsultationCountry,
 } from '../common/request-country';
 import { doctorPaymentDetailsForPatient } from '../doctors/doctor-payment-details';
 import { resolveDoctorFee } from '../doctors/doctor-fees';
@@ -314,15 +313,15 @@ export class AppointmentsChatService {
     return parts.join('\n').slice(0, 4000);
   }
 
-  /** Profile residence → client geo header → server IP / edge headers. */
-  async resolvePatientCountry(
+  /** Client geo → server IP / edge headers → profile residence fallback. */
+  async resolveConsultationCountry(
     patientUserId: string,
     req: RequestLike,
   ): Promise<string | null> {
     const profile = await this.profileRepo.findOne({
       where: { user_id: patientUserId },
     });
-    return resolvePatientRequestCountry(req, profile?.country);
+    return resolveConsultationCountry(req, profile?.country);
   }
 
   async bookFromChat(
@@ -415,7 +414,7 @@ export class AppointmentsChatService {
           queue_position: count + 1,
           booked_via_app: true,
           patient_user_id: patientUserId,
-          patient_country: CONSULTATION_PATIENT_COUNTRY,
+          patient_country: patientCountry?.trim().toUpperCase() || null,
           reserved_points: price,
           points_settled: false,
           ai_patient_insight: insightForDoctor || null,
@@ -457,14 +456,17 @@ export class AppointmentsChatService {
     await this.emitChatMessage(savedMessage, patientUserId, doctorUserId);
 
     void this.pushNotifications
-      .sendAppointmentRequest({
-        recipientId: doctorUserId,
-        appointmentId: appointment.id,
-        patientUserId,
-        patientName: profile.name,
-        date,
-        time: formatTimeLabel(timeDb),
-      })
+      .sendAppointmentRequest(
+        {
+          recipientId: doctorUserId,
+          appointmentId: appointment.id,
+          patientUserId,
+          patientName: profile.name,
+          date,
+          time: formatTimeLabel(timeDb),
+        },
+        { alwaysPush: true },
+      )
       .catch((err) => this.logger.error('Appointment request push failed', err));
 
     return { appointment, message: this.mapMessage(savedMessage) };
@@ -533,13 +535,12 @@ export class AppointmentsChatService {
   }
 
   /** Cash the doctor charges this patient for a video visit, if any. */
-  private resolveVisitFee(doctor: Doctor | null) {
+  private resolveVisitFee(
+    doctor: Doctor | null,
+    patientCountry?: string | null,
+  ) {
     if (!doctor) return { amount: 0, currency: 'USD' as const, payment_link: null };
-    return resolveDoctorFee(
-      doctor,
-      CONSULTATION_PATIENT_COUNTRY,
-      'video',
-    );
+    return resolveDoctorFee(doctor, patientCountry, 'video');
   }
 
   /**
@@ -636,8 +637,7 @@ export class AppointmentsChatService {
         );
         await this.appointmentRepo.save(appointment);
       } else {
-        void requestCountry;
-        const fee = this.resolveVisitFee(doctor);
+        const fee = this.resolveVisitFee(doctor, appointment.patient_country);
         if (fee.amount > 0 && appointment.payment_status !== 'paid') {
           // Stays pending, and stays without a meeting link, until the patient
           // pays and the doctor approves the receipt.

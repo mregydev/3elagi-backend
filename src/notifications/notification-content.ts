@@ -85,8 +85,8 @@ export function draftFromAppointmentRequest(
   return {
     userId: input.recipientId,
     type: 'appointment_request',
-    title: 'Appointment request',
-    body: `${patientName} requested ${input.date} ${input.time}`,
+    title: 'Video consultation request',
+    body: `${patientName} requested a video visit on ${input.date} at ${input.time}`,
     data: {
       type: 'appointment_request',
       appointmentId: input.appointmentId,

@@ -24,7 +24,6 @@ import { DoctorPatientAccessService } from '../doctor-patient-access/doctor-pati
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 import { PointsService } from '../points/points.service';
 import { PointPricingService } from '../points/point-pricing.service';
-import { CONSULTATION_PATIENT_COUNTRY } from '../common/patient-countries';
 import { doctorPaymentDetailsForPatient } from '../doctors/doctor-payment-details';
 import { resolveDoctorFee } from '../doctors/doctor-fees';
 import { PresenceGateway } from '../presence/presence.gateway';
@@ -36,7 +35,7 @@ import {
 } from '../points/message-price.constants';
 import {
   type RequestLike,
-  resolvePatientRequestCountry,
+  resolveConsultationCountry,
 } from '../common/request-country';
 import { DocumentType } from '../entities/medical-document.entity';
 import { PatientProfile } from '../entities/patient-profile.entity';
@@ -433,15 +432,15 @@ export class ConsultationsService {
     return user;
   }
 
-  /** Profile residence → client geo header → server IP / edge headers. */
-  async resolvePatientCountry(
+  /** Client geo → server IP / edge headers → profile residence fallback. */
+  async resolveConsultationCountry(
     patientUserId: string,
     req: RequestLike,
   ): Promise<string | null> {
     const profile = await this.patientProfileRepo.findOne({
       where: { user_id: patientUserId },
     });
-    return resolvePatientRequestCountry(req, profile?.country);
+    return resolveConsultationCountry(req, profile?.country);
   }
 
   async start(
@@ -621,7 +620,7 @@ export class ConsultationsService {
     return { consultation: this.mapConsultation(saved) };
   }
 
-  /** The doctor's price for this patient (always KSA for consultations). */
+  /** The doctor's price for this patient at their consultation location. */
   private async resolveConsultationFee(
     c: Consultation,
     kind: 'text' | 'video',
@@ -632,7 +631,7 @@ export class ConsultationsService {
       where: { user_id: c.doctor_id },
     });
     if (!doctor) return { amount: 0, currency: 'USD' as const, payment_link: null };
-    return resolveDoctorFee(doctor, CONSULTATION_PATIENT_COUNTRY, kind);
+    return resolveDoctorFee(doctor, c.patient_country, kind);
   }
 
   /** Opens an accepted consultation and tells the patient. */

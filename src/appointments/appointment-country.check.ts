@@ -33,15 +33,15 @@ assert.ok(
   'appointments must store patient_country',
 );
 assert.ok(
-  controller.includes('CONSULTATION_PATIENT_COUNTRY') &&
+  controller.includes('resolveConsultationCountry') &&
     controller.includes('bookFromChat'),
-  'chat-book must pin video patient country to KSA',
+  'chat-book must resolve video patient country from the request',
 );
 assert.ok(
-  appointments.includes('patient_country: CONSULTATION_PATIENT_COUNTRY') &&
-    appointments.includes('CONSULTATION_PATIENT_COUNTRY') &&
+  appointments.includes('patient_country: patientCountry') &&
+    appointments.includes('resolveVisitFee') &&
     appointments.includes("'video'"),
-  'video visits must store and bill as KSA',
+  'video visits must store and bill using the resolved patient country',
 );
 
 console.log('appointment-country.check OK');
