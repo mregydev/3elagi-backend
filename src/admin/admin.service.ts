@@ -200,6 +200,11 @@ export class AdminService {
       throw new BadRequestException('Password must be at least 8 characters');
     }
 
+    const priceLocal =
+      request.price_local != null ? Number(request.price_local) : null;
+    const priceUsd =
+      request.price_usd != null ? Number(request.price_usd) : null;
+
     const created = await this.createDoctor({
       email: request.email,
       password,
@@ -209,7 +214,9 @@ export class AdminService {
       clinic_location: request.clinic_location ?? undefined,
       photo_url: request.photo_url ?? undefined,
       speciality_id: request.speciality_id,
-      consultation_price: 1,
+      consultation_price: priceUsd ?? priceLocal ?? 1,
+      text_price_local: priceLocal ?? undefined,
+      text_price_usd: priceUsd ?? undefined,
     });
 
     await this.doctorRegistrationRequests.delete(requestId);

@@ -179,6 +179,7 @@ import { UserLoginStats1778740000000 } from './migrations/1778740000000-UserLogi
 import { DoctorSpecialityChangeRequests1778750000000 } from './migrations/1778750000000-DoctorSpecialityChangeRequests';
 import { PatientRecentVitals1778760000000 } from './migrations/1778760000000-PatientRecentVitals';
 import { DoctorRegistrationRequestPhoto1778770000000 } from './migrations/1778770000000-DoctorRegistrationRequestPhoto';
+import { DoctorRegistrationRequestPrices1778800000000 } from './migrations/1778800000000-DoctorRegistrationRequestPrices';
 import { Subspecialties1778780000000 } from './migrations/1778780000000-Subspecialties';
 import { DoctorPatientPaymentMethod1778790000000 } from './migrations/1778790000000-DoctorPatientPaymentMethod';
 import { SpecialtyTestAccount } from './entities/specialty-test-account.entity';
@@ -356,6 +357,7 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
           DoctorSpecialityChangeRequests1778750000000,
           PatientRecentVitals1778760000000,
           DoctorRegistrationRequestPhoto1778770000000,
+          DoctorRegistrationRequestPrices1778800000000,
           Subspecialties1778780000000,
           DoctorPatientPaymentMethod1778790000000,
         ],

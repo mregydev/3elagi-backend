@@ -30,6 +30,14 @@ export class DoctorRegistrationRequest {
   @Column({ type: 'varchar', length: 1024, nullable: true })
   photo_url: string | null;
 
+  /** Text consultation price in the doctor's home currency. */
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  price_local: number | null;
+
+  /** Text consultation price for patients outside the doctor's country (USD). */
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  price_usd: number | null;
+
   @Column({ type: 'uuid' })
   speciality_id: string;
 

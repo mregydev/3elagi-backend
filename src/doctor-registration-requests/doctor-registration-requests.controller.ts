@@ -42,6 +42,8 @@ export class DoctorRegistrationRequestsController {
       country?: string;
       speciality_id?: string;
       clinic_location?: string;
+      price_local?: string;
+      price_usd?: string;
     },
     @UploadedFile() photo: Express.Multer.File | undefined,
   ) {
@@ -55,6 +57,8 @@ export class DoctorRegistrationRequestsController {
       country: body.country ?? '',
       specialityId: body.speciality_id ?? '',
       clinicLocation: body.clinic_location ?? '',
+      priceLocal: body.price_local ?? '',
+      priceUsd: body.price_usd ?? '',
       photo,
     });
   }

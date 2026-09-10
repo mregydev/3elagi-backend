@@ -30,6 +30,8 @@ export class DoctorRegistrationRequestsService {
     country: string;
     specialityId: string;
     clinicLocation?: string;
+    priceLocal?: string;
+    priceUsd?: string;
     photo: Express.Multer.File;
   }) {
     const doctorName = (input.doctorName || '').trim();
@@ -58,6 +60,9 @@ export class DoctorRegistrationRequestsService {
     if (!specialityId) {
       throw new BadRequestException('Speciality is required');
     }
+
+    const priceLocal = this.parsePrice(input.priceLocal, 'Local consultation price');
+    const priceUsd = this.parsePrice(input.priceUsd, 'International consultation price');
 
     const speciality = await this.specialityRepo.findOne({
       where: { id: specialityId },
@@ -92,6 +97,8 @@ export class DoctorRegistrationRequestsService {
         country,
         clinic_location: clinicLocation,
         photo_url: photoUrl,
+        price_local: priceLocal,
+        price_usd: priceUsd,
         speciality_id: speciality.id,
         speciality_name_en: speciality.name_en,
         speciality_name_ar: speciality.name_ar,
@@ -137,6 +144,18 @@ export class DoctorRegistrationRequestsService {
     return { ok: true as const };
   }
 
+  private parsePrice(raw: string | undefined, label: string): number {
+    const trimmed = (raw ?? '').trim();
+    if (!trimmed) {
+      throw new BadRequestException(`${label} is required`);
+    }
+    const value = Number(trimmed.replace(/,/g, ''));
+    if (!Number.isFinite(value) || value <= 0) {
+      throw new BadRequestException(`${label} must be a positive number`);
+    }
+    return Math.round(value * 100) / 100;
+  }
+
   private mapRow(row: DoctorRegistrationRequest) {
     return {
       id: row.id,
@@ -146,6 +165,8 @@ export class DoctorRegistrationRequestsService {
       country: row.country,
       clinic_location: row.clinic_location,
       photo_url: row.photo_url,
+      price_local: row.price_local != null ? Number(row.price_local) : null,
+      price_usd: row.price_usd != null ? Number(row.price_usd) : null,
       speciality_id: row.speciality_id,
       speciality_name_en: row.speciality_name_en,
       speciality_name_ar: row.speciality_name_ar,
