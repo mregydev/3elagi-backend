@@ -22,6 +22,7 @@ import { Roles } from '../auth/roles.decorator';
 import { Public } from '../auth/public.decorator';
 import { AdminService } from './admin.service';
 import { CreateAdminDoctorDto } from './dto/create-admin-doctor.dto';
+import { CreateDoctorFromRegistrationDto } from './dto/create-doctor-from-registration.dto';
 import { PointPricingService } from '../points/point-pricing.service';
 import { ContactService } from '../contact/contact.service';
 import { DoctorRegistrationRequestsService } from '../doctor-registration-requests/doctor-registration-requests.service';
@@ -387,6 +388,19 @@ export class AdminController {
     @Body() body: { read?: boolean },
   ) {
     return this.doctorRegistrationRequests.markRead(id, body?.read !== false);
+  }
+
+  @Delete('doctor-registrations/:id')
+  deleteDoctorRegistration(@Param('id') id: string) {
+    return this.doctorRegistrationRequests.delete(id);
+  }
+
+  @Post('doctor-registrations/:id/create-doctor')
+  createDoctorFromRegistration(
+    @Param('id') id: string,
+    @Body() body: CreateDoctorFromRegistrationDto,
+  ) {
+    return this.service.createDoctorFromRegistrationRequest(id, body?.password);
   }
 
   @Get('doctor-speciality-changes')

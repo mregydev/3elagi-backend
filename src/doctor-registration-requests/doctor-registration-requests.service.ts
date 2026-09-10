@@ -110,8 +110,7 @@ export class DoctorRegistrationRequestsService {
   }
 
   async findOneForAdmin(id: string) {
-    const row = await this.requestRepo.findOne({ where: { id } });
-    if (!row) throw new NotFoundException('Registration request not found');
+    const row = await this.findById(id);
     if (!row.read_at) {
       row.read_at = new Date();
       await this.requestRepo.save(row);
@@ -120,11 +119,22 @@ export class DoctorRegistrationRequestsService {
   }
 
   async markRead(id: string, read: boolean) {
-    const row = await this.requestRepo.findOne({ where: { id } });
-    if (!row) throw new NotFoundException('Registration request not found');
+    const row = await this.findById(id);
     row.read_at = read ? row.read_at ?? new Date() : null;
     await this.requestRepo.save(row);
     return this.mapRow(row);
+  }
+
+  async findById(id: string) {
+    const row = await this.requestRepo.findOne({ where: { id } });
+    if (!row) throw new NotFoundException('Registration request not found');
+    return row;
+  }
+
+  async delete(id: string) {
+    const row = await this.findById(id);
+    await this.requestRepo.remove(row);
+    return { ok: true as const };
   }
 
   private mapRow(row: DoctorRegistrationRequest) {

@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { randomBytes } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository, EntityMetadataNotFoundError } from 'typeorm';
 import { User, UserRole } from '../entities/user.entity';
@@ -47,6 +48,7 @@ import { AuthService } from '../auth/auth.service';
 import { CreateAdminDoctorDto } from './dto/create-admin-doctor.dto';
 import { AccountDeletionService } from '../account-deletion/account-deletion.service';
 import { UserAnalyticsService } from '../analytics/user-analytics.service';
+import { DoctorRegistrationRequestsService } from '../doctor-registration-requests/doctor-registration-requests.service';
 
 const APPROVAL_VALUES: ApprovalStatus[] = ['pending', 'approved', 'rejected'];
 
@@ -104,6 +106,7 @@ export class AdminService {
     private authService: AuthService,
     private accountDeletion: AccountDeletionService,
     private userAnalytics: UserAnalyticsService,
+    private doctorRegistrationRequests: DoctorRegistrationRequestsService,
   ) {}
 
   // ----- Specialities (market visibility) -----
@@ -182,6 +185,43 @@ export class AdminService {
       access_token: result.tokens.accessToken,
       refresh_token: result.tokens.refreshToken,
       welcome_email: welcomeEmail,
+    };
+  }
+
+  /** Create a verified doctor from a public registration request, then remove the request. */
+  async createDoctorFromRegistrationRequest(
+    requestId: string,
+    passwordInput?: string,
+  ) {
+    const request = await this.doctorRegistrationRequests.findById(requestId);
+    const password =
+      (passwordInput || '').trim() || randomBytes(9).toString('base64url');
+    if (password.length < 8) {
+      throw new BadRequestException('Password must be at least 8 characters');
+    }
+
+    const created = await this.createDoctor({
+      email: request.email,
+      password,
+      name: request.doctor_name,
+      phone: request.phone,
+      country: request.country,
+      clinic_location: request.clinic_location ?? undefined,
+      photo_url: request.photo_url ?? undefined,
+      speciality_id: request.speciality_id,
+      consultation_price: 1,
+    });
+
+    await this.doctorRegistrationRequests.delete(requestId);
+
+    const profile = created.profile as Doctor | undefined;
+    return {
+      ok: true as const,
+      doctor_id: profile?.id ?? null,
+      user_id: created.user_id as string,
+      email: request.email,
+      password,
+      name: request.doctor_name,
     };
   }
 
