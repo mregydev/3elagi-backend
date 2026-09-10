@@ -61,6 +61,7 @@ assert.strictEqual(
 
 assert.strictEqual(doctorLocalCurrency('EG'), 'EGP');
 assert.strictEqual(doctorLocalCurrency('JO'), 'JOD');
+assert.strictEqual(doctorLocalCurrency('GB'), 'GBP');
 assert.strictEqual(doctorLocalCurrency('DE'), 'USD');
 
 // Starting prices: Egypt 200 EGP / Jordan 15 JOD at home, 50 USD abroad.

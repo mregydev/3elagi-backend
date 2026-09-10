@@ -44,7 +44,7 @@ export function defaultDoctorFeeColumns(country?: string | null): {
     video_price_usd: fees.usd.toFixed(2),
   };
 }
-export type FeeCurrency = 'EGP' | 'JOD' | 'USD';
+export type FeeCurrency = 'EGP' | 'JOD' | 'USD' | 'GBP';
 
 export interface DoctorFee {
   amount: number;
@@ -53,11 +53,12 @@ export interface DoctorFee {
   payment_link: string | null;
 }
 
-/** The doctor's home currency. Anything but Egypt/Jordan bills in USD. */
+/** The doctor's home currency. Egypt, Jordan, and UK have distinct local codes. */
 export function doctorLocalCurrency(country?: string | null): FeeCurrency {
   const code = country?.trim().toUpperCase();
   if (code === 'EG') return 'EGP';
   if (code === 'JO') return 'JOD';
+  if (code === 'GB') return 'GBP';
   return 'USD';
 }
 
