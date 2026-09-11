@@ -2,7 +2,7 @@ import type { MarketingEmailLanguage } from '../admin/dto/send-marketing-email.d
 import {
   compileMarketingSections,
   getDefaultMarketingSections,
-  REGISTER_URL,
+  registerWithUsUrl,
   type MarketingEmailSection,
 } from './marketing-email-sections';
 import {
@@ -172,7 +172,7 @@ const COPY: Record<MarketingEmailLanguage, MarketingCopy> = {
         '• Intuitive consultation tools & interactive visual record navigation',
         '',
         'Register your interest:',
-        REGISTER_URL,
+        '{{register_url}}',
         '',
         'We would be honoured to welcome you as a founding doctor in the 3elagi community.',
         '',
@@ -222,7 +222,7 @@ const COPY: Record<MarketingEmailLanguage, MarketingCopy> = {
         '',
         'بالتسجيل في 3elagi، تنضم إلى منصة استشارات عن بُعد للخليج والشرق الأوسط.',
         '',
-        `التسجيل: ${REGISTER_URL}`,
+        'التسجيل: {{register_url}}',
         '',
         '— برنامج الأطباء المؤسسين 3elagi',
       ].join('\n'),
@@ -269,7 +269,7 @@ const COPY: Record<MarketingEmailLanguage, MarketingCopy> = {
         '',
         '¿Es usted un médico en ejercicio que busca ampliar su base de pacientes?',
         '',
-        `Registro: ${REGISTER_URL}`,
+        'Registro: {{register_url}}',
         '',
         '— Programa de Médicos Fundadores 3elagi',
       ].join('\n'),
@@ -317,7 +317,7 @@ const COPY: Record<MarketingEmailLanguage, MarketingCopy> = {
         '',
         'Sind Sie praktizierender Arzt und möchten Ihre Patientenbasis vergrößern?',
         '',
-        `Registrierung: ${REGISTER_URL}`,
+        'Registrierung: {{register_url}}',
         '',
         '— 3elagi Gründungsärzte-Programm',
       ].join('\n'),
@@ -406,8 +406,15 @@ function htmlToPlainText(html: string): string {
     .trim();
 }
 
-function applyNamePlaceholders(content: string, name: string): string {
-  return content.replace(/\{\{name\}\}/g, name);
+function applyMarketingPlaceholders(
+  content: string,
+  name: string,
+  recipientEmail?: string,
+): string {
+  const registerUrl = registerWithUsUrl(recipientEmail);
+  return content
+    .replace(/\{\{name\}\}/g, name)
+    .replace(/\{\{register_url\}\}/g, registerUrl);
 }
 
 export function buildMarketingEmailHtml(
@@ -417,6 +424,7 @@ export function buildMarketingEmailHtml(
   theme?: MarketingEmailTheme,
   sections?: MarketingEmailSection[],
   forPreview = false,
+  recipientEmail?: string,
 ): { subject: string; html: string; text: string } {
   const resolvedTheme = resolveMarketingEmailTheme(theme);
   const colors = themeColors(resolvedTheme);
@@ -435,13 +443,14 @@ export function buildMarketingEmailHtml(
     ? compiledFromSections
     : customBodyHtml?.trim() ||
       getDefaultMarketingBodyHtml(language, resolvedTheme);
-  const bodyInner = applyNamePlaceholders(
+  const bodyInner = applyMarketingPlaceholders(
     resolveMarketingImageUrls(
       customBodyHtml?.trim() && !compiledFromSections
         ? rethemeMarketingBodyHtml(rawBody, resolvedTheme)
         : rawBody,
     ),
     name,
+    recipientEmail,
   );
 
   const html = `<!DOCTYPE html>
@@ -483,9 +492,11 @@ export function buildMarketingEmailHtml(
 </body>
 </html>`;
 
-  const text = customBodyHtml?.trim()
-    ? htmlToPlainText(bodyInner)
-    : copy.plainText(name);
+  const text = applyMarketingPlaceholders(
+    customBodyHtml?.trim() ? htmlToPlainText(bodyInner) : copy.plainText(name),
+    name,
+    recipientEmail,
+  );
 
   return {
     subject: copy.subject(name),

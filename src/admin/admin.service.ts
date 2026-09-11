@@ -666,6 +666,8 @@ export class AdminService {
       input.bodyHtml,
       input.themeColor,
       input.sections,
+      false,
+      input.email,
     );
     await this.mailService.sendDoctorMarketingInvite({
       to: input.email,

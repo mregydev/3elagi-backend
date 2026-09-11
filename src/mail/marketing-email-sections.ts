@@ -12,6 +12,13 @@ import {
 
 const REGISTER_URL = 'https://www.3elagi.net/register-with-us';
 const DOCUMENTATION_URL = 'https://www.3elagi.net/documentation';
+
+/** Public register-with-us page — optional email pre-fills the form. */
+export function registerWithUsUrl(email?: string | null): string {
+  const trimmed = email?.trim().toLowerCase();
+  if (!trimmed) return REGISTER_URL;
+  return `${REGISTER_URL}?email=${encodeURIComponent(trimmed)}`;
+}
 const ANDROID_APP_URL =
   process.env.ANDROID_APP_URL?.trim() ||
   'https://play.google.com/apps/internaltest/4700519020943782529';
@@ -274,7 +281,7 @@ export function getDefaultMarketingSections(
         type: 'cta',
         html: 'سجّل اهتمامك — سنتواصل معك لإعداد ملفك والترحيب بك في مجتمع الأطباء المؤسسين.',
         buttonLabel: 'انضم إلينا — سجّل اهتمامك',
-        buttonUrl: REGISTER_URL,
+        buttonUrl: '{{register_url}}',
       },
     ];
   }
@@ -334,7 +341,7 @@ export function getDefaultMarketingSections(
         type: 'cta',
         html: 'Registre su interés — le contactaremos para configurar su perfil y darle la bienvenida a la comunidad fundadora.',
         buttonLabel: 'Únase — registre su interés',
-        buttonUrl: REGISTER_URL,
+        buttonUrl: '{{register_url}}',
       },
     ];
   }
@@ -394,7 +401,7 @@ export function getDefaultMarketingSections(
         type: 'cta',
         html: 'Melden Sie Ihr Interesse an — wir kontaktieren Sie zur Profileinrichtung und begrüßen Sie in der Gründungsgemeinschaft.',
         buttonLabel: 'Mitmachen — Interesse anmelden',
-        buttonUrl: REGISTER_URL,
+        buttonUrl: '{{register_url}}',
       },
     ];
   }
@@ -453,7 +460,7 @@ export function getDefaultMarketingSections(
       type: 'cta',
       html: 'Register your interest — we will follow up to set up your profile and welcome you to the founding doctor community.',
       buttonLabel: 'Join us — register your interest',
-      buttonUrl: REGISTER_URL,
+      buttonUrl: '{{register_url}}',
     },
   ];
 }
