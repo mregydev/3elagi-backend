@@ -3,8 +3,10 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { randomBytes } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
+
+/** Default login password when admin creates a doctor without specifying one. */
+export const DEFAULT_CREATED_DOCTOR_PASSWORD = 'Aa123456';
 import { In, Repository, EntityMetadataNotFoundError } from 'typeorm';
 import { User, UserRole } from '../entities/user.entity';
 import { Doctor, ApprovalStatus } from '../entities/doctor.entity';
@@ -195,7 +197,7 @@ export class AdminService {
   ) {
     const request = await this.doctorRegistrationRequests.findById(requestId);
     const password =
-      (passwordInput || '').trim() || randomBytes(9).toString('base64url');
+      (passwordInput || '').trim() || DEFAULT_CREATED_DOCTOR_PASSWORD;
     if (password.length < 8) {
       throw new BadRequestException('Password must be at least 8 characters');
     }
