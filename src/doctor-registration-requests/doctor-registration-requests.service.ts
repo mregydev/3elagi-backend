@@ -9,6 +9,7 @@ import { DoctorRegistrationRequest } from '../entities/doctor-registration-reque
 import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
 import { DOCTOR_SIGNUP_COUNTRY_CODES } from '../common/patient-countries';
 import { UploadsService } from '../uploads/uploads.service';
+import { DEFAULT_DOCTOR_FEES } from '../doctors/doctor-fees';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ALLOWED_COUNTRIES = new Set<string>(DOCTOR_SIGNUP_COUNTRY_CODES);
@@ -61,8 +62,22 @@ export class DoctorRegistrationRequestsService {
       throw new BadRequestException('Speciality is required');
     }
 
-    const priceLocal = this.parsePrice(input.priceLocal, 'Local consultation price');
-    const priceUsd = this.parsePrice(input.priceUsd, 'International consultation price');
+    const feeDefaults =
+      country === 'JO'
+        ? DEFAULT_DOCTOR_FEES.JO
+        : country === 'EG'
+          ? DEFAULT_DOCTOR_FEES.EG
+          : DEFAULT_DOCTOR_FEES.INTL;
+    const priceLocal = this.parseOptionalPrice(
+      input.priceLocal,
+      feeDefaults.local,
+      'Local consultation price',
+    );
+    const priceUsd = this.parseOptionalPrice(
+      input.priceUsd,
+      feeDefaults.usd,
+      'International consultation price',
+    );
 
     const speciality = await this.specialityRepo.findOne({
       where: { id: specialityId },
@@ -144,11 +159,13 @@ export class DoctorRegistrationRequestsService {
     return { ok: true as const };
   }
 
-  private parsePrice(raw: string | undefined, label: string): number {
+  private parseOptionalPrice(
+    raw: string | undefined,
+    fallback: number,
+    label: string,
+  ): number {
     const trimmed = (raw ?? '').trim();
-    if (!trimmed) {
-      throw new BadRequestException(`${label} is required`);
-    }
+    if (!trimmed) return fallback;
     const value = Number(trimmed.replace(/,/g, ''));
     if (!Number.isFinite(value) || value <= 0) {
       throw new BadRequestException(`${label} must be a positive number`);
