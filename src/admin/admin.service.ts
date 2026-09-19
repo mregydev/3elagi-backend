@@ -156,6 +156,11 @@ export class AdminService {
       email_verification_expires_at: null,
     });
     await this.setDoctorApproval(doctorId, 'approved');
+    const welcomePassword =
+      (dto.password || '').trim() || DEFAULT_CREATED_DOCTOR_PASSWORD;
+    await this.doctorRepo.update(doctorId, {
+      welcome_password: welcomePassword,
+    });
     const approved = await this.doctorRepo.findOne({
       where: { id: doctorId },
       relations: ['speciality'],
@@ -515,6 +520,64 @@ export class AdminService {
       attachments: marketingEmailLogoAttachments(),
     });
     return { ok: true, email };
+  }
+
+  async sendDoctorWelcomeEmailBatch(dto: {
+    name: string;
+    password: string;
+    emails: string[];
+    language: SendMarketingEmailDto['language'];
+    themeColor?: SendMarketingEmailDto['themeColor'];
+    sections: MarketingEmailSection[];
+  }) {
+    const name = dto.name.trim();
+    const password = dto.password;
+    if (!name) {
+      throw new BadRequestException('Doctor name is required');
+    }
+
+    const seen = new Set<string>();
+    const uniqueEmails: string[] = [];
+    for (const raw of dto.emails) {
+      const email = raw.trim().toLowerCase();
+      if (!email || seen.has(email)) continue;
+      seen.add(email);
+      uniqueEmails.push(email);
+    }
+
+    if (!uniqueEmails.length) {
+      throw new BadRequestException('At least one valid email is required');
+    }
+
+    const results: Array<{ email: string; ok: boolean; error?: string }> = [];
+    for (const email of uniqueEmails) {
+      try {
+        await this.sendDoctorWelcomeEmail({
+          name,
+          email,
+          password,
+          language: dto.language,
+          themeColor: dto.themeColor,
+          sections: dto.sections,
+        });
+        results.push({ email, ok: true });
+      } catch (err) {
+        results.push({
+          email,
+          ok: false,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    const sent = results.filter((r) => r.ok).length;
+    return {
+      ok: sent > 0,
+      sent,
+      failed: results.length - sent,
+      total: results.length,
+      results,
+    };
   }
 
   private async sendDoctorWelcomeEmailOnCreate(input: {

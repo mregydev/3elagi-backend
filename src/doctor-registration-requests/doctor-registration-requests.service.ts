@@ -9,7 +9,9 @@ import { DoctorRegistrationRequest } from '../entities/doctor-registration-reque
 import { DoctorSpeciality } from '../entities/doctor-speciality.entity';
 import { DOCTOR_SIGNUP_COUNTRY_CODES } from '../common/patient-countries';
 import { UploadsService } from '../uploads/uploads.service';
+import { MailService } from '../mail/mail.service';
 import { DEFAULT_DOCTOR_FEES } from '../doctors/doctor-fees';
+import { DOCTOR_REGISTRATION_NOTIFY_EMAILS } from './doctor-registration-notify.constants';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ALLOWED_COUNTRIES = new Set<string>(DOCTOR_SIGNUP_COUNTRY_CODES);
@@ -22,6 +24,7 @@ export class DoctorRegistrationRequestsService {
     @InjectRepository(DoctorSpeciality)
     private readonly specialityRepo: Repository<DoctorSpeciality>,
     private readonly uploads: UploadsService,
+    private readonly mail: MailService,
   ) {}
 
   async submit(input: {
@@ -120,6 +123,8 @@ export class DoctorRegistrationRequestsService {
       }),
     );
 
+    void this.notifyAdminsOfRegistration(saved).catch(() => undefined);
+
     return { ok: true, id: saved.id };
   }
 
@@ -157,6 +162,35 @@ export class DoctorRegistrationRequestsService {
     const row = await this.findById(id);
     await this.requestRepo.remove(row);
     return { ok: true as const };
+  }
+
+  private async notifyAdminsOfRegistration(
+    row: DoctorRegistrationRequest,
+  ): Promise<void> {
+    const subject = `New doctor registration: ${row.doctor_name}`;
+    const text = [
+      'A new doctor registration was submitted on 3elagi.',
+      '',
+      `Name: ${row.doctor_name}`,
+      `Email: ${row.email}`,
+      `Phone: ${row.phone}`,
+      `Country: ${row.country}`,
+      `Speciality: ${row.speciality_name_en} / ${row.speciality_name_ar}`,
+      row.clinic_location ? `Clinic: ${row.clinic_location}` : null,
+      row.price_local != null ? `Local price: ${row.price_local}` : null,
+      row.price_usd != null ? `USD price: ${row.price_usd}` : null,
+      `Request ID: ${row.id}`,
+      '',
+      'Review it in Admin → Doctor registrations.',
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    await Promise.all(
+      DOCTOR_REGISTRATION_NOTIFY_EMAILS.map((to) =>
+        this.mail.sendMail({ to, subject, text }),
+      ),
+    );
   }
 
   private parseOptionalPrice(

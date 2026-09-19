@@ -65,6 +65,10 @@ export class Doctor {
   @Column({ nullable: true })
   email: string;
 
+  /** Admin-only: password set at account creation for welcome emails. */
+  @Column({ type: 'varchar', length: 128, nullable: true })
+  welcome_password: string | null;
+
   @Column({ type: 'text', nullable: true })
   professional_title: string | null;
 
