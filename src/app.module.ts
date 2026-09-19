@@ -183,6 +183,7 @@ import { DoctorRegistrationRequestPrices1778800000000 } from './migrations/17788
 import { DoctorWelcomePassword1778810000000 } from './migrations/1778810000000-DoctorWelcomePassword';
 import { Subspecialties1778780000000 } from './migrations/1778780000000-Subspecialties';
 import { DoctorPatientPaymentMethod1778790000000 } from './migrations/1778790000000-DoctorPatientPaymentMethod';
+import { GastroenterologySpeciality1778820000000 } from './migrations/1778820000000-GastroenterologySpeciality';
 import { SpecialtyTestAccount } from './entities/specialty-test-account.entity';
 import { DeletedAccount } from './entities/deleted-account.entity';
 import { UserNotification } from './entities/user-notification.entity';
@@ -362,6 +363,7 @@ import { MedicalDocumentRequestsModule } from './medical-document-requests/medic
           DoctorWelcomePassword1778810000000,
           Subspecialties1778780000000,
           DoctorPatientPaymentMethod1778790000000,
+          GastroenterologySpeciality1778820000000,
         ],
         migrationsRun: true,
         migrationsTransactionMode: 'each',
